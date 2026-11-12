@@ -1,0 +1,24 @@
+# 忽略個人身分與本地記憶庫
+USER.md
+memory/
+
+# 忽略 Python 相關快取與虛擬環境
+__pycache__/
+*.pyc
+*.pyo
+.pyd
+.venv/
+env/
+venv/
+pip-cache/
+
+# 忽略 Streamlit 本地設定與快取
+.streamlit/
+*.log
+
+# 忽略作業系統產生的隱藏垃圾檔案
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
