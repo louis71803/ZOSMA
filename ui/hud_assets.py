@@ -478,8 +478,11 @@ HUD_CSS = """
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
-  gap: 9px;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 8px;
+  max-height: 205px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .metric-card {
@@ -1202,15 +1205,39 @@ export default function(component) {
   const METRIC_ZH = {
     ppco2_1h_mmHg: '艙內 1h 二氧化碳分壓',
     proton_flux_10mev_pfu: 'GOES ≥10MeV 質子通量',
+    proton_flux_100mev_pfu: 'GOES ≥100MeV 質子通量',
+    dose_rate_uGy_h: 'DOSTEL 區域劑量率',
     career_dose_mSv: '累積任務輻射劑量',
+    module_spl_dBA: '艙段空間聲壓級',
     crew_leq8_dBA: '乘員 8 小時噪音暴露',
+    daily_noise_dose_pct: '每日噪音劑量百分比',
+    audiogram_sts_max_dB: '純音聽力暫時閾移 (STS)',
+    p_total_kPa: '艙內總氣壓',
+    pio2_mmHg: '吸入氧分壓 (PIO2)',
+    temp_C: '艙內環境溫度',
+    rh_pct: '艙內相對濕度',
+    max_smac_ratio: '揮發氣體最大 SMAC 比',
+    water_toc_mg_L: '飲水總有機碳 (TOC)',
+    water_iodine_mg_L: '飲水殘餘碘濃度',
+    microbial_max_limit_ratio: '空氣/表面/水微生物比',
+    particulate_max_limit_ratio: '懸浮微粒濃度上限比',
     sleep_tst_h: '腕錶睡眠總時數',
+    pvt_speed_1_per_s: 'PVT-B 反應速度',
+    workload_bedford: 'Bedford 工作負荷評分',
+    stress_vas: '主觀壓力評分 (VAS)',
+    circadian_midpoint_shift_h: '晝夜節律中點偏移',
     co2_sensor_qc: 'CO2 感測器凍結檢核',
     rest_hr_bpm: '靜息心率',
+    sbp_mmHg: '收縮壓 (PTT SBP)',
     spo2_pct: '血氧飽和度 (SpO2)',
+    resp_rate_bpm: '靜息呼吸頻率',
     pvc_burden_pct: '24h 心室早期收縮負荷',
+    stand_hr_rise_bpm: '直立/LBNP 心率升幅',
     ijv_flow_status: '頸內靜脈血流狀態',
     steady_hr_150w_bpm: '150W 固定負荷心率',
+    gls_change_pct: '左心室縱向應變變化 (GLS)',
+    plasma_volume_delta_pct: '血漿容量變化 (%ΔPV)',
+    potassium_mmol_l: '血清鉀離子 (K+)',
     ecg_lead_quality: '心電導極訊號品質',
     csa_thigh_cm2: '大腿肌肉截面積',
     csa_calf_cm2: '小腿肌肉截面積',
@@ -1243,6 +1270,7 @@ export default function(component) {
     baseline: '個人基準 ±2SD',
     rule: '生理決策規則',
     spe_rule: '太陽風暴連動規則',
+    fast_track: '緊急快速通道規則',
     trend: '趨勢斜率預測',
     quality_check: 'Layer 0 品質閘門'
   };
@@ -1250,11 +1278,26 @@ export default function(component) {
   const EXACT_ZH = {
     'Nominal cabin ECLSS, radiation, acoustic, and sleep telemetry.': '艙內維生環控 (ECLSS)、輻射劑量、聲學噪音與睡眠監測皆正常。',
     'Continue daily Bio-Monitor morning vitals & planned CEVIS cycling.': '維持每日晨間穿戴式生理監測與既定 CEVIS 飛輪有氧訓練。',
+    'Continue daily Bio-Monitor morning vitals & scheduled CEVIS Zone 2/4 cycling.': '維持每日晨間 Bio-Monitor 生理監測與既定 CEVIS 第 2/4 區間飛輪訓練。',
     'Continue daily oral temp, hydration log, and monthly Bio-Analyzer CBC.': '維持每日口腔體溫量測、飲水紀錄與每月一次 Bio-Analyzer 血球分析。',
     'Continue nominal 6-day/week E4D resistance & CEVIS countermeasure schedule; target VBT loss 20-30%.': '維持每週 6 天 E4D 抗阻與 CEVIS 對抗訓練；目標速度衰減區間 20–30%。',
     'Continue monthly Mini OCT, Amsler grid, and VOG vestibular checks.': '維持每月一次 Mini OCT 眼底掃描、阿姆斯勒方格表與 VOG 前庭平衡檢測。',
     'Continue standard ECLSS telemetry logging and weekly dosimeter readout.': '持續記錄標準 ECLSS 環控遙測並每週讀取一次個人輻射劑量計。',
     'Maintain current CEVIS aerobic conditioning + bi-weekly LBNP tolerance check.': '維持現行 CEVIS 有氧體能訓練，並每兩週執行一次 LBNP 下半身負壓耐受測試。',
+    'Maintain current CEVIS aerobic conditioning + bi-weekly LBNP orthostatic tolerance check.': '維持現行 CEVIS 有氧體能訓練，並每兩週執行一次 LBNP 下半身負壓姿勢耐受測試。',
+    'Administer 500-750 mL electrolyte fluid load and repeat Bio-Monitor + Holter check in 12h.': '立即補充 500–750 mL 電解質液，並於 12 小時後複檢 Bio-Monitor 與 Holter 心電監測。',
+    'Shift CEVIS to Zone 2 steady aerobic conditioning (4x/week), add LBNP 3x/week, and re-evaluate in 7 days.': '將 CEVIS 調整為第 2 區間穩態有氧訓練（每週 4 次）、加入每週 3 次 LBNP 訓練，並於 7 天後重新評估。',
+    'STOP all high-intensity CEVIS & heavy E4D resistance workouts immediately.': '立即停止所有高強度 CEVIS 飛輪與高負荷 E4D 阻力訓練。',
+    'Perform Ultrasound 2 bilateral IJV compression sweep + 12-lead ECG + serum K+/clotting re-check.': '立即執行 Ultrasound 2 雙側頸內靜脈壓迫掃描、12 導程心電圖與血清鉀離子/凝血功能複檢。',
+    'Suspend HIIT for 14 days; run daily resting ECG, potassium repletion, and LBNP orthostatic conditioning.': '暫停高強度間歇訓練 14 天；每日執行靜息心電圖、補鉀調整與 LBNP 姿勢耐受訓練。',
+    'Verify Bio-Monitor ECG strap skin contact (quality >= 0.50), keep motion < 0.50 g, and confirm weekly BP cuff calibration.': '確認 Bio-Monitor 心電胸帶與皮膚貼合良好（訊號品質 ≥ 0.50）、動作干擾 < 0.50 g，並確認每週血壓袖帶校正。',
+    'Sensor dropout, dry electrodes, or impossible readings (e.g., SpO2 < 50% or null HR) cannot safely evaluate heart or clot status.': '感測器斷訊、電極乾燥或生理不可能讀數（如 SpO2 < 50% 或心率遺失）無法安全評估心臟與血栓風險。',
+    'Re-wet Bio-Monitor thoracic ECG pads and tighten chest strap.': '潤濕 Bio-Monitor 胸部心電電極片並拉緊胸帶。',
+    'Clean optical SpO2 fingertip/wrist sensor and eliminate cabin vibration/motion for 60 seconds.': '清潔光學指尖/腕式血氧感測器，並保持靜止 60 秒以排除艙內震動干擾。',
+    'Repeat resting vitals capture immediately before running clinical evaluation.': '進行臨床判讀前，請立即重新擷取靜息生命徵象。',
+    'Inspect Bio-Monitor garment conductive pads and SpO2 clip during weekly hardware check.': '於每週硬體檢核時檢查 Bio-Monitor 導電織片與 SpO2 夾具。',
+    'Wear Bio-Monitor shirt for resting HR/BP/SpO2/Resp; run 24h Holter (MIT-BIH check), CEVIS 150W test, LBNP stand test, and Ultrasound 2 GLS + neck IJV compression.': '穿著 Bio-Monitor 感測衣量測靜息心率/血壓/血氧/呼吸；執行 24h Holter 心律（MIT-BIH 驗證）、CEVIS 150W 測試、LBNP 站立測試與 Ultrasound 2 心臟應變 (GLS) 及頸內靜脈壓迫掃描。',
+    'Microgravity shifts ~2L of fluid toward the head, shrinking plasma volume (%DeltaPV), causing neck vein stasis/clots (IJV), electrolyte-driven PVCs, and orthostatic fainting.': '微重力會將約 2 公升體液推向頭部，造成血漿容量萎縮 (%ΔPV)、頸內靜脈血液滯留/血栓 (IJV)、電解質異常誘發心室早搏 (PVC) 與直立性暈厥風險。',
     'Maintain Vitamin D3 supplementation (2000 IU/d) and 2.5 L/d renal hydration.': '持續補充維生素 D3 (2000 IU/日) 並維持每日 2.5 公升飲水以預防腎結石。',
     'Maintain current E4D progressive resistance schedule (weekly 168h verification).': '維持現行 E4D 漸進式抗阻訓練處方（每週 168 小時定期檢核）。',
     'Maintain baseline monthly SANS imaging & pre-landing vestibular drills.': '維持基準每月 SANS 眼科影像追蹤與著陸前前庭適應訓練。',
@@ -1338,7 +1381,73 @@ export default function(component) {
     'Re-run Bio-Analyzer CBC with fresh cartridge.': '更換全新檢測卡匣並重新執行 Bio-Analyzer CBC。',
     'Inspect Bio-Analyzer optical reader during weekly maintenance.': '於每週設備保養時檢查 Bio-Analyzer 光學判讀頭。',
 
-    'Hold high-load E4D squats/deadlifts until Cardiovascular & Immune return to YELLOW/GREEN.': '在心血管與免疫系統恢復至黃燈或綠燈前，持續暫停高負荷 E4D 深蹲與硬舉訓練。'
+    'Hold high-load E4D squats/deadlifts until Cardiovascular & Immune return to YELLOW/GREEN.': '在心血管與免疫系統恢復至黃燈或綠燈前，持續暫停高負荷 E4D 深蹲與硬舉訓練。',
+
+    // Role 6: 17-Card Cabin Environment corpus (RAD-01..03, ACO-01..03, ATM-01..07, ISO-01..04)
+    'Execute Layer-0 QC checks across DOSTEL/GOES radiation, Type-1 SLM/dosimeter/OOHA acoustics, MCA/CDRA/THC/AQM/TOCA/microbial habitat loops, and Actiwatch/PVT-B/Bedford behavioral assays.': '依序執行 Layer 0 品質檢核：DOSTEL/GOES 輻射偵測、Type-1 聲壓計/個人噪音計/OOHA 聽力測驗、MCA/CDRA/THC/AQM/TOCA 氣水微生物環控迴路，以及 Actiwatch 睡眠、PVT-B 警覺度與 Bedford 工作負荷量測。',
+    'Integrates 17 closed-habitat, radiation, acoustic, and circadian-isolation cards across 3 NASA RIDGE hazards to provide autonomous offline decision support (all Red actions end with a human decision).': '整合 17 張封閉艙段環控、太空輻射、聲學噪音與生理節律監測卡（涵蓋 NASA 輻射/孤立/封閉環境三大危害），提供離線自主醫療決策支援（所有紅燈處置均保留人工最終確認）。',
+    'All 17 Radiation, Acoustics, Atmosphere, and Isolation cards nominal; continue scheduled monitoring.': '全部 17 項輻射、聲學、大氣水質環控與孤立節律監測卡皆正常，請持續定期監測。',
+
+    '[RAD-01] Verify DOSTEL/IV-TEPC detector health and await next non-SAA 1-h mean.': '[RAD-01 區域劑量] 檢查 DOSTEL/IV-TEPC 偵測器健康狀態，並等待下一個非南大西洋異常區 (non-SAA) 1 小時均值。',
+    '[RAD-01] Verify non-SAA orbital position and cross-check RAD-03 proton flux.': '[RAD-01 區域劑量] 確認軌道非處於南大西洋異常區 (SAA) 並交叉比對 RAD-03 太陽質子通量。',
+    '[RAD-01] Relocate prolonged work tasks to higher-shielding module locations.': '[RAD-01 區域劑量] 將長時間作業移往具較高輻射遮蔽厚度之艙段執行。',
+    '[RAD-01] Move to the most shielded area; in Orion, line cabin walls with stowage.': '[RAD-01 區域劑量] 立即移動至遮蔽最完善區域；若於獵戶座艙，以儲物包覆蓋艙壁加強屏蔽。',
+    '[RAD-01] Terminate EVA immediately and notify flight surgeon (human decision).': '[RAD-01 區域劑量] 立即終止艙外活動 (EVA) 並通報航太醫師進行人工決策。',
+    '[RAD-01] ALARA; missions > 6 months: >= 20 g/cm² shielding plus 10 cm water-equivalent storm shelter in crew quarters.': '[RAD-01 長期處方] 落實 ALARA 最小合理暴露原則；超過 6 個月任務須維持 ≥20 g/cm² 屏蔽與睡眠區 10 cm 等效水牆避難空間。',
+    '[RAD-01] ALARA; missions > 6 months: >= 20 g/cm² shielding plus a 10 cm water-equivalent storm shelter in crew quarters (rearranged water containers).': '[RAD-01 長期處方] 落實 ALARA 原則；超過 6 個月任務於乘員艙維持 ≥20 g/cm² 屏蔽與 10 cm 水箱風暴掩體。',
+
+    '[RAD-02] Complete 24-h module location log and sync Crew Passive/Active Dosimeter.': '[RAD-02 個人劑量] 補齊 24 小時艙段停留紀錄並同步乘員主/被動輻射劑量計。',
+    '[RAD-02] Increase sleep/work hours in high-shielding modules and review remaining EVA dose budget.': '[RAD-02 個人劑量] 增加高屏蔽艙段內之睡眠與工作時數，並重新審查剩餘 EVA 劑量預算。',
+    '[RAD-02] Restrict unshielded module/EVA exposure immediately; flight surgeon & mission management review required (human decision).': '[RAD-02 個人劑量] 立即限制無遮蔽艙段停留與艙外活動；須經航太醫師與任務管理層人工審查。',
+    '[RAD-02] Log daily module occupancy and sleep inside higher-shielded crew quarters.': '[RAD-02 長期處方] 每日記錄艙段分佈並於高屏蔽睡眠區就寢。',
+    '[RAD-02] Enforce ALARA scheduling, polyethylene/water sleep-station shielding, and personal active dosimeter cross-checks.': '[RAD-02 長期處方] 執行 ALARA 排程、強化睡眠站聚乙烯/水層遮蔽並定期交叉核對主動式個人劑量計。',
+
+    '[RAD-03] Switch to GOES secondary satellite / DONKI backup feed; verify local RAD-01 DOSTEL/HERA.': '[RAD-03 太陽風暴] 切換至 GOES 備用衛星／DONKI 備援資料源，並檢核本地 RAD-01 DOSTEL/HERA 讀數。',
+    '[RAD-03] Review EVA schedule and pre-position storm shelter water/stowage supplies.': '[RAD-03 太陽風暴] 檢視艙外活動排程並預先於輻射掩體就位飲水與儲物屏蔽物資。',
+    '[RAD-03] Increase RAD-01 evaluation to every 5 min.': '[RAD-03 太陽風暴] 將 RAD-01 輻射評估頻率提高至每 5 分鐘一次。',
+    '[RAD-03] Move crew to the most shielded storm shelter area immediately; terminate any planned/ongoing EVA.': '[RAD-03 太陽風暴] 立即將全體乘員撤離至遮蔽最強之風暴掩體；終止任何進行中或預定之 EVA。',
+    '[RAD-03] Increase RAD-01 telemetry readout to 5-min cadence and notify ground & flight surgeon for human decision.': '[RAD-03 太陽風暴] 將 RAD-01 遙測頻率提升至 5 分鐘並通報地面與航太醫師進行人工決策。',
+    '[RAD-03] Maintain dual GOES primary/secondary ground-to-ship telemetry and local HERA alerting.': '[RAD-03 長期處方] 維持 GOES 主/備雙衛星地面遙測與艦上本地 HERA 自主預警系統。',
+    '[RAD-03] Maintain automated SWPC GOES primary/secondary feed + onboard HERA local trigger for deep-space comm-delay autonomy.': '[RAD-03 長期處方] 維持自動化 SWPC GOES 雙通道與本地 HERA 觸發機制，確保深空通訊延遲下的自主防輻射能力。',
+
+    '[ACO-01] Perform field acoustic calibrator check and repeat octave-band survey.': '[ACO-01 艙內噪音] 使用聲學校正器檢核測音儀後，重新執行八音度頻帶量測。',
+    '[ACO-01] Inspect fan mufflers/vibration isolators and use hearing protection during extended tasks in module.': '[ACO-01 艙內噪音] 檢查風扇消音器與減震墊；於該艙段長時間作業時請配戴護耳裝備。',
+    '[ACO-01] Don hearing protection immediately, isolate noisy rack/pump, notify ground & flight surgeon (human decision).': '[ACO-01 艙內噪音] 立即戴上護耳裝備、隔離高噪音機櫃或幫浦，並通報地面與航太醫師。',
+    '[ACO-01] Verify SLM calibration before and after every monthly acoustic survey.': '[ACO-01 長期處方] 每月聲壓量測前後皆須執行聲壓計 (SLM) 現場校正。',
+    '[ACO-01] Maintain acoustic blankets, clean fan intake screens, and enforce NC-50 work / NC-40 sleep envelopes.': '[ACO-01 長期處方] 維護隔音毯與風扇進氣濾網，落實工作區 NC-50、睡眠區 NC-40 噪音規範。',
+
+    '[ACO-02] Repeat 24-h personal noise dosimetry session ensuring >=20 h uncovered wear.': '[ACO-02 個人噪音] 重新執行 24 小時個人噪音劑量佩戴，確保未遮蔽有效佩戴時間 ≥20 小時。',
+    '[ACO-02] Use sleep earplugs / ANR headset during noisy work and inspect sleep-station ventilation.': '[ACO-02 個人噪音] 高噪音作業配戴降噪耳機/耳塞並檢查睡眠艙通風口噪音。',
+    '[ACO-02] Mandate ANR hearing protection, quiet sleep quarters, schedule ACO-03 audiogram & flight surgeon review (human decision).': '[ACO-02 個人噪音] 強制配戴主動降噪護耳設備、改至安靜睡眠區休息，並安排 ACO-03 聽力檢查與醫師審查。',
+    '[ACO-02] Schedule 24-h personal noise dosimetry every 60 mission days.': '[ACO-02 長期處方] 每 60 任務日定期執行一次 24 小時個人噪音劑量監測。',
+    '[ACO-02] Perform 24-h personal dosimetry every 60 days; wear hearing protection for tasks >80 dBA.': '[ACO-02 長期處方] 每 60 天執行個人噪音監測；遇 >80 dBA 作業須強制配戴聽力防護。',
+
+    '[ACO-03] Repeat pure-tone audiometry inside quiet NC-40 berth and confirm within-frequency repeatability <=10 dB.': '[ACO-03 聽力閾值] 於 NC-40 安靜睡眠艙內重測純音聽力，確認同頻率重測誤差 ≤10 dB。',
+    '[ACO-03] Reduce noise exposure, verify headset volume, and schedule follow-up retest audiogram.': '[ACO-03 聽力閾值] 降低噪音暴露、檢核通訊耳機音量上限並排程複測聽力圖。',
+    '[ACO-03] Enforce auditory rest + ANR hearing protection; notify ground & flight surgeon for clinical human decision.': '[ACO-03 聽力閾值] 強制執行聽覺休息與主動降噪防護，並通報地面與航太醫師進行臨床評估。',
+    '[ACO-03] Perform periodic OOHA/KUDUwave hearing checks in quiet sleep station.': '[ACO-03 長期處方] 定期於安靜睡眠站內執行 OOHA/KUDUwave 聽力檢測。',
+    '[ACO-03] Conduct periodic KUDUwave/OOHA audiograms and cross-reference with ACO-01/ACO-02 noise logs.': '[ACO-03 長期處方] 定期執行聽力檢查並與 ACO-01/ACO-02 噪音暴露紀錄交叉比對。',
+
+    '[ATM-01] Cross-check primary MCA IR bench against portable CO2 meter and backup CDRA sensor immediately.': '[ATM-01 艙內 CO2] 立即以手持式 CO2 偵測器與備用 CDRA 感測器比對主 MCA 紅外線讀數。',
+    '[ATM-01] Check CDRA and ventilation, prompt headache/vision self-report.': '[ATM-01 艙內 CO2] 檢查 CDRA 除碳器與通風循環，並要求乘員回報是否有頭痛或視力模糊。',
+    '[ATM-01] Increase CO2 removal or move crew to a better-ventilated module; notify flight surgeon if headache is reported (human decision).': '[ATM-01 艙內 CO2] 提高除碳效率或將乘員移至通風較佳艙段；若有頭痛症狀立即通報航太醫師。',
+    '[ATM-01] Perform scheduled MCA zero/span calibration and verify inter-module air mixing fans.': '[ATM-01 長期處方] 定期執行 MCA 零點/跨距校正並確認跨艙氣體混合風扇運轉正常。',
+    '[ATM-01] Maintain 7-day rolling ppCO2 < 2.5 mmHg, clean air diffusers, and avoid stagnant sleep-berth CO2 pockets.': '[ATM-01 長期處方] 維持 7 日移動平均 ppCO2 < 2.5 mmHg，定期清潔風口避免睡眠艙二氧化碳積聚。',
+
+    '[ATM-02] Verify dual cabin pressure transducers and MCA O2 partial pressure bench.': '[ATM-02 氣壓與氧氣] 檢核雙重艙壓感測器一致性與 MCA 氧分壓分析儀狀態。',
+    '[ATM-02] Inspect N2/O2 pressure control assembly (PCA) valves and check hull hatch seals with ultrasonic leak detector.': '[ATM-02 氣壓與氧氣] 檢查 N2/O2 壓力控制閥 (PCA) 並以超音波測漏儀巡檢艙門氣密墊片。',
+    '[ATM-02] Execute depressurization emergency procedure; notify ground and flight surgeon immediately (human decision).': '[ATM-02 氣壓與氧氣] 立即執行失壓/低氧緊急應變程序並通報地面與航太醫師。',
+    '[ATM-02] Maintain redundant pressure transducers calibrated to 101.3 kPa nominal setpoint.': '[ATM-02 長期處方] 維持備援壓力感測器校正於 101.3 kPa 標準艙壓設定點。',
+    '[ATM-02] Maintain 101.3 kPa total pressure, PIO2 139–168 mmHg, O2 <= 23.5%, and unobstructed hatch seals.': '[ATM-02 長期處方] 維持 101.3 kPa 總壓、PIO2 139–168 mmHg、氧濃度 ≤23.5% 與艙門密封清潔。',
+
+    '[ATM-03] Cross-check THC sensor with portable psychrometer and verify fan airflow across sensor.': '[ATM-03 溫濕度] 使用可攜式乾濕球溫度計比對 THC 感測器，並確認探頭氣流暢通。',
+    '[ATM-03] Keep cabin within 20–25 °C and 30–60% RH performance zone.': '[ATM-03 長期處方] 將艙內溫濕度維持於 20–25 °C 與 30–60% 相對濕度舒適效能區間。',
+    '[ATM-03] Maintain THC performance zone (20–25 °C, 30–60% RH) to prevent heat stress and surface condensation.': '[ATM-03 長期處方] 維持 THC 溫濕度目標區間（20–25 °C、30–60% RH）以防熱壓力與艙壁結露。',
+
+    '[ATM-04] Run AQM calibration check and verify cabin air with colorimetric Drager tubes if odor noticed.': '[ATM-04 揮發氣體] 執行 AQM 氣相層析校正檢核；若聞到異味立即以 Drager 檢知管採樣。',
+    '[ATM-04] Verify TCCS charcoal bed life and AQM carrier gas supply.': '[ATM-04 長期處方] 定期確認 TCCS 活性碳濾床壽命與 AQM 載氣鋼瓶存量。',
+    '[ATM-04] Enforce strict flight material off-gassing screening, log alcohol-wipe usage, and maintain TCCS beds.': '[ATM-04 長期處方] 嚴格控管酬載除氣篩檢、記錄酒精擦拭用量並維護 TCCS 除毒濾床。',
+    '[ATM-04] Maintain TCCS charcoal/catalyst beds, AQM internal check standards, and accessible PBA respirators.': '[ATM-04 長期處方] 維護 TCCS 活性碳/觸媒床、AQM 內校標準與隨手可得之緊急呼吸器 (PBA)。'
   };
 
   function zhText(raw) {
@@ -1348,6 +1457,14 @@ export default function(component) {
     if (EXACT_ZH[s]) return EXACT_ZH[s];
 
     let out = s;
+    // Dynamic 17-card summary note from Role 6
+    out = out.replace(/^17-Card Status: GREEN$/, '17 項環控與輻射監測卡：全數正常 GREEN');
+    out = out.replace(/^17-Card Status: (YELLOW|RED|NO_DATA) \| ([^=]+)=(.+)$/, (_, st, key, list) => {
+      const lbl = st === 'RED' ? '危急 RED' : (st === 'YELLOW' ? '預警 YELLOW' : '品質檢核異常 NO_DATA/QC');
+      return `17 項環控監測卡：${lbl}｜異常卡片：${list}`;
+    });
+    // Generic card prefixes [ATM-05..07] / [ISO-01..04]
+    out = out.replace(/^\[(ATM-0[567]|ISO-0[1-4])\]\s*/, '[$1] ');
     out = out.replace(/^cabin_environment\.spe_alert -> immune_metabolic\.spe_event_flag$/, '艙內輻射風暴警報 (SPE) ➔ 免疫代謝模組（觸發 48h 淋巴球複檢）');
     out = out.replace(/^cabin_environment\.ppco2_1h_mmHg \(([^)]+)\) -> neuro_ocular$/, '艙內 ppCO2 濃度 ($1 mmHg) ➔ 神經眼壓 SANS 協同判讀');
     out = out.replace(/^CO2-SANS SYNERGY ALERT: Cabin ppCO2 \(([^)]+)\) elevates intracranial venous congestion risk alongside Neuro-Ocular findings\. Prioritize CDRA scrubber inspection and avoid head-down tilt or prolonged supine posture\.$/, 'CO2-SANS 協同風險警報：艙內二氧化碳分壓 ($1) 與神經眼壓異常同時發生，將顯著提高顱內靜脈鬱積風險。請優先檢查 CDRA 除碳器並避免頭低位姿勢。');
@@ -1358,6 +1475,15 @@ export default function(component) {
 
     out = out.replace(/^ppCO2 ([\d.]+) mmHg, Proton ([\d.]+) pfu \(SPE=(True|False)\), LEQ8 ([\d.]+) dBA, Sleep ([\d.]+)h\.$/, (_, a, b, c, d, e) => `艙內 CO2 ${a} mmHg｜質子通量 ${b} pfu (風暴=${c === 'True' ? '是' : '否'})｜8h噪音 ${d} dBA｜睡眠 ${e} 小時`);
     out = out.replace(/^Rest HR ([\d.]+) bpm, SpO2 ([\d.]+)%, IJV '([^']+)', PVC ([\d.]+)%\.$/, (_, a, b, c, d) => `靜息心率 ${a} bpm｜血氧 ${b}%｜頸靜脈血流 '${c === 'forward' ? '順向' : (c === 'stagnant' ? '滯留' : '逆流')}'｜PVC ${d}%`);
+    out = out.replace(/^Rest HR ([\d.]+) bpm, BP ([\d.]+\/[\d.]+), SpO2 ([\d.]+)%, PVC ([\d.]+)%, IJV '([^']+)', %DeltaPV ([+-]?[\d.]+)%\.(?: \| (.+))?$/, (_, hr, bp, spo2, pvc, ijv, pv, corr) => {
+      const ijvZh = ijv === 'forward' ? '順向' : (ijv === 'stagnant' ? '滯留' : '逆流');
+      const base = `靜息心率 ${hr} bpm｜血壓 ${bp}｜血氧 ${spo2}%｜PVC ${pvc}%｜頸靜脈 '${ijvZh}'｜血漿容量 ${pv}%`;
+      return corr ? `${base}｜${zhText(corr)}` : base;
+    });
+    out = out.replace(/^PE \/ HYPOXIA CORRELATION \(M3\+M4->M9\): Low SpO2 \+ Tachypnea \(>25\/min\) [—-] perform immediate bilateral IJV Ultrasound 2 clot check and verify cabin O2\/ppCO2\.$/, '肺栓塞 / 低血氧關聯警示 (M3+M4→M9)：低血氧併發呼吸急促 (>25次/分) — 立即執行雙側頸內靜脈 (IJV) 超音波血栓檢查並核對艙內氧氣/ppCO2。');
+    out = out.replace(/^ARRHYTHMIA-ELECTROLYTE CORRELATION \(M5\+M11\): Elevated PVC burden \(([\d.]+)%\) paired with hypokalemia \(K\+=([\d.]+) mmol\/L\) [—-] administer oral KCl and repeat ECG\.$/, '心律不整-電解質關聯警示 (M5+M11)：心室早搏負荷偏高 ($1%) 併發低血鉀 (K+=$2 mmol/L) — 給予口服氯化鉀 (KCl) 並複測心電圖。');
+    out = out.replace(/^RHYTHM-ELECTROLYTE CHECK \(M5->M11\): Elevated PVC burden \(([\d.]+)%\) [—-] verify serum K\+ >= 3\.5 mmol\/L before exercise\.$/, '心律-電解質檢核 (M5→M11)：心室早搏負荷偏高 ($1%) — 運動前請先確認血清鉀 K+ ≥ 3.5 mmol/L。');
+    out = out.replace(/^ORTHOSTATIC-HYPOVOLEMIA CORRELATION \(M6\+M10\): Orthostatic intolerance paired with ([+-]?[\d.]+)% plasma volume loss [—-] initiate oral salt\+fluid loading\.$/, '直立不耐-低血容關聯警示 (M6+M10)：直立耐受不良併發血漿容量流失 ($1%) — 立即啟動口服鹽水與液體補充。');
     out = out.replace(/^S_bone=([\d.]+), VBT=([\d.]+)%, Thigh=([^,]+), Calf=([^,]+), CTX=([^,]+), Est Hip Loss=([^\s]+)\.$/, (_, a, b, c, d, e, f) => `骨骼刺激 S_bone=${a}｜速度衰減 ${b}%｜大腿 ${c}｜小腿 ${d}｜骨吸收 CTX ${e}｜推估髖骨流失 ${f}`);
     out = out.replace(/^(OD|OS) delta TRT \+([\d.]+) um, delta V_ONH \+([\d.]+) mm3, ONSD ([\d.]+) mm(?: \| Cross-context cabin ppCO2=([\d.]+) mmHg)?\.$/, (_, eye, trt, vonh, onsd, co2) => `${eye} 眼視網膜 ΔTRT +${trt} µm｜視神經盤 ΔV_ONH +${vonh} mm³｜ONSD ${onsd} mm` + (co2 ? `｜連動艙內 ppCO2=${co2} mmHg` : ''));
     out = out.replace(/^Temp ([\d.]+) C, Lymph ([\d.]+) \(([^)]+)\), VZV ([\d.]+), SPE=(True|False)\.$/, (_, temp, ly, dp, vzv, spe) => `體溫 ${temp}°C｜淋巴球 ${ly} (${dp})｜水痘病毒 VZV ${vzv}｜風暴警報=${spe === 'True' ? '是' : '否'}`);
