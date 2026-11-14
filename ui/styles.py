@@ -720,6 +720,41 @@ HUD_CSS = """
   font-weight: 600;
 }
 
+.src-chip-real {
+  background: rgba(16, 185, 129, 0.14);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.28);
+}
+
+.src-chip-sim {
+  background: rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.mode-pill {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.mode-pill.dev {
+  border-color: rgba(245, 158, 11, 0.5);
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+}
+
+.mode-pill:hover {
+  filter: brightness(1.15);
+}
+
 /* ================= CENTER: DIAGNOSTICS, TREND & 3-STEP GUIDE ================= */
 .summary-strip {
   font-size: 12.5px;
@@ -1176,6 +1211,68 @@ HUD_CSS = """
   box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.45);
 }
 
+.dev-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(245, 158, 11, 0.24);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.dev-toggle-row.active {
+  border-color: rgba(245, 158, 11, 0.55);
+  background: rgba(41, 26, 8, 0.45);
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.toggle-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-track {
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(51, 65, 85, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  position: relative;
+  transition: all 0.18s ease;
+}
+
+.toggle-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.toggle-switch input:checked + .toggle-track {
+  background: rgba(245, 158, 11, 0.35);
+  border-color: rgba(251, 191, 36, 0.7);
+}
+
+.toggle-switch input:checked + .toggle-track .toggle-thumb {
+  transform: translateX(20px);
+  background: #fbbf24;
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.65);
+}
+
 .run-btn {
   flex: 1;
   border: none;
@@ -1223,6 +1320,19 @@ HUD_CSS = """
 .data-strip-items {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
+}
+
+.pipe-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pipe-missing {
+  font-size: 10px;
+  color: #fbbf24;
+  opacity: 0.9;
 }
 """

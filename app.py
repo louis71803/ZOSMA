@@ -120,13 +120,19 @@ def _init_hud_session_state() -> None:
     disk_session = load_runtime_session()
     st.session_state["crew_id"] = str(disk_session.get("crew_id", "C002"))
     st.session_state["mission_day"] = int(disk_session.get("mission_day", 124))
+    dev_mode = bool(disk_session.get("developer_mode", False))
+    st.session_state["developer_mode"] = dev_mode
     scen = str(disk_session.get("scenario", "green"))
+    if not dev_mode:
+        scen = "green"
     st.session_state["scenario"] = scen if scen in {"green", "yellow", "red", "bad_data"} else "green"
     lang = str(disk_session.get("lang", "en"))
     st.session_state["lang"] = lang if lang in {"en", "zh"} else "en"
     st.session_state["offline_clock"] = dict(disk_session.get("offline_clock", {}))
-    st.session_state["prefer_real_csv"] = True
-    st.session_state["use_manual_overrides"] = False
+    if not dev_mode:
+        st.session_state["offline_clock"]["time_scale"] = 1
+    st.session_state["prefer_real_csv"] = True if not dev_mode else bool(disk_session.get("prefer_real_csv", True))
+    st.session_state["use_manual_overrides"] = bool(disk_session.get("use_manual_overrides", False))
     st.session_state["selected_module"] = "neuro_ocular"
     st.session_state["last_action_ts"] = 0
 
@@ -162,12 +168,18 @@ def _serialize_hud_payload(
             "module_id": mod_id,
             "short_name": MODULE_SHORT_NAMES.get(mod_id, mod_id),
             "has_real_files": bool(data_statuses[mod_id]["has_real_files"]),
+            "source_mode": data_statuses[mod_id].get("source_mode", "SIMULATED_DEMO"),
+            "present_count": int(data_statuses[mod_id].get("present_count", 0)),
+            "expected_count": int(data_statuses[mod_id].get("expected_count", 0)),
+            "missing_files": list(data_statuses[mod_id].get("missing_files", [])),
         }
         for mod_id in MODULE_ORDER
     ]
+    shared_status = data_statuses.get("shared_real", {})
 
     return {
         "lang": st.session_state["lang"],
+        "developer_mode": bool(st.session_state.get("developer_mode", False)),
         "crew_id": st.session_state["crew_id"],
         "mission_day": st.session_state["mission_day"],
         "scenario": st.session_state["scenario"],
@@ -181,6 +193,13 @@ def _serialize_hud_payload(
         "schedule": schedule,
         "propagated_flags": cross_context.get("propagated_flags", []),
         "data_statuses": folder_summary,
+        "shared_real_status": {
+            "has_real_files": bool(shared_status.get("has_real_files", False)),
+            "source_mode": shared_status.get("source_mode", "SIMULATED_DEMO"),
+            "present_count": int(shared_status.get("present_count", 0)),
+            "expected_count": int(shared_status.get("expected_count", 0)),
+            "missing_files": list(shared_status.get("missing_files", [])),
+        },
     }
 
 
@@ -192,6 +211,8 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
     st.session_state["last_action_ts"] = ts
 
     act_type = str(action.get("type", ""))
+    if "developer_mode" in action:
+        st.session_state["developer_mode"] = bool(action["developer_mode"])
     if action.get("lang") in {"en", "zh"}:
         st.session_state["lang"] = str(action["lang"])
     if isinstance(action.get("offline_clock"), dict):
@@ -214,12 +235,34 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
     if isinstance(action.get("manual_inputs"), dict):
         st.session_state["manual_inputs"] = action["manual_inputs"]
 
-    if act_type == "generate_demo_csvs":
+    if act_type == "toggle_developer_mode":
+        if not st.session_state["developer_mode"]:
+            st.session_state["scenario"] = "green"
+            st.session_state["prefer_real_csv"] = True
+            if isinstance(st.session_state.get("offline_clock"), dict):
+                st.session_state["offline_clock"]["time_scale"] = 1
+        save_runtime_session(
+            manual_overrides=st.session_state["manual_inputs"],
+            crew_id=st.session_state["crew_id"],
+            mission_day=st.session_state["mission_day"],
+            scenario=st.session_state["scenario"],
+            lang=st.session_state["lang"],
+            offline_clock=st.session_state.get("offline_clock"),
+            developer_mode=st.session_state["developer_mode"],
+            prefer_real_csv=st.session_state["prefer_real_csv"],
+            use_manual_overrides=st.session_state["use_manual_overrides"],
+        )
+        st.rerun()
+
+    elif act_type == "generate_demo_csvs":
         generated = []
         for mod_id in MODULE_ORDER:
-            mod = importlib.import_module(f"modules.{mod_id}")
-            if hasattr(mod, "export_demo_csvs"):
-                generated.extend(mod.export_demo_csvs())
+            try:
+                mod = importlib.import_module(f"modules.{mod_id}")
+                if hasattr(mod, "export_demo_csvs"):
+                    generated.extend(mod.export_demo_csvs())
+            except Exception:  # noqa: BLE001
+                continue
         st.toast(f"Generated {len(generated)} starter CSV/JSON files inside data/!", icon="📡")
         st.rerun()
 
@@ -240,6 +283,9 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
             results=new_results,
             lang=st.session_state["lang"],
             offline_clock=st.session_state.get("offline_clock"),
+            developer_mode=st.session_state["developer_mode"],
+            prefer_real_csv=st.session_state["prefer_real_csv"],
+            use_manual_overrides=st.session_state["use_manual_overrides"],
         )
         st.toast("Saved telemetry to data/runtime_session.json & executed all 5 agents!", icon="🚀")
         st.rerun()
@@ -252,21 +298,26 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
             scenario=st.session_state["scenario"],
             lang=st.session_state["lang"],
             offline_clock=st.session_state.get("offline_clock"),
+            developer_mode=st.session_state["developer_mode"],
+            prefer_real_csv=st.session_state["prefer_real_csv"],
+            use_manual_overrides=st.session_state["use_manual_overrides"],
         )
         if act_type == "save_clock":
             st.toast("Offline Spacecraft RTC synced & saved!", icon="⏱️")
         st.rerun()
 
     elif act_type in {"switch_scenario", "reset_overrides"}:
-        if act_type == "switch_scenario":
-            save_runtime_session(
-                manual_overrides=st.session_state["manual_inputs"],
-                crew_id=st.session_state["crew_id"],
-                mission_day=st.session_state["mission_day"],
-                scenario=st.session_state["scenario"],
-                lang=st.session_state["lang"],
-                offline_clock=st.session_state.get("offline_clock"),
-            )
+        save_runtime_session(
+            manual_overrides=st.session_state["manual_inputs"],
+            crew_id=st.session_state["crew_id"],
+            mission_day=st.session_state["mission_day"],
+            scenario=st.session_state["scenario"],
+            lang=st.session_state["lang"],
+            offline_clock=st.session_state.get("offline_clock"),
+            developer_mode=st.session_state["developer_mode"],
+            prefer_real_csv=st.session_state["prefer_real_csv"],
+            use_manual_overrides=st.session_state["use_manual_overrides"],
+        )
         st.rerun()
 
 

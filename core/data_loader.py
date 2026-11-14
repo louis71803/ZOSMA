@@ -54,6 +54,7 @@ EXPECTED_DATA_FILES: dict[str, list[str]] = {
         "holter_24h.csv",
         "ultrasound.csv",
         "biomonitor_stream_day124.csv",
+        "preflight_baseline.json",
     ],
     "neuro_ocular": [
         "mini_oct_scans.csv",
@@ -129,15 +130,34 @@ def inspect_module_data_status(module_id: str) -> dict[str, Any]:
         ]
     )
     expected = EXPECTED_DATA_FILES.get(module_id, [])
-    missing = [name for name in expected if name not in present_files]
+    present_lower = {name.lower() for name in present_files}
+    alias_map: dict[str, tuple[str, ...]] = {
+        "OSD-569_inspiration4_cbc.csv": ("osd569_cbc_transformed.csv",),
+        "OSD-575_cmp.csv": ("osd575_cmp.csv",),
+    }
+    missing: list[str] = []
+    for name in expected:
+        candidates = (name.lower(), *(a.lower() for a in alias_map.get(name, ())))
+        if not any(c in present_lower for c in candidates):
+            missing.append(name)
+
     has_real_files = len(present_files) > 0
+    if not has_real_files:
+        source_mode = "SIMULATED_DEMO"
+    elif missing:
+        source_mode = "PARTIAL_FALLBACK"
+    else:
+        source_mode = "REAL_CSV"
+
     return {
         "module_id": module_id,
         "folder": str(folder),
         "has_real_files": has_real_files,
-        "source_mode": "REAL_CSV" if has_real_files else "SIMULATED_DEMO",
+        "source_mode": source_mode,
         "present_files": present_files,
         "missing_files": missing,
+        "expected_count": len(expected),
+        "present_count": max(0, len(expected) - len(missing)),
     }
 
 
@@ -182,7 +202,8 @@ def load_module_files_into_payload(module_id: str) -> tuple[dict[str, Any], Opti
     if not csv_files and not json_files:
         return {}, None, "SIMULATED"
 
-    payload: dict[str, Any] = {"_loaded_files": [p.name for p in csv_files + json_files]}
+    payload: dict[str, Any] = {}
+    loaded_files: list[str] = []
     baseline: Optional[dict[str, Any]] = None
 
     for jf in json_files:
@@ -191,18 +212,31 @@ def load_module_files_into_payload(module_id: str) -> tuple[dict[str, Any], Opti
                 parsed = json.load(fh)
             if "baseline" in jf.stem.lower() and isinstance(parsed, dict):
                 baseline = parsed
+                loaded_files.append(jf.name)
             elif isinstance(parsed, dict):
                 for k, v in parsed.items():
                     payload[k] = v
+                loaded_files.append(jf.name)
+            elif isinstance(parsed, list) and parsed:
+                payload[f"json_{jf.stem}"] = parsed
+                loaded_files.append(jf.name)
         except Exception:  # noqa: BLE001
             continue
 
+    csv_sources: set[str] = set()
     for cf in csv_files:
         try:
             df = pd.read_csv(cf)
             if df.empty:
                 continue
-            payload[f"csv_{cf.stem}"] = df.to_dict(orient="records")
+            records = df.to_dict(orient="records")
+            payload[f"csv_{cf.stem}"] = records
+            loaded_files.append(cf.name)
+            if "data_source" in df.columns:
+                for val in df["data_source"].dropna().astype(str):
+                    tok = val.strip().upper()
+                    if tok:
+                        csv_sources.add(tok)
             last_row = df.iloc[-1].to_dict()
             for col, val in last_row.items():
                 coerced = _coerce_scalar(val)
@@ -211,6 +245,13 @@ def load_module_files_into_payload(module_id: str) -> tuple[dict[str, Any], Opti
         except Exception:  # noqa: BLE001
             continue
 
+    if not loaded_files:
+        return {}, baseline, "SIMULATED"
+
+    payload["_loaded_files"] = loaded_files
+    is_demo_template = bool(baseline and baseline.get("is_demo_template") is True)
+    if is_demo_template or (csv_sources and csv_sources == {"SIMULATED"}):
+        return payload, baseline, "SIMULATED"
     return payload, baseline, "REAL"
 
 
@@ -223,6 +264,9 @@ def load_runtime_session() -> dict[str, Any]:
         "mission_day": 124,
         "scenario": "green",
         "lang": "en",
+        "developer_mode": False,
+        "prefer_real_csv": True,
+        "use_manual_overrides": False,
         "offline_clock": {
             "spacecraft_epoch_ms": now_ms,
             "host_epoch_ms": now_ms,
@@ -244,6 +288,9 @@ def load_runtime_session() -> dict[str, Any]:
             return default_session
         merged = dict(default_session)
         merged.update(data)
+        merged["developer_mode"] = bool(merged.get("developer_mode", False))
+        merged["prefer_real_csv"] = bool(merged.get("prefer_real_csv", True))
+        merged["use_manual_overrides"] = bool(merged.get("use_manual_overrides", False))
         if not isinstance(data.get("offline_clock"), dict):
             merged["offline_clock"] = dict(default_session["offline_clock"])
         else:
@@ -273,11 +320,30 @@ def save_runtime_session(
     results: Optional[dict[str, ModuleEvaluationResult]] = None,
     lang: str = "en",
     offline_clock: Optional[dict[str, Any]] = None,
+    developer_mode: Optional[bool] = None,
+    prefer_real_csv: Optional[bool] = None,
+    use_manual_overrides: Optional[bool] = None,
 ) -> dict[str, Any]:
     """Persist manual input overrides and a compact summary snapshot to runtime_session.json."""
     ensure_data_directories()
     existing = load_runtime_session()
     timestamp = datetime.now(timezone.utc).isoformat()
+
+    dev_mode_val = (
+        bool(developer_mode)
+        if developer_mode is not None
+        else bool(existing.get("developer_mode", False))
+    )
+    prefer_csv_val = (
+        bool(prefer_real_csv)
+        if prefer_real_csv is not None
+        else bool(existing.get("prefer_real_csv", True))
+    )
+    use_manual_val = (
+        bool(use_manual_overrides)
+        if use_manual_overrides is not None
+        else bool(existing.get("use_manual_overrides", False))
+    )
 
     history = list(existing.get("history", []))
     if results:
@@ -287,6 +353,7 @@ def save_runtime_session(
                 "crew_id": crew_id,
                 "mission_day": mission_day,
                 "scenario": scenario,
+                "developer_mode": dev_mode_val,
                 "statuses": {k: v.status_light for k, v in results.items()},
                 "manual_overrides": manual_overrides,
             }
@@ -298,6 +365,9 @@ def save_runtime_session(
         "mission_day": mission_day,
         "scenario": scenario,
         "lang": lang if lang in {"en", "zh"} else "en",
+        "developer_mode": dev_mode_val,
+        "prefer_real_csv": prefer_csv_val,
+        "use_manual_overrides": use_manual_val,
         "offline_clock": offline_clock if isinstance(offline_clock, dict) else existing.get("offline_clock", {}),
         "updated_at": timestamp,
         "manual_overrides": manual_overrides,
@@ -419,9 +489,9 @@ def evaluate_all_modules(
             payload = dict(demo_pay)
             if file_payload:
                 payload.update(file_payload)
-                payload["data_source"] = "REAL"
+                payload["data_source"] = data_source
             else:
-                payload.setdefault("data_source", data_source)
+                payload["data_source"] = "SIMULATED"
 
             payload["crew_id"] = crew_id
             payload["mission_day"] = mission_day

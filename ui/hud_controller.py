@@ -31,6 +31,7 @@ HUD_CONTROLLER_BODY_JS = r"""
 
   const state = {
     lang: data.lang || 'en',
+    developer_mode: Boolean(data.developer_mode),
     selectedModule: data.default_module || 'neuro_ocular',
     viewMode: 'anatomy',       // 'anatomy' | 'overview'
     musculoSide: 'front',      // 'front' | 'back'
@@ -49,7 +50,7 @@ HUD_CONTROLLER_BODY_JS = r"""
     clock: {
       spacecraft_epoch_ms: currentScMsOnLoad,
       host_epoch_ms: nowHost,
-      time_scale: initialScale,
+      time_scale: Boolean(data.developer_mode) ? initialScale : 1,
       sound_enabled: savedClk.sound_enabled !== false,
       module_due_ms: Object.assign({}, savedClk.module_due_ms || {})
     },
@@ -178,6 +179,7 @@ HUD_CONTROLLER_BODY_JS = r"""
       type: actionType,
       ts: Date.now(),
       lang: state.lang,
+      developer_mode: Boolean(state.developer_mode),
       crew_id: state.crew_id,
       mission_day: Number(state.mission_day) || 124,
       scenario: state.scenario,
@@ -435,7 +437,8 @@ HUD_CONTROLLER_BODY_JS = r"""
       const m = modulesMap[modId];
       const sk = statusKey(m);
       const isSel = modId === state.selectedModule;
-      const srcBadge = m && m.data_source === 'REAL'
+      const isReal = m && m.data_source === 'REAL';
+      const srcBadge = isReal
         ? t('src_real')
         : (m && m.data_source === 'SIMULATED' ? t('src_sim') : (m ? m.data_source : t('src_demo')));
       return `
@@ -445,7 +448,7 @@ HUD_CONTROLLER_BODY_JS = r"""
             <span class="subsys-name">${esc(modShortName(modId, m ? m.short_name : modId))}</span>
           </div>
           <div class="subsys-meta">
-            <span class="src-chip">${esc(srcBadge)}</span>
+            <span class="src-chip ${isReal ? 'src-chip-real' : 'src-chip-sim'}">${esc(srcBadge)}</span>
             <span class="badge badge-${sk}">${esc(badgeLabel(m))}</span>
           </div>
         </div>
@@ -539,9 +542,36 @@ HUD_CONTROLLER_BODY_JS = r"""
     }).join('');
 
     // Data folder footer strip
-    const folderItems = (data.data_statuses || []).map(ds =>
-      `<span><strong>${esc(modShortName(ds.module_id, ds.short_name))}:</strong> <span style="color:${ds.has_real_files ? '#34d399' : '#94a3b8'}">${ds.has_real_files ? esc(t('src_real')) : esc(t('src_demo'))}</span></span>`
-    ).join('');
+    const folderItemsList = (data.data_statuses || []).map(ds => {
+      const mode = ds.source_mode || (ds.has_real_files ? 'REAL_CSV' : 'SIMULATED_DEMO');
+      const mObj = modulesMap[ds.module_id];
+      const isActualReal = mObj && mObj.data_source === 'REAL';
+      let label = t('src_demo');
+      let col = '#94a3b8';
+      if (mode === 'REAL_CSV' && isActualReal) {
+        label = t('src_real');
+        col = '#34d399';
+      } else if (mode === 'PARTIAL_FALLBACK') {
+        label = `${t('src_partial')} (${ds.present_count || 0}/${ds.expected_count || 0})`;
+        col = '#fbbf24';
+      } else if (ds.has_real_files && !isActualReal) {
+        label = t('src_sim');
+        col = '#94a3b8';
+      }
+      const missCount = Array.isArray(ds.missing_files) ? ds.missing_files.length : 0;
+      const missHint = missCount > 0 ? `<span class="pipe-missing">(${esc(t('missing_files_lbl', { n: missCount }))})</span>` : '';
+      return `<span class="pipe-chip"><strong>${esc(modShortName(ds.module_id, ds.short_name))}:</strong> <span style="color:${col}">${esc(label)}</span>${missHint}</span>`;
+    });
+
+    const sr = data.shared_real_status || {};
+    const srMiss = Array.isArray(sr.missing_files) ? sr.missing_files.length : 0;
+    const srCol = sr.source_mode === 'REAL_CSV' ? '#34d399' : (sr.source_mode === 'PARTIAL_FALLBACK' ? '#fbbf24' : '#94a3b8');
+    const srLabel = sr.source_mode === 'REAL_CSV'
+      ? t('src_real')
+      : (sr.source_mode === 'PARTIAL_FALLBACK' ? `${t('src_partial')} (${sr.present_count || 0}/${sr.expected_count || 0})` : t('src_demo'));
+    const srMissHint = srMiss > 0 ? `<span class="pipe-missing">(${esc(t('missing_files_lbl', { n: srMiss }))})</span>` : '';
+    folderItemsList.push(`<span class="pipe-chip"><strong>${esc(t('shared_real_lbl'))}:</strong> <span style="color:${srCol}">${esc(srLabel)}</span>${srMissHint}</span>`);
+    const folderItems = folderItemsList.join('');
 
     const selSk = statusKey(selMod);
     const scenLabelMap = {
@@ -597,18 +627,25 @@ HUD_CONTROLLER_BODY_JS = r"""
                   <span class="rtc-time" id="sc-clock-time">${esc(formatScTime(scNow))}</span>
                   <span class="rtc-date" id="sc-clock-date">${esc(formatScDate(scNow))} · ${esc(t('rtc_offline_tag'))}</span>
                 </div>
-                <span class="rtc-scale-chip ${state.clock.time_scale > 1 ? 'fast' : ''}" id="sc-clock-scale">${state.clock.time_scale}x</span>
+                ${state.developer_mode ? `<span class="rtc-scale-chip ${state.clock.time_scale > 1 ? 'fast' : ''}" id="sc-clock-scale">${state.clock.time_scale}x</span>` : ''}
               </div>
 
-              <div class="scen-group" title="Switch Simulation Preset">
-                ${['green', 'yellow', 'red', 'bad_data'].map(sc => `
-                  <button class="scen-btn ${state.scenario === sc ? 'active-' + sc : ''}" data-scen="${sc}">
-                    ${esc(scenLabelMap[sc])}
-                  </button>
-                `).join('')}
-              </div>
+              <button class="mode-pill ${state.developer_mode ? 'dev' : ''}" id="mode-pill-btn" title="${esc(t('dev_mode_desc'))}">
+                ${esc(state.developer_mode ? t('dev_mode_on') : t('dev_mode_off'))}
+              </button>
+
+              ${state.developer_mode ? `
+                <div class="scen-group" title="Switch Simulation Preset">
+                  ${['green', 'yellow', 'red', 'bad_data'].map(sc => `
+                    <button class="scen-btn ${state.scenario === sc ? 'active-' + sc : ''}" data-scen="${sc}">
+                      ${esc(scenLabelMap[sc])}
+                    </button>
+                  `).join('')}
+                </div>
+              ` : ''}
+
               <button class="drawer-toggle-btn" id="open-drawer-btn">
-                ${esc(t('drawer_btn'))} ${state.use_manual_overrides ? '(' + esc(t('manual_on')) + ')' : ''}
+                ${esc(t('drawer_btn'))} ${(state.developer_mode && state.use_manual_overrides) ? '(' + esc(t('manual_on')) + ')' : ''}
               </button>
             </div>
           </div>
@@ -741,9 +778,11 @@ HUD_CONTROLLER_BODY_JS = r"""
               <span><strong>${esc(t('pipeline_lbl'))}</strong></span>
               ${folderItems}
             </div>
-            <button class="secondary-btn" style="padding:4px 10px;font-size:10.5px;" id="gen-csv-btn">
-              ${esc(t('gen_csv_btn'))}
-            </button>
+            ${state.developer_mode ? `
+              <button class="secondary-btn" style="padding:4px 10px;font-size:10.5px;" id="gen-csv-btn">
+                ${esc(t('gen_csv_btn'))}
+              </button>
+            ` : ''}
           </div>
 
         </div>
@@ -766,6 +805,17 @@ HUD_CONTROLLER_BODY_JS = r"""
               <button class="lang-btn ${state.lang === 'en' ? 'active' : ''}" data-lang="en">English</button>
               <button class="lang-btn ${state.lang === 'zh' ? 'active' : ''}" data-lang="zh">繁體中文</button>
             </div>
+          </div>
+
+          <div class="dev-toggle-row ${state.developer_mode ? 'active' : ''}">
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <span style="font-size:11.5px;font-weight:700;color:#fbbf24;letter-spacing:0.6px;">🛠 ${esc(t('dev_mode_label'))}</span>
+              <span style="font-size:11px;color:#94a3b8;">${esc(t('dev_mode_desc'))}</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="inp-dev-mode" ${state.developer_mode ? 'checked' : ''} />
+              <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            </label>
           </div>
 
           <!-- OFFLINE SPACECRAFT RTC CALIBRATION & SIMULATION SPEED -->
@@ -791,20 +841,22 @@ HUD_CONTROLLER_BODY_JS = r"""
               </div>
               <button class="rem-btn" style="padding:8px 12px;" id="apply-clock-btn">${esc(t('clk_apply_btn'))}</button>
             </div>
-            <div class="clock-speed-row">
-              <div style="display:flex;align-items:center;gap:5px;">
-                <span style="font-size:10.5px;color:#94a3b8;font-weight:600;">${esc(t('clk_speed_lbl'))}</span>
-                ${[1, 60, 3600].map(sp => `
-                  <button class="view-pill-btn ${state.clock.time_scale === sp ? 'active' : ''}" data-clk-speed="${sp}">${sp}x</button>
-                `).join('')}
+            ${state.developer_mode ? `
+              <div class="clock-speed-row">
+                <div style="display:flex;align-items:center;gap:5px;">
+                  <span style="font-size:10.5px;color:#94a3b8;font-weight:600;">${esc(t('clk_speed_lbl'))}</span>
+                  ${[1, 60, 3600].map(sp => `
+                    <button class="view-pill-btn ${state.clock.time_scale === sp ? 'active' : ''}" data-clk-speed="${sp}">${sp}x</button>
+                  `).join('')}
+                </div>
+                <div style="display:flex;align-items:center;gap:5px;">
+                  <span style="font-size:10.5px;color:#94a3b8;font-weight:600;">${esc(t('clk_jump_lbl'))}</span>
+                  ${[1, 12, 24].map(hrs => `
+                    <button class="view-pill-btn" data-clk-jump="${hrs}">+${hrs}H</button>
+                  `).join('')}
+                </div>
               </div>
-              <div style="display:flex;align-items:center;gap:5px;">
-                <span style="font-size:10.5px;color:#94a3b8;font-weight:600;">${esc(t('clk_jump_lbl'))}</span>
-                ${[1, 12, 24].map(hrs => `
-                  <button class="view-pill-btn" data-clk-jump="${hrs}">+${hrs}H</button>
-                `).join('')}
-              </div>
-            </div>
+            ` : ''}
           </div>
 
           <div class="form-meta-grid">
@@ -816,35 +868,39 @@ HUD_CONTROLLER_BODY_JS = r"""
               <span class="field-label">${esc(t('mission_day_lbl'))}</span>
               <input class="field-input" id="inp-day" type="number" min="1" max="1200" value="${esc(state.mission_day)}" />
             </div>
-            <div class="field-group" style="justify-content:center;gap:8px;">
-              <label style="font-size:11.5px;color:#cbd5e1;display:flex;align-items:center;gap:6px;cursor:pointer;">
-                <input type="checkbox" id="inp-prefer-csv" ${state.prefer_real_csv ? 'checked' : ''} />
-                ${esc(t('prefer_csv_lbl'))}
-              </label>
-              <label style="font-size:11.5px;color:#38bdf8;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;">
-                <input type="checkbox" id="inp-use-manual" ${state.use_manual_overrides ? 'checked' : ''} />
-                ${esc(t('enable_manual_lbl'))}
-              </label>
+            ${state.developer_mode ? `
+              <div class="field-group" style="justify-content:center;gap:8px;">
+                <label style="font-size:11.5px;color:#cbd5e1;display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" id="inp-prefer-csv" ${state.prefer_real_csv ? 'checked' : ''} />
+                  ${esc(t('prefer_csv_lbl'))}
+                </label>
+                <label style="font-size:11.5px;color:#38bdf8;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;">
+                  <input type="checkbox" id="inp-use-manual" ${state.use_manual_overrides ? 'checked' : ''} />
+                  ${esc(t('enable_manual_lbl'))}
+                </label>
+              </div>
+            ` : ''}
+          </div>
+
+          ${state.developer_mode ? `
+            <div class="mod-tabs">
+              ${order.map(modId => {
+                const m = modulesMap[modId];
+                return `
+                  <button class="mod-tab-btn ${state.drawerTab === modId ? 'active' : ''}" data-drawer-tab="${modId}">
+                    ${esc(modShortName(modId, m ? m.short_name : modId))}
+                  </button>
+                `;
+              }).join('')}
             </div>
-          </div>
 
-          <div class="mod-tabs">
-            ${order.map(modId => {
-              const m = modulesMap[modId];
-              return `
-                <button class="mod-tab-btn ${state.drawerTab === modId ? 'active' : ''}" data-drawer-tab="${modId}">
-                  ${esc(modShortName(modId, m ? m.short_name : modId))}
-                </button>
-              `;
-            }).join('')}
-          </div>
-
-          <div class="sliders-grid">
-            ${buildDrawerFields()}
-          </div>
+            <div class="sliders-grid">
+              ${buildDrawerFields()}
+            </div>
+          ` : ''}
 
           <div class="drawer-footer">
-            <button class="secondary-btn" id="reset-overrides-btn">${esc(t('reset_btn'))}</button>
+            ${state.developer_mode ? `<button class="secondary-btn" id="reset-overrides-btn">${esc(t('reset_btn'))}</button>` : ''}
             <button class="run-btn" id="save-run-btn">${esc(t('save_run_btn'))}</button>
           </div>
         </div>
@@ -878,9 +934,32 @@ HUD_CONTROLLER_BODY_JS = r"""
       };
     });
 
-    // Top Clock Pill opens Settings Drawer for calibration
+    // Top Clock Pill & Mode Badge open Settings Drawer
     const openClkBtn = root.querySelector('#open-clock-btn');
     if (openClkBtn) openClkBtn.onclick = () => { state.drawerOpen = true; render(); };
+
+    const modePillBtn = root.querySelector('#mode-pill-btn');
+    if (modePillBtn) modePillBtn.onclick = () => { state.drawerOpen = true; render(); };
+
+    // Developer Mode toggle inside Settings Drawer
+    const devModeChk = root.querySelector('#inp-dev-mode');
+    if (devModeChk) {
+      devModeChk.onchange = () => {
+        state.developer_mode = devModeChk.checked;
+        if (!state.developer_mode) {
+          state.scenario = 'green';
+          state.prefer_real_csv = true;
+          state.use_manual_overrides = false;
+          state.clock.spacecraft_epoch_ms = getSpacecraftNowMs();
+          state.clock.host_epoch_ms = Date.now();
+          state.clock.time_scale = 1;
+          state.clock.module_due_ms = {};
+          state.chimedKeys = {};
+        }
+        render();
+        sendPayload('toggle_developer_mode');
+      };
+    }
 
     // Reminder Banner: Mark Checked & Reset Timer / Toggle Mute
     function bindReminderBannerEvents() {
