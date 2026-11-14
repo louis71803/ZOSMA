@@ -880,6 +880,44 @@ HUD_CSS = """
   border-top: 1px solid rgba(148, 163, 184, 0.15);
 }
 
+.lang-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(56, 189, 248, 0.24);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.lang-switch {
+  display: inline-flex;
+  background: #050a15;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.lang-btn {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.lang-btn.active {
+  background: rgba(56, 189, 248, 0.22);
+  color: #38bdf8;
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.45);
+}
+
 .run-btn {
   flex: 1;
   border: none;
@@ -952,6 +990,7 @@ export default function(component) {
 
   // Local instant UI state (no roundtrip lag when clicking subsystems, metrics, or tabs)
   const state = {
+    lang: data.lang || 'en',
     selectedModule: data.default_module || 'neuro_ocular',
     selectedMetricIdx: 0,
     guideTab: 'measure',     // 'measure' | 'meaning' | 'action'
@@ -965,6 +1004,184 @@ export default function(component) {
     use_manual_overrides: Boolean(data.use_manual_overrides),
     inputs: JSON.parse(JSON.stringify(data.manual_inputs || {}))
   };
+
+  const I18N = {
+    en: {
+      hud_title: 'Z.O.S.M.A. FLIGHT SURGEON HUD',
+      hud_sub: 'AUTONOMOUS DEEP-SPACE MEDICAL INTELLIGENCE · OFFLINE CLOSED-LOOP ENGINE',
+      crew_badge: 'CREW {crew} · SOL/DAY {day}',
+      scen_green: 'GREEN',
+      scen_yellow: 'YELLOW',
+      scen_red: 'RED',
+      scen_bad: 'QC FAULT',
+      drawer_btn: '⚙ SETTINGS & TELEMETRY',
+      manual_on: 'MANUAL ON',
+      kpi_status_lbl: 'MISSION MEDICAL STATUS',
+      kpi_status_sub: '3-Layer Worst-Wins Arbitration',
+      kpi_red_lbl: 'CRITICAL RED SUBSYSTEMS',
+      kpi_red_sub_ok: 'All subsystems nominal/guarded',
+      kpi_triage_lbl: 'NEXT MANDATORY TRIAGE',
+      kpi_triage_sub: 'Automated Closed-Loop Cadence',
+      kpi_proj_lbl: 'EARLIEST PROJECTED RED',
+      kpi_proj_sub: 'Linear dY/dt Trajectory Forecast',
+      days_unit: 'DAYS',
+      none_lbl: 'NONE',
+      bio_title: 'BIOMETRIC & HABITAT TELEMETRY',
+      click_node: 'CLICK NODE',
+      node_cabin: 'CABIN / RAD',
+      node_neuro: 'NEURO-OCULAR',
+      node_cardio: 'CARDIOVASCULAR',
+      node_immune: 'IMMUNE / RENAL',
+      node_musculo: 'MUSCULOSKELETAL',
+      traj_title: '3-LAYER LONGITUDINAL TRAJECTORY',
+      leg_measured: 'Measured',
+      leg_forecast: '+30d Forecast',
+      guide_hdr: 'ZERO-MEDICAL-BACKGROUND 3-STEP CREW PROTOCOL',
+      guide_sop: 'OFFLINE AUTONOMOUS SOP',
+      tab_measure: '1. HOW TO MEASURE',
+      tab_meaning: '2. WHAT IT MEANS',
+      tab_action: '3. ACTION PROTOCOL',
+      plan_title: 'CLOSED-LOOP PLANNING BOARD',
+      auto_sync: 'AUTO-SYNC',
+      bus_title: 'CROSS-MODULE TELEMETRY BUS',
+      plan_short: 'SHORT-TERM TRIAGE (0–48H)',
+      plan_long: 'LONG-TERM REGIMEN (7–30D)',
+      tag_immediate: 'IMMEDIATE',
+      tag_red_in: 'RED IN {d}D',
+      tag_regimen: '7-30D REGIMEN',
+      pipeline_lbl: 'DATA PIPELINE:',
+      src_real: 'REAL CSV',
+      src_demo: 'SYNTHETIC DEMO',
+      gen_csv_btn: 'GENERATE DEMO CSV TEMPLATES IN data/',
+      drawer_title: '⚙ SYSTEM SETTINGS & TELEMETRY OVERRIDES',
+      close_btn: '✕ CLOSE',
+      lang_label: 'INTERFACE LANGUAGE / 介面語言',
+      lang_desc: 'Switch Mission Control HUD language',
+      crew_id_lbl: 'CREW ID',
+      mission_day_lbl: 'MISSION DAY',
+      prefer_csv_lbl: 'Prefer Real CSVs in data/',
+      enable_manual_lbl: 'Enable Manual Overrides',
+      reset_btn: 'RESET TO SCENARIO',
+      save_run_btn: '🚀 SAVE & RUN ALL 5 AGENTS',
+      vs_base: 'vs base',
+      layer_prefix: 'Layer:',
+      status_GREEN: 'GREEN',
+      status_YELLOW: 'YELLOW',
+      status_RED: 'RED',
+      status_WATCH: 'GREEN-WATCH',
+      mod_short: {
+        cabin_environment: 'Cabin & Rad',
+        cardiovascular: 'Cardiovascular',
+        musculoskeletal: 'Musculoskeletal',
+        neuro_ocular: 'Neuro-Ocular',
+        immune_metabolic: 'Immune & Renal'
+      },
+      mod_full: {
+        cabin_environment: 'Radiation, Acoustics & Cabin Env',
+        cardiovascular: 'Cardiovascular & Aerobic',
+        musculoskeletal: 'Musculoskeletal (Bone & Muscle)',
+        neuro_ocular: 'Neuro-Ocular & Vestibular (SANS)',
+        immune_metabolic: 'Immune, Endocrine & Metabolic'
+      }
+    },
+    zh: {
+      hud_title: 'Z.O.S.M.A. 航太隨艦醫療戰情室',
+      hud_sub: '深空自主醫療決策系統 · 離線三層閉環引擎',
+      crew_badge: '乘員 {crew} · 任務第 {day} 天',
+      scen_green: '正常綠燈',
+      scen_yellow: '預警黃燈',
+      scen_red: '危急紅燈',
+      scen_bad: 'QC 異常',
+      drawer_btn: '⚙ 設定與感測器微調',
+      manual_on: '手動覆寫中',
+      kpi_status_lbl: '任務整體醫療狀態',
+      kpi_status_sub: '三層決策最嚴格狀態仲裁',
+      kpi_red_lbl: '紅燈警示子系統',
+      kpi_red_sub_ok: '全系統維持正常或觀察中',
+      kpi_triage_lbl: '下次強制複檢倒數',
+      kpi_triage_sub: '自動化閉環追蹤排程',
+      kpi_proj_lbl: '最早預計轉紅時間',
+      kpi_proj_sub: '線性斜率 dY/dt 趨勢預測',
+      days_unit: '天',
+      none_lbl: '無風險',
+      bio_title: '人體生理與艙內環境掃描',
+      click_node: '點擊部位切換',
+      node_cabin: '艙內環境 / 輻射',
+      node_neuro: '神經眼壓 (SANS)',
+      node_cardio: '心血管與有氧',
+      node_immune: '免疫與腎臟代謝',
+      node_musculo: '骨骼肌肉系統',
+      traj_title: '三層縱向趨勢軌跡',
+      leg_measured: '實測趨勢',
+      leg_forecast: '+30天預測',
+      guide_hdr: '無醫療背景太空人 · 三步驟操作指引',
+      guide_sop: '離線自主標準作業程序',
+      tab_measure: '1. 如何測量',
+      tab_meaning: '2. 生理意義',
+      tab_action: '3. 處置步驟',
+      plan_title: '閉環排程與安全仲裁看板',
+      auto_sync: '自動同步',
+      bus_title: '跨模組遙測連動匯流排',
+      plan_short: '短期緊急處置 (0–48小時)',
+      plan_long: '長期處方調整 (7–30天)',
+      tag_immediate: '立即執行',
+      tag_red_in: '{d}天後轉紅',
+      tag_regimen: '7-30天處方',
+      pipeline_lbl: '資料管線狀態：',
+      src_real: '真實 CSV',
+      src_demo: '模擬示範',
+      gen_csv_btn: '在 data/ 生成範本 CSV 檔案',
+      drawer_title: '⚙ 系統設定與手動遙測抽屜',
+      close_btn: '✕ 關閉',
+      lang_label: '介面語言 / INTERFACE LANGUAGE',
+      lang_desc: '即時切換戰情室中英文介面',
+      crew_id_lbl: '乘員編號 (CREW ID)',
+      mission_day_lbl: '任務天數 (SOL/DAY)',
+      prefer_csv_lbl: '優先讀取 data/ 真實 CSV',
+      enable_manual_lbl: '啟用手動滑桿覆寫',
+      reset_btn: '重設回情境預設值',
+      save_run_btn: '🚀 儲存並執行全部 5 大模組',
+      vs_base: '較基準值',
+      layer_prefix: '決策層:',
+      status_GREEN: '正常 GREEN',
+      status_YELLOW: '預警 YELLOW',
+      status_RED: '危急 RED',
+      status_WATCH: '觀察 WATCH',
+      mod_short: {
+        cabin_environment: '艙內環境/輻射',
+        cardiovascular: '心血管與有氧',
+        musculoskeletal: '骨骼與肌肉',
+        neuro_ocular: '神經眼壓 SANS',
+        immune_metabolic: '免疫與代謝'
+      },
+      mod_full: {
+        cabin_environment: '輻射、聲學與艙內環境 (Role 6)',
+        cardiovascular: '心血管與有氧耐力 (Role 3)',
+        musculoskeletal: '骨骼與肌肉系統 (Role 2)',
+        neuro_ocular: '神經眼壓與前庭平衡 (Role 4)',
+        immune_metabolic: '免疫、內分泌與代謝 (Role 5)'
+      }
+    }
+  };
+
+  function t(key, vars = {}) {
+    const dict = I18N[state.lang] || I18N.en;
+    let txt = dict[key] !== undefined ? dict[key] : (I18N.en[key] !== undefined ? I18N.en[key] : key);
+    Object.keys(vars).forEach(k => {
+      txt = String(txt).replace('{' + k + '}', vars[k]);
+    });
+    return txt;
+  }
+
+  function modShortName(modId, fallback) {
+    const dict = I18N[state.lang] || I18N.en;
+    return (dict.mod_short && dict.mod_short[modId]) || fallback || modId;
+  }
+
+  function modFullName(modId, fallback) {
+    const dict = I18N[state.lang] || I18N.en;
+    return (dict.mod_full && dict.mod_full[modId]) || fallback || modId;
+  }
 
   function esc(str) {
     return String(str === null || str === undefined ? '' : str)
@@ -981,16 +1198,18 @@ export default function(component) {
   }
 
   function badgeLabel(modObj) {
-    if (!modObj) return 'GREEN';
+    if (!modObj) return t('status_GREEN');
     if (!modObj.quality_passed) return (modObj.raw_status || 'QC FAIL');
-    if (modObj.watch_flag) return 'GREEN-WATCH';
-    return modObj.status_light || 'GREEN';
+    if (modObj.watch_flag) return t('status_WATCH');
+    const st = modObj.status_light || 'GREEN';
+    return t('status_' + st);
   }
 
   function sendPayload(actionType, extra = {}) {
     setTriggerValue('hud_action', {
       type: actionType,
       ts: Date.now(),
+      lang: state.lang,
       crew_id: state.crew_id,
       mission_day: Number(state.mission_day) || 124,
       scenario: state.scenario,
@@ -1012,11 +1231,11 @@ export default function(component) {
     const cabHex = STATUS_HEX[statusKey(cab)] || '#38bdf8';
 
     const nodes = [
-      { id: 'cabin_environment', label: 'CABIN / RAD', x: 56,  y: 52,  lx: 16,  ly: 28, align: 'start' },
-      { id: 'neuro_ocular',      label: 'NEURO-OCULAR', x: 150, y: 66,  lx: 214, ly: 56, align: 'start' },
-      { id: 'cardiovascular',    label: 'CARDIOVASCULAR', x: 156, y: 132, lx: 214, ly: 124, align: 'start' },
-      { id: 'immune_metabolic',  label: 'IMMUNE / RENAL', x: 146, y: 184, lx: 214, ly: 186, align: 'start' },
-      { id: 'musculoskeletal',   label: 'MUSCULOSKELETAL', x: 132, y: 268, lx: 214, ly: 268, align: 'start' }
+      { id: 'cabin_environment', label: t('node_cabin'), x: 56,  y: 52,  lx: 16,  ly: 28, align: 'start' },
+      { id: 'neuro_ocular',      label: t('node_neuro'), x: 150, y: 66,  lx: 214, ly: 56, align: 'start' },
+      { id: 'cardiovascular',    label: t('node_cardio'), x: 156, y: 132, lx: 214, ly: 124, align: 'start' },
+      { id: 'immune_metabolic',  label: t('node_immune'), x: 146, y: 184, lx: 214, ly: 186, align: 'start' },
+      { id: 'musculoskeletal',   label: t('node_musculo'), x: 132, y: 268, lx: 214, ly: 268, align: 'start' }
     ];
 
     const nodesSvg = nodes.map(n => {
@@ -1296,14 +1515,15 @@ export default function(component) {
       const m = modulesMap[modId];
       const sk = statusKey(m);
       const isSel = modId === state.selectedModule;
+      const srcBadge = m && m.data_source === 'REAL' ? t('src_real') : (m ? m.data_source : 'DEMO');
       return `
         <div class="subsys-pill ${isSel ? 'selected' : ''}" data-select-mod="${modId}">
           <div class="subsys-left">
             <span class="led-dot led-${sk}"></span>
-            <span class="subsys-name">${esc(m ? m.short_name : modId)}</span>
+            <span class="subsys-name">${esc(modShortName(modId, m ? m.short_name : modId))}</span>
           </div>
           <div class="subsys-meta">
-            <span class="src-chip">${esc(m ? m.data_source : 'DEMO')}</span>
+            <span class="src-chip">${esc(srcBadge)}</span>
             <span class="badge badge-${sk}">${esc(badgeLabel(m))}</span>
           </div>
         </div>
@@ -1314,8 +1534,8 @@ export default function(component) {
     const metricTilesHtml = metrics.map((m, idx) => {
       const msk = !m.quality_passed ? 'QC' : (m.status_light || 'GREEN');
       const deltaTxt = (m.delta_pct !== null && m.delta_pct !== undefined)
-        ? `${m.delta_pct > 0 ? '+' : ''}${m.delta_pct}% vs base`
-        : `Layer: ${m.decided_by || 'rule'}`;
+        ? `${m.delta_pct > 0 ? '+' : ''}${m.delta_pct}% ${t('vs_base')}`
+        : `${t('layer_prefix')} ${m.decided_by || 'rule'}`;
       return `
         <div class="metric-card ${idx === state.selectedMetricIdx ? 'active' : ''}" data-metric-idx="${idx}">
           <div class="m-top">
@@ -1353,7 +1573,7 @@ export default function(component) {
 
     const flags = data.propagated_flags || [];
     const signalsHtml = flags.length
-      ? `<div class="signal-box"><strong>CROSS-MODULE TELEMETRY BUS</strong>${flags.map(f => `<span>• ${esc(f)}</span>`).join('')}</div>`
+      ? `<div class="signal-box"><strong>${esc(t('bus_title'))}</strong>${flags.map(f => `<span>• ${esc(f)}</span>`).join('')}</div>`
       : '';
 
     // Timeline cards
@@ -1361,22 +1581,23 @@ export default function(component) {
       ? (schedule.short_term_board || []).map(item => ({
           mod: item.module_id,
           status: item.status_light,
-          tag: item.next_hours === 0 ? 'IMMEDIATE' : `T+${item.next_hours}H`,
+          tag: item.next_hours === 0 ? t('tag_immediate') : `T+${item.next_hours}H`,
           text: item.action
         }))
       : (schedule.long_term_board || []).map(item => ({
           mod: item.module_id,
           status: item.status_light,
-          tag: item.days_until_red !== null && item.days_until_red !== undefined ? `RED IN ${item.days_until_red}D` : '7-30D REGIMEN',
+          tag: item.days_until_red !== null && item.days_until_red !== undefined ? t('tag_red_in', { d: item.days_until_red }) : t('tag_regimen'),
           text: item.adjustment
         }));
 
     const timelineHtml = timelineItems.map(it => {
       const col = STATUS_HEX[it.status] || '#10b981';
+      const modTitle = modShortName(it.mod, it.mod.replace('_', ' '));
       return `
         <div class="timeline-card" style="--tl-color:${col}">
           <div class="tl-hdr">
-            <span class="tl-mod">${esc(it.mod.replace('_', ' '))}</span>
+            <span class="tl-mod">${esc(modTitle)}</span>
             <span class="tl-time">${esc(it.tag)}</span>
           </div>
           <div class="tl-desc">${esc(it.text)}</div>
@@ -1386,10 +1607,16 @@ export default function(component) {
 
     // Data folder footer strip
     const folderItems = (data.data_statuses || []).map(ds =>
-      `<span><strong>${esc(ds.short_name)}:</strong> <span style="color:${ds.has_real_files ? '#34d399' : '#94a3b8'}">${ds.has_real_files ? 'REAL CSV' : 'SYNTHETIC DEMO'}</span></span>`
+      `<span><strong>${esc(modShortName(ds.module_id, ds.short_name))}:</strong> <span style="color:${ds.has_real_files ? '#34d399' : '#94a3b8'}">${ds.has_real_files ? esc(t('src_real')) : esc(t('src_demo'))}</span></span>`
     ).join('');
 
     const selSk = statusKey(selMod);
+    const scenLabelMap = {
+      green: t('scen_green'),
+      yellow: t('scen_yellow'),
+      red: t('scen_red'),
+      bad_data: t('scen_bad')
+    };
 
     root.innerHTML = `
       <div class="hud-shell">
@@ -1401,10 +1628,10 @@ export default function(component) {
               <div class="brand-emblem">Z</div>
               <div class="brand-titles">
                 <div class="brand-name">
-                  Z.O.S.M.A. FLIGHT SURGEON HUD
-                  <span class="crew-pill">CREW ${esc(state.crew_id)} · SOL/DAY ${esc(state.mission_day)}</span>
+                  ${esc(t('hud_title'))}
+                  <span class="crew-pill">${esc(t('crew_badge', { crew: state.crew_id, day: state.mission_day }))}</span>
                 </div>
-                <div class="brand-sub">AUTONOMOUS DEEP-SPACE MEDICAL INTELLIGENCE · OFFLINE CLOSED-LOOP ENGINE</div>
+                <div class="brand-sub">${esc(t('hud_sub'))}</div>
               </div>
             </div>
 
@@ -1412,12 +1639,12 @@ export default function(component) {
               <div class="scen-group" title="Switch Simulation Preset">
                 ${['green', 'yellow', 'red', 'bad_data'].map(sc => `
                   <button class="scen-btn ${state.scenario === sc ? 'active-' + sc : ''}" data-scen="${sc}">
-                    ${sc === 'bad_data' ? 'QC FAULT' : sc.toUpperCase()}
+                    ${esc(scenLabelMap[sc])}
                   </button>
                 `).join('')}
               </div>
               <button class="drawer-toggle-btn" id="open-drawer-btn">
-                ⚙ TELEMETRY & OVERRIDES ${state.use_manual_overrides ? '(MANUAL ON)' : ''}
+                ${esc(t('drawer_btn'))} ${state.use_manual_overrides ? '(' + esc(t('manual_on')) + ')' : ''}
               </button>
             </div>
           </div>
@@ -1425,24 +1652,24 @@ export default function(component) {
           <!-- KPI RIBBON -->
           <div class="kpi-ribbon">
             <div class="kpi-tile" style="--accent:${overallAccent}">
-              <span class="kpi-label">MISSION MEDICAL STATUS</span>
-              <span class="kpi-val" style="color:${overallAccent}">${esc(overallStatus)}</span>
-              <span class="kpi-sub">3-Layer Worst-Wins Arbitration</span>
+              <span class="kpi-label">${esc(t('kpi_status_lbl'))}</span>
+              <span class="kpi-val" style="color:${overallAccent}">${esc(t('status_' + overallStatus))}</span>
+              <span class="kpi-sub">${esc(t('kpi_status_sub'))}</span>
             </div>
             <div class="kpi-tile" style="--accent:${(schedule.urgent_modules || []).length ? '#ef4444' : '#38bdf8'}">
-              <span class="kpi-label">CRITICAL RED SUBSYSTEMS</span>
+              <span class="kpi-label">${esc(t('kpi_red_lbl'))}</span>
               <span class="kpi-val">${(schedule.urgent_modules || []).length} <span style="font-size:13px;color:#64748b;">/ 5</span></span>
-              <span class="kpi-sub">${(schedule.urgent_modules || []).length ? esc(schedule.urgent_modules.join(', ')) : 'All subsystems nominal/guarded'}</span>
+              <span class="kpi-sub">${(schedule.urgent_modules || []).length ? esc(schedule.urgent_modules.map(m => modShortName(m, m)).join(', ')) : esc(t('kpi_red_sub_ok'))}</span>
             </div>
             <div class="kpi-tile" style="--accent:#38bdf8">
-              <span class="kpi-label">NEXT MANDATORY TRIAGE</span>
+              <span class="kpi-label">${esc(t('kpi_triage_lbl'))}</span>
               <span class="kpi-val">T + ${esc(schedule.next_check_hours)} H</span>
-              <span class="kpi-sub">Automated Closed-Loop Cadence</span>
+              <span class="kpi-sub">${esc(t('kpi_triage_sub'))}</span>
             </div>
             <div class="kpi-tile" style="--accent:#a855f7">
-              <span class="kpi-label">EARLIEST PROJECTED RED</span>
-              <span class="kpi-val">${schedule.earliest_red_days !== null && schedule.earliest_red_days !== undefined ? esc(schedule.earliest_red_days) + ' DAYS' : 'NONE'}</span>
-              <span class="kpi-sub">Linear dY/dt Trajectory Forecast</span>
+              <span class="kpi-label">${esc(t('kpi_proj_lbl'))}</span>
+              <span class="kpi-val">${schedule.earliest_red_days !== null && schedule.earliest_red_days !== undefined ? esc(schedule.earliest_red_days) + ' ' + esc(t('days_unit')) : esc(t('none_lbl'))}</span>
+              <span class="kpi-sub">${esc(t('kpi_proj_sub'))}</span>
             </div>
           </div>
 
@@ -1452,8 +1679,8 @@ export default function(component) {
             <!-- LEFT COLUMN: BIOMETRIC & HABITAT SCANNER -->
             <div class="hud-panel">
               <div class="panel-hdr">
-                <span class="panel-title"><span class="panel-title-dot"></span>BIOMETRIC & HABITAT TELEMETRY</span>
-                <span style="font-size:10.5px;color:#64748b;">CLICK NODE</span>
+                <span class="panel-title"><span class="panel-title-dot"></span>${esc(t('bio_title'))}</span>
+                <span style="font-size:10.5px;color:#64748b;">${esc(t('click_node'))}</span>
               </div>
               <div class="svg-stage">
                 ${buildBiometricSvg(modulesMap)}
@@ -1466,7 +1693,7 @@ export default function(component) {
             <!-- CENTER COLUMN: SUBSYSTEM DIAGNOSTICS & 3-STEP CREW PROTOCOL -->
             <div class="hud-panel">
               <div class="panel-hdr">
-                <span class="panel-title"><span class="panel-title-dot"></span>${esc(selMod.display_name || state.selectedModule)}</span>
+                <span class="panel-title"><span class="panel-title-dot"></span>${esc(modFullName(state.selectedModule, selMod.display_name || state.selectedModule))}</span>
                 <span class="badge badge-${selSk}">${esc(badgeLabel(selMod))}</span>
               </div>
 
@@ -1479,12 +1706,12 @@ export default function(component) {
               <div class="chart-card">
                 <div class="chart-hdr">
                   <span class="chart-title">
-                    3-LAYER LONGITUDINAL TRAJECTORY · <span style="color:#38bdf8">${esc(activeMetric ? activeMetric.metric_name : '')}</span>
+                    ${esc(t('traj_title'))} · <span style="color:#38bdf8">${esc(activeMetric ? activeMetric.metric_name : '')}</span>
                     ${activeMetric && activeMetric.unit ? `(${esc(activeMetric.unit)})` : ''}
                   </span>
                   <div class="chart-legend">
-                    <span class="leg-item"><span class="leg-line" style="background:#38bdf8;"></span>Measured</span>
-                    <span class="leg-item"><span class="leg-line" style="background:#f472b6;"></span>+30d Forecast</span>
+                    <span class="leg-item"><span class="leg-line" style="background:#38bdf8;"></span>${esc(t('leg_measured'))}</span>
+                    <span class="leg-item"><span class="leg-line" style="background:#f472b6;"></span>${esc(t('leg_forecast'))}</span>
                   </div>
                 </div>
                 ${buildTrendSvg(activeMetric, state.mission_day)}
@@ -1493,14 +1720,14 @@ export default function(component) {
               <div class="guide-box">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
                   <span style="font-size:11px;font-weight:700;letter-spacing:1px;color:#94a3b8;text-transform:uppercase;">
-                    ZERO-MEDICAL-BACKGROUND 3-STEP CREW PROTOCOL
+                    ${esc(t('guide_hdr'))}
                   </span>
-                  <span style="font-size:10.5px;color:#64748b;">OFFLINE AUTONOMOUS SOP</span>
+                  <span style="font-size:10.5px;color:#64748b;">${esc(t('guide_sop'))}</span>
                 </div>
                 <div class="guide-tabs">
-                  <button class="guide-tab ${state.guideTab === 'measure' ? 'active' : ''}" data-guide-tab="measure">1. HOW TO MEASURE</button>
-                  <button class="guide-tab ${state.guideTab === 'meaning' ? 'active' : ''}" data-guide-tab="meaning">2. WHAT IT MEANS</button>
-                  <button class="guide-tab ${state.guideTab === 'action' ? 'active' : ''}" data-guide-tab="action">3. ACTION PROTOCOL</button>
+                  <button class="guide-tab ${state.guideTab === 'measure' ? 'active' : ''}" data-guide-tab="measure">${esc(t('tab_measure'))}</button>
+                  <button class="guide-tab ${state.guideTab === 'meaning' ? 'active' : ''}" data-guide-tab="meaning">${esc(t('tab_meaning'))}</button>
+                  <button class="guide-tab ${state.guideTab === 'action' ? 'active' : ''}" data-guide-tab="action">${esc(t('tab_action'))}</button>
                 </div>
                 <div class="guide-body">
                   ${guideContentHtml}
@@ -1511,8 +1738,8 @@ export default function(component) {
             <!-- RIGHT COLUMN: CLOSED-LOOP SCHEDULE & CONFLICT ARBITRATION -->
             <div class="hud-panel panel-right">
               <div class="panel-hdr">
-                <span class="panel-title"><span class="panel-title-dot"></span>CLOSED-LOOP PLANNING BOARD</span>
-                <span style="font-size:10.5px;color:#38bdf8;">AUTO-SYNC</span>
+                <span class="panel-title"><span class="panel-title-dot"></span>${esc(t('plan_title'))}</span>
+                <span style="font-size:10.5px;color:#38bdf8;">${esc(t('auto_sync'))}</span>
               </div>
 
               ${conflictsHtml}
@@ -1520,10 +1747,10 @@ export default function(component) {
 
               <div class="plan-tabs">
                 <button class="guide-tab ${state.planTab === 'short' ? 'active' : ''}" data-plan-tab="short">
-                  SHORT-TERM TRIAGE (0–48H)
+                  ${esc(t('plan_short'))}
                 </button>
                 <button class="guide-tab ${state.planTab === 'long' ? 'active' : ''}" data-plan-tab="long">
-                  LONG-TERM REGIMEN (7–30D)
+                  ${esc(t('plan_long'))}
                 </button>
               </div>
 
@@ -1537,42 +1764,53 @@ export default function(component) {
           <!-- SUBTLE DATA PIPELINE STATUS BAR -->
           <div class="data-strip">
             <div class="data-strip-items">
-              <span><strong>DATA PIPELINE:</strong></span>
+              <span><strong>${esc(t('pipeline_lbl'))}</strong></span>
               ${folderItems}
             </div>
             <button class="secondary-btn" style="padding:4px 10px;font-size:10.5px;" id="gen-csv-btn">
-              GENERATE DEMO CSV TEMPLATES IN data/
+              ${esc(t('gen_csv_btn'))}
             </button>
           </div>
 
         </div>
       </div>
 
-      <!-- SLIDE-OVER MANUAL TELEMETRY DRAWER -->
+      <!-- SLIDE-OVER SETTINGS & MANUAL TELEMETRY DRAWER -->
       <div class="drawer-backdrop ${state.drawerOpen ? 'open' : ''}" id="drawer-backdrop">
         <div class="drawer-panel" id="drawer-panel">
           <div class="drawer-hdr">
-            <span class="drawer-title">🎛️ MANUAL SENSOR TELEMETRY & OVERRIDE DRAWER</span>
-            <button class="close-btn" id="close-drawer-btn">✕ ESC</button>
+            <span class="drawer-title">${esc(t('drawer_title'))}</span>
+            <button class="close-btn" id="close-drawer-btn">${esc(t('close_btn'))}</button>
+          </div>
+
+          <div class="lang-row">
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <span style="font-size:11.5px;font-weight:700;color:#e2e8f0;letter-spacing:0.6px;">${esc(t('lang_label'))}</span>
+              <span style="font-size:11px;color:#94a3b8;">${esc(t('lang_desc'))}</span>
+            </div>
+            <div class="lang-switch">
+              <button class="lang-btn ${state.lang === 'en' ? 'active' : ''}" data-lang="en">English</button>
+              <button class="lang-btn ${state.lang === 'zh' ? 'active' : ''}" data-lang="zh">繁體中文</button>
+            </div>
           </div>
 
           <div class="form-meta-grid">
             <div class="field-group">
-              <span class="field-label">CREW ID</span>
+              <span class="field-label">${esc(t('crew_id_lbl'))}</span>
               <input class="field-input" id="inp-crew" value="${esc(state.crew_id)}" />
             </div>
             <div class="field-group">
-              <span class="field-label">MISSION DAY</span>
+              <span class="field-label">${esc(t('mission_day_lbl'))}</span>
               <input class="field-input" id="inp-day" type="number" min="1" max="1200" value="${esc(state.mission_day)}" />
             </div>
             <div class="field-group" style="justify-content:center;gap:8px;">
               <label style="font-size:11.5px;color:#cbd5e1;display:flex;align-items:center;gap:6px;cursor:pointer;">
                 <input type="checkbox" id="inp-prefer-csv" ${state.prefer_real_csv ? 'checked' : ''} />
-                Prefer Real CSVs in data/
+                ${esc(t('prefer_csv_lbl'))}
               </label>
               <label style="font-size:11.5px;color:#38bdf8;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;">
                 <input type="checkbox" id="inp-use-manual" ${state.use_manual_overrides ? 'checked' : ''} />
-                Enable Manual Overrides
+                ${esc(t('enable_manual_lbl'))}
               </label>
             </div>
           </div>
@@ -1582,7 +1820,7 @@ export default function(component) {
               const m = modulesMap[modId];
               return `
                 <button class="mod-tab-btn ${state.drawerTab === modId ? 'active' : ''}" data-drawer-tab="${modId}">
-                  ${esc(m ? m.short_name : modId)}
+                  ${esc(modShortName(modId, m ? m.short_name : modId))}
                 </button>
               `;
             }).join('')}
@@ -1593,8 +1831,8 @@ export default function(component) {
           </div>
 
           <div class="drawer-footer">
-            <button class="secondary-btn" id="reset-overrides-btn">RESET TO SCENARIO</button>
-            <button class="run-btn" id="save-run-btn">🚀 SAVE & RUN ALL 5 AGENTS</button>
+            <button class="secondary-btn" id="reset-overrides-btn">${esc(t('reset_btn'))}</button>
+            <button class="run-btn" id="save-run-btn">${esc(t('save_run_btn'))}</button>
           </div>
         </div>
       </div>
@@ -1604,6 +1842,18 @@ export default function(component) {
   }
 
   function bindEvents() {
+    // Language toggle inside Settings Drawer (instant client-side switch + sync to Python)
+    root.querySelectorAll('[data-lang]').forEach(btn => {
+      btn.onclick = () => {
+        const nextLang = btn.getAttribute('data-lang');
+        if (nextLang && nextLang !== state.lang) {
+          state.lang = nextLang;
+          render();
+          sendPayload('switch_lang');
+        }
+      };
+    });
+
     // Scenario preset buttons -> trigger Python evaluation immediately
     root.querySelectorAll('[data-scen]').forEach(btn => {
       btn.onclick = () => {

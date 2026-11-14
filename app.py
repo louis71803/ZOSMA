@@ -122,6 +122,8 @@ def _init_hud_session_state() -> None:
     st.session_state["mission_day"] = int(disk_session.get("mission_day", 124))
     scen = str(disk_session.get("scenario", "green"))
     st.session_state["scenario"] = scen if scen in {"green", "yellow", "red", "bad_data"} else "green"
+    lang = str(disk_session.get("lang", "en"))
+    st.session_state["lang"] = lang if lang in {"en", "zh"} else "en"
     st.session_state["prefer_real_csv"] = True
     st.session_state["use_manual_overrides"] = False
     st.session_state["selected_module"] = "neuro_ocular"
@@ -164,6 +166,7 @@ def _serialize_hud_payload(
     ]
 
     return {
+        "lang": st.session_state["lang"],
         "crew_id": st.session_state["crew_id"],
         "mission_day": st.session_state["mission_day"],
         "scenario": st.session_state["scenario"],
@@ -187,6 +190,8 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
     st.session_state["last_action_ts"] = ts
 
     act_type = str(action.get("type", ""))
+    if action.get("lang") in {"en", "zh"}:
+        st.session_state["lang"] = str(action["lang"])
     if action.get("selected_module") in MODULE_ORDER:
         st.session_state["selected_module"] = action["selected_module"]
     if action.get("crew_id"):
@@ -195,7 +200,10 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
         st.session_state["mission_day"] = max(1, int(action["mission_day"]))
     if action.get("scenario") in {"green", "yellow", "red", "bad_data"}:
         st.session_state["scenario"] = str(action["scenario"])
-    if "prefer_real_csv" in action:
+        # When user explicitly clicks stress-test preset (yellow/red/bad_data), use simulated scenario presets
+        if act_type == "switch_scenario":
+            st.session_state["prefer_real_csv"] = st.session_state["scenario"] == "green"
+    if "prefer_real_csv" in action and act_type != "switch_scenario":
         st.session_state["prefer_real_csv"] = bool(action["prefer_real_csv"])
     if "use_manual_overrides" in action:
         st.session_state["use_manual_overrides"] = bool(action["use_manual_overrides"])
@@ -226,8 +234,19 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
             mission_day=st.session_state["mission_day"],
             scenario=st.session_state["scenario"],
             results=new_results,
+            lang=st.session_state["lang"],
         )
         st.toast("Saved telemetry to data/runtime_session.json & executed all 5 agents!", icon="🚀")
+        st.rerun()
+
+    elif act_type == "switch_lang":
+        save_runtime_session(
+            manual_overrides=st.session_state["manual_inputs"],
+            crew_id=st.session_state["crew_id"],
+            mission_day=st.session_state["mission_day"],
+            scenario=st.session_state["scenario"],
+            lang=st.session_state["lang"],
+        )
         st.rerun()
 
     elif act_type in {"switch_scenario", "reset_overrides"}:

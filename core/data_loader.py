@@ -216,6 +216,7 @@ def load_runtime_session() -> dict[str, Any]:
         "crew_id": "C002",
         "mission_day": 124,
         "scenario": "green",
+        "lang": "en",
         "updated_at": None,
         "manual_overrides": {mod: {} for mod in MODULE_ORDER},
         "history": [],
@@ -249,6 +250,7 @@ def save_runtime_session(
     mission_day: int = 124,
     scenario: str = "green",
     results: Optional[dict[str, ModuleEvaluationResult]] = None,
+    lang: str = "en",
 ) -> dict[str, Any]:
     """Persist manual input overrides and a compact summary snapshot to runtime_session.json."""
     ensure_data_directories()
@@ -273,6 +275,7 @@ def save_runtime_session(
         "crew_id": crew_id,
         "mission_day": mission_day,
         "scenario": scenario,
+        "lang": lang if lang in {"en", "zh"} else "en",
         "updated_at": timestamp,
         "manual_overrides": manual_overrides,
         "history": history,
