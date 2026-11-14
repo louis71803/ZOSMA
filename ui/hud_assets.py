@@ -1051,6 +1051,7 @@ export default function(component) {
       tag_regimen: '7-30D REGIMEN',
       pipeline_lbl: 'DATA PIPELINE:',
       src_real: 'REAL CSV',
+      src_sim: 'SIMULATED',
       src_demo: 'SYNTHETIC DEMO',
       gen_csv_btn: 'GENERATE DEMO CSV TEMPLATES IN data/',
       drawer_title: '⚙ SYSTEM SETTINGS & TELEMETRY OVERRIDES',
@@ -1129,6 +1130,7 @@ export default function(component) {
       tag_regimen: '7-30天處方',
       pipeline_lbl: '資料管線狀態：',
       src_real: '真實 CSV',
+      src_sim: '模擬資料',
       src_demo: '模擬示範',
       gen_csv_btn: '在 data/ 生成範本 CSV 檔案',
       drawer_title: '⚙ 系統設定與手動遙測抽屜',
@@ -1195,6 +1197,196 @@ export default function(component) {
     if (!modObj) return 'GREEN';
     if (!modObj.quality_passed) return 'QC';
     return modObj.status_light || 'GREEN';
+  }
+
+  const METRIC_ZH = {
+    ppco2_1h_mmHg: '艙內 1h 二氧化碳分壓',
+    proton_flux_10mev_pfu: 'GOES ≥10MeV 質子通量',
+    career_dose_mSv: '累積任務輻射劑量',
+    crew_leq8_dBA: '乘員 8 小時噪音暴露',
+    sleep_tst_h: '腕錶睡眠總時數',
+    co2_sensor_qc: 'CO2 感測器凍結檢核',
+    rest_hr_bpm: '靜息心率',
+    spo2_pct: '血氧飽和度 (SpO2)',
+    pvc_burden_pct: '24h 心室早期收縮負荷',
+    ijv_flow_status: '頸內靜脈血流狀態',
+    steady_hr_150w_bpm: '150W 固定負荷心率',
+    ecg_lead_quality: '心電導極訊號品質',
+    csa_thigh_cm2: '大腿肌肉截面積',
+    csa_calf_cm2: '小腿肌肉截面積',
+    velocity_loss_pct: '深蹲速度衰減率 (VBT)',
+    e4d_s_bone_index: 'E4D 骨骼刺激指數',
+    iso_peak_force_n: '等長最大肌力峰值',
+    body_mass_kg: '太空微重力體重',
+    ntx_bone_resorption: '骨吸收指標 NTX',
+    ctx_bone_resorption: '骨吸收指標 CTX',
+    p1np_bone_formation: '骨生成指標 P1NP',
+    est_monthly_bone_loss_pct: '推估每月骨流失率',
+    osd575_ca_alp_baseline: 'OSD-575 血清鈣/ALP基準',
+    musculoskeletal_qc_gatekeeper: '骨骼肌肉 QC 閘門',
+    delta_trt_um: '視網膜厚度變化 ΔTRT',
+    delta_v_onh_mm3: '視神經盤體積變化',
+    onsd_mm: '視神經鞘直徑 ONSD',
+    sph_eq_shift_d: '遠視屈光偏移量',
+    vor_gain: '前庭動眼反射增益',
+    oct_scan_qc: 'Mini OCT 掃描品質',
+    lymphocytes_10e9_l: '淋巴球計數',
+    oral_temp_c: '口腔體溫',
+    saliva_vzv_copies_ml: '唾液水痘病毒量 (VZV)',
+    crp_mg_l: 'C-反應蛋白發炎指標',
+    hydration_ml: '24小時飲水量',
+    neutrophil_qc_ratio: '嗜中性球分選比例 QC'
+  };
+
+  const LAYER_ZH = {
+    fixed_threshold: '固定臨床閾值',
+    baseline: '個人基準 ±2SD',
+    rule: '生理決策規則',
+    spe_rule: '太陽風暴連動規則',
+    trend: '趨勢斜率預測',
+    quality_check: 'Layer 0 品質閘門'
+  };
+
+  const EXACT_ZH = {
+    'Nominal cabin ECLSS, radiation, acoustic, and sleep telemetry.': '艙內維生環控 (ECLSS)、輻射劑量、聲學噪音與睡眠監測皆正常。',
+    'Continue daily Bio-Monitor morning vitals & planned CEVIS cycling.': '維持每日晨間穿戴式生理監測與既定 CEVIS 飛輪有氧訓練。',
+    'Continue daily oral temp, hydration log, and monthly Bio-Analyzer CBC.': '維持每日口腔體溫量測、飲水紀錄與每月一次 Bio-Analyzer 血球分析。',
+    'Continue nominal 6-day/week E4D resistance & CEVIS countermeasure schedule; target VBT loss 20-30%.': '維持每週 6 天 E4D 抗阻與 CEVIS 對抗訓練；目標速度衰減區間 20–30%。',
+    'Continue monthly Mini OCT, Amsler grid, and VOG vestibular checks.': '維持每月一次 Mini OCT 眼底掃描、阿姆斯勒方格表與 VOG 前庭平衡檢測。',
+    'Continue standard ECLSS telemetry logging and weekly dosimeter readout.': '持續記錄標準 ECLSS 環控遙測並每週讀取一次個人輻射劑量計。',
+    'Maintain current CEVIS aerobic conditioning + bi-weekly LBNP tolerance check.': '維持現行 CEVIS 有氧體能訓練，並每兩週執行一次 LBNP 下半身負壓耐受測試。',
+    'Maintain Vitamin D3 supplementation (2000 IU/d) and 2.5 L/d renal hydration.': '持續補充維生素 D3 (2000 IU/日) 並維持每日 2.5 公升飲水以預防腎結石。',
+    'Maintain current E4D progressive resistance schedule (weekly 168h verification).': '維持現行 E4D 漸進式抗阻訓練處方（每週 168 小時定期檢核）。',
+    'Maintain baseline monthly SANS imaging & pre-landing vestibular drills.': '維持基準每月 SANS 眼科影像追蹤與著陸前前庭適應訓練。',
+
+    'Read MCA CO2 bench, DOSTEL area/crew dosimeters, acoustic SPL meter, and wrist Actiwatch sync.': '讀取 MCA 二氧化碳分析儀、DOSTEL 區域/個人輻射劑量計、聲壓計並同步腕式 Actiwatch 睡眠資料。',
+    'Cross-check primary MCA IR bench against portable Drager / backup CDRA CO2 monitor.': '使用手持式 Drager 或備用 CDRA 二氧化碳監測器交叉比對主 MCA 紅外線分析儀讀數。',
+    'Wear Bio-Monitor shirt for resting HR/ECG; place Ultrasound 2 linear probe laterally on neck for IJV Doppler flow.': '穿著 Bio-Monitor 感測衣量測靜息心率與心電圖；將 Ultrasound 2 線性探頭置於頸部外側量測頸內靜脈 (IJV) 都卜勒血流。',
+    'Wet Bio-Monitor thoracic electrodes lightly with water, tighten chest strap, and sit quietly for 60s.': '以清水微濕 Bio-Monitor 胸部電極片、拉緊胸帶並靜坐 60 秒後重新量測。',
+    '1) Attach E4D VBT linear encoder & zero the load cell; log squat peak force, loading rate, reps, and intra-set velocity loss. 2) Scan pre-marked 50% mid-thigh & 30% proximal calf landmarks with Ultrasound 2. 3) Record morning SLAMMD body mass and run Bio-Analyzer NTX/CTX/P1NP fingerstick/urine cartridge.': '1) 安裝 E4D 速度編碼器並歸零荷重元，記錄深蹲峰值力、發力率與組內速度衰減。2) 使用 Ultrasound 2 掃描預先標記的大腿中段 50% 與小腿近端 30% 位置。3) 記錄晨間 SLAMMD 體重並執行 Bio-Analyzer 骨代謝指標 (NTX/CTX/P1NP) 檢測。',
+    '1) Zero the E4D load cell with no cable tension. 2) Apply acoustic gel to Ultrasound 2 linear probe at the pre-marked 30% proximal calf & 50% mid-thigh skin tattoos. 3) Verify readings sit inside physiological bounds (Calf CSA 25-200 cm^2, Thigh CSA 50-350 cm^2) before logging.': '1) 於無拉索張力下將 E4D 荷重元歸零。2) 在預先標記的小腿 30% 與大腿 50% 標記處塗抹超音波耦合劑進行掃描。3) 確認數值落於生理合理區間（小腿 25–200、大腿 50–350 cm²）再上傳紀錄。',
+    'Capture registered Mini OCT macular/ONH cube, perform Amsler grid monocular test, and measure ONSD 3 mm behind globe via Ultrasound 2.': '擷取已對位基準之 Mini OCT 黃斑部/視神經盤體積掃描，執行單眼阿姆斯勒方格測試，並用 Ultrasound 2 量測眼球後 3mm 視神經鞘直徑 (ONSD)。',
+    'Dim cabin light, stabilize head on Mini OCT chinrest, fixate green cross, and verify Auto-Register lock.': '調暗艙內照明，將下巴穩靠於 Mini OCT 支架，注視綠色十字並確認自動對位鎖定 (Auto-Register) 亮燈。',
+    'Measure oral temp before eating/drinking; collect morning saliva swab; run Bio-Analyzer fingerstick CBC.': '於進食飲水前量測口腔體溫；採集晨間唾液拭子；執行 Bio-Analyzer 指尖採血全血球計數 (CBC)。',
+    'Warm finger 60s, wipe first blood drop, fill Bio-Analyzer cartridge bubble-free, and insert within 30s.': '溫熱手指 60 秒後拭去第一滴血，確保卡匣無氣泡後於 30 秒內插入 Bio-Analyzer 判讀。',
+
+    'Hostile closed-cabin air, CO2 buildup, noise fatigue, and solar proton storms directly impair cognition, immunity, and optic nerve health.': '封閉太空艙內的二氧化碳累積、噪音疲勞與太陽質子風暴會直接損害認知判斷力、免疫功能與視神經健康。',
+    'A frozen CO2 sensor hides rising cabin ppCO2, risking headaches and SANS optic nerve swelling.': '凍結卡死的 CO2 感測器會掩蓋艙內二氧化碳升高，導致頭痛與 SANS 視神經水腫風險。',
+    'Microgravity shifts ~2L of fluid toward the head, shrinking plasma volume and risking neck vein stasis/clots (IJV) or orthostatic fainting.': '微重力會使約 2 公升體液湧向頭部，導致血漿容量下降並引發頸內靜脈血流滯留/血栓 (IJV) 或姿勢性暈厥風險。',
+    'Motion artifact or dry skin creates false arrhythmia alarms.': '皮膚乾燥或肢體晃動會造成心電圖假性心律不整警報。',
+    "Without Earth's 1g gravity, weight-bearing leg muscles rapidly shrink and bone calcium dissolves into the bloodstream (raising fracture and kidney-stone risk before Mars landing). Tracking E4D mechanical stimulus (S_bone, VBT 20-30% zone), muscle cross-section, and bone turnover keeps countermeasures effective offline.": '在缺乏地球 1g 重力下，下肢負重肌群會快速萎縮且骨鈣溶出至血液中（大幅提高火星著陸前骨折與腎結石風險）。透過追蹤 E4D 機械刺激指數、肌肉截面積與骨代謝指標，可離線確保對抗訓練確實有效。',
+    'Corrupted or implausible measurements (such as a 999 cm^2 ultrasound artifact or missing force cell) must be blocked before decision logic runs so false alarms or missed bone/muscle loss do not occur.': '異常或超出人體極限的感測器偽影（例如 999 cm² 超音波誤判或荷重元斷訊）必須在進入醫療決策前先攔截，避免誤報或漏判骨肌流失。',
+    'Spaceflight Associated Neuro-ocular Syndrome (SANS) flattens the back of the eye and swells the optic nerve due to headward fluid shift and elevated CO2.': '太空飛行相關神經眼症候群 (SANS) 是因微重力體液頭向轉移加上艙內偏高的 CO2，造成眼球後壁變平與視神經盤水腫。',
+    'Unregistered OCT scans can misread micron-level retinal swelling.': '未成功與基準影像對位的 OCT 掃描會導致微米級視網膜厚度變化判讀失準。',
+    'Space radiation, isolation stress, and microgravity suppress T-cell immunity, reactivating latent viruses (VZV/EBV) and raising kidney stone risk.': '太空輻射、孤立壓力與微重力會抑制 T 細胞免疫力，促使體內潛伏病毒（水痘 VZV / EBV）再活化並升高腎結石風險。',
+    'Clotted or micro-bubbled fingerstick samples cause false neutropenia readings.': '指尖血樣凝固或混入氣泡會造成儀器分選錯誤，產生假性嗜中性球低下警示。',
+
+    'Cycle CDRA bed regeneration and verify portable fan mixing to clear CO2 pockets.': '啟動 CDRA 除碳床再生循環並確認艙內對流風扇運轉，消除局部二氧化碳滯留。',
+    'Wear acoustic ear protection in high-SPL equipment modules.': '進入高噪音設備艙段時請務必配戴主動降噪護耳設備。',
+    'Monitor GOES solar weather every 6h and maintain sleep hygiene schedule >= 7h/night.': '每 6 小時監測一次 GOES 太陽風暴氣象並維持每晚 ≥ 7 小時睡眠作息。',
+    'If SPE_alert or pfu >= 100: relocate crew to Water Wall radiation storm shelter immediately.': '若 SPE 警報或質子通量 ≥ 100 pfu：立即將乘員撤離至 Water Wall 輻射掩體避難。',
+    'If ppCO2 >= 3.0 mmHg: activate backup CDRA scrubber and verify cabin airflow fans.': '若 ppCO2 ≥ 3.0 mmHg：立即啟用備用 CDRA 除碳設備並檢查艙內循環風扇。',
+    'If rapid depressurization/alarm: don emergency masks & isolate affected hatch.': '若發生快速失壓或氨氣/火警警報：立即戴上緊急呼吸面罩並隔離受影響艙門。',
+    'Enforce shielded sleep-station occupancy, daily CDRA sorbent regeneration, and post-SPE CBC follow-up.': '強制乘員於具輻射遮蔽之睡眠艙休息、每日執行 CDRA 吸附床再生並追蹤風暴後 CBC 血球變化。',
+    'Verify cabin CO2 with handheld backup detector immediately.': '立即使用手持備用氣體偵測器手動複核艙內 CO2 濃度。',
+    'Switch telemetry to backup CO2 sensor and clean MCA inlet filter.': '切換遙測至備用 CO2 感測器並清潔 MCA 進氣過濾網。',
+    'Calibrate MCA zero-gas reference monthly.': '每月定期執行 MCA 零點標準氣體校正。',
+
+    'Run 30-min LBNP at -20 mmHg to reduce cephalad venous stasis.': '執行 30 分鐘 -20 mmHg 下半身負壓 (LBNP) 訓練，以減輕頭部靜脈血液鬱積。',
+    'Hydrate +500 mL electrolyte solution and repeat resting vitals in 12h.': '立即補充 500 mL 電解質液並於 12 小時後複檢靜息生命徵象。',
+    'Shift CEVIS to Zone 2 steady aerobic conditioning (4x/week) and add LBNP 3x/week.': '將 CEVIS 調整為第 2 區間穩態有氧訓練（每週 4 次）並增加每週 3 次 LBNP 訓練。',
+    'STOP all strenuous E4D & high-intensity CEVIS exercise immediately.': '立即停止所有高強度 E4D 重訓與高強度 CEVIS 間歇騎乘。',
+    'Perform Ultrasound 2 bilateral IJV compression sweep + 12-lead ECG capture.': '立即以 Ultrasound 2 掃描雙側頸內靜脈 (IJV) 壓迫試驗並擷取 12 導程心電圖。',
+    'If IJV thrombus/reversed flow: initiate onboard anticoagulation checklist & LBNP -25 mmHg.': '若確認 IJV 血栓或逆流：啟動隨艦抗凝血處置清單並執行 -25 mmHg LBNP。',
+    'Suspend HIIT for 14 days; daily resting ECG, potassium monitoring, and LBNP orthostatic conditioning.': '暫停高強度間歇訓練 14 天；每日追蹤靜息心電圖、血鉀濃度並執行 LBNP 耐受調整。',
+    'Re-seat Bio-Monitor chest strap and capture clean 60s ECG.': '重新固定 Bio-Monitor 胸帶電極並擷取一段乾淨的 60 秒靜息心電圖。',
+    'Re-wet Bio-Monitor ECG strap and repeat resting recording.': '潤濕 Bio-Monitor 心電胸帶電極後重新執行靜息心電圖紀錄。',
+    'Inspect Bio-Monitor electrode pads during weekly maintenance.': '於每週設備維護時檢查 Bio-Monitor 電極片接觸狀況。',
+
+    'Increase E4D squat/deadlift load +5% with faster concentric loading rate to push S_bone >= 0.90 and VBT loss into 20-30%.': '將 E4D 深蹲/硬舉負荷提升 +5% 並加快向心發力速度，使骨骼刺激指數 S_bone ≥ 0.90 且 VBT 落在 20–30%。',
+    'Add 1 extra unilateral heel-raise / posterior-chain set and confirm protein >= 1.6 g/kg/day.': '增加 1 組單腳提踵與後側鏈訓練，並確保每日蛋白質攝取 ≥ 1.6 g/kg。',
+    'Schedule follow-up Ultrasound 2 thigh/calf & E4D check in 72 hours.': '安排 72 小時後複檢 Ultrasound 2 大小腿截面積與 E4D 訓練數據。',
+    '+5% E4D squat/deadlift load progression with higher loading rate; repeat Ultrasound CSA & bone markers in 72h–7d.': '將 E4D 深蹲/硬舉負荷漸進增加 +5% 並提高發力率；於 72 小時至 7 天內複檢超音波肌肉截面積與骨代謝指標。',
+    'STOP the fatigued E4D set immediately if VBT velocity loss > 30% and alert ground Flight Surgeon.': '若 VBT 速度衰減超過 30% 請立即停止該組訓練，並通報地面航太醫師。',
+    'Shift next session to controlled eccentric/hypertrophy loading (cap VBT loss <= 25%) and verify Cardio/Immune clearance.': '下次訓練改為受控離心與肌肥大負荷（速度衰減上限 ≤ 25%），並確認心血管與免疫系統已解除紅燈管制。',
+    'Verify hydration >= 2.8 L/day, +20g post-workout whey/leucine, and Vitamin D3/Ca intake; repeat Ultrasound 2 scan within 24h.': '確認每日飲水 ≥ 2.8 公升、運動後補充 20g 乳清蛋白/白胺酸與維生素 D3/鈣片，並於 24 小時內複掃超音波。',
+    '24h ground alert + 4-week progressive lower-limb hypertrophy block, +350 kcal/day protein surplus, and 14-day Bio-Analyzer CTX/NTX & Ultrasound CSA re-evaluation.': '發出 24 小時地面醫療通報＋啟動 4 週下肢肌肥大強化週期、每日增加 +350 kcal 高蛋白熱量盈餘，並於 14 天後重測 CTX/NTX 與肌肉截面積。',
+    'Sensor QC rejected implausible value(s). Recalibrate and repeat measurement immediately.': 'Layer 0 品質閘門攔截到異常讀數，請立即重新校正並重測。',
+    'Check E4D cable pin lock and Ultrasound 2 probe contact.': '檢查 E4D 拉索插銷鎖定與 Ultrasound 2 探頭貼合度。',
+    'Re-measure immediately (next_measurement_in_hours = 0) before starting heavy sets.': '在進行大重量訓練前請立即重測（複檢間隔 = 0 小時）。',
+    'Verify E4D & Ultrasound 2 calibration checklist prior to each session.': '每次訓練前請依檢核表確認 E4D 與 Ultrasound 2 校正狀態。',
+
+    'Equip Space Anticipation Glasses if near-vision blur occurs (+0.75 D shift).': '若出現近距離視力模糊（遠視偏移 ≥ +0.75 D），請立即換戴太空調節眼鏡。',
+    'Schedule bi-weekly Mini OCT & cross-check cabin ppCO2 levels.': '安排每兩週一次 Mini OCT 追蹤並交叉確認艙內 ppCO2 濃度。',
+    'Increase Mini OCT cadence to every 14 days and add 3x/week LBNP fluid unloading.': '將 Mini OCT 檢查頻率提高至每 14 天一次，並加入每週 3 次 LBNP 體液減壓訓練。',
+    'Notify Flight Surgeon immediately for Grade-2+ SANS / foveal fold protocol.': '立即通報地面航太醫師啟動 Grade-2+ SANS／黃斑皺摺處置程序。',
+    'Run 45-min LBNP at -25 mmHg and keep sleeping torso slightly elevated / avoid head-down posture.': '執行 45 分鐘 -25 mmHg LBNP 減壓，睡眠時維持軀幹微墊高並避免頭低腳高姿勢。',
+    'Repeat Mini OCT & Amsler grid check in 24 hours; verify cabin ppCO2 < 2.0 mmHg.': '於 24 小時後複測 Mini OCT 與阿姆斯勒方格表，並確認艙內 ppCO2 < 2.0 mmHg。',
+    'Weekly Mini OCT + Ultrasound ONSD surveillance + daily LBNP fluid-shift countermeasure for 30 days.': '連續 30 天執行每週 Mini OCT ＋ 超音波 ONSD 監測 ＋ 每日 LBNP 體液轉移對抗訓練。',
+    'Re-acquire registered Mini OCT scan immediately.': '請立即重新拍攝已對位基準之 Mini OCT 眼底掃描。',
+    'Repeat Mini OCT scan until quality score >= 6.0 and baseline registration passes.': '重新執行 Mini OCT 掃描直到影像品質分數 ≥ 6.0 且基準對位成功。',
+    'Verify optical window cleanliness on Mini OCT monthly.': '每月清潔並檢查 Mini OCT 光學鏡頭視窗。',
+
+    'Schedule Bio-Analyzer CBC check in 48 hours (especially if SPE alert triggered).': '安排 48 小時後執行 Bio-Analyzer CBC 血球追蹤（尤其在太陽風暴警報觸發後）。',
+    'Boost fluid intake to >= 2500 mL/day and prioritize >= 7.5h sleep.': '提升每日飲水量至 ≥ 2500 mL，並確保每晚睡眠 ≥ 7.5 小時。',
+    'Weekly saliva viral qPCR & sleep/stress load reduction over next 14 days.': '未來 14 天每週執行一次唾液病毒 qPCR 檢測並降低睡眠/心理負荷。',
+    'Isolate crew member in sleep quarters if fever >= 38.0 C or active VZV skin vesicles present.': '若發燒 ≥ 38.0°C 或出現水痘皮膚水泡，立即於個人睡眠艙進行醫療隔離。',
+    'Initiate onboard Valacyclovir / broad-spectrum medical kit protocol per offline Flight Surgeon guide.': '依離線航太醫療手冊啟動隨艦抗病毒藥物 (Valacyclovir) 或廣效醫療包治療程序。',
+    'Run Bio-Analyzer CBC & hydration log every 12h (mandatory 48h post-SPE if solar storm active).': '每 12 小時追蹤一次 Bio-Analyzer CBC 與飲水紀錄（若發生太陽風暴，48 小時後必須強制抽血複檢）。',
+    'Suspend strenuous exercise; 14-day antiviral/recovery course + sleep optimization >= 8h/night.': '暫停劇烈體能訓練；執行 14 天抗病毒/康復療程並確保每晚睡眠 ≥ 8 小時。',
+    'Re-run Bio-Analyzer CBC immediately to clear QC warning.': '請立即重測 Bio-Analyzer CBC 以排除樣本分選異常警示。',
+    'Re-run Bio-Analyzer CBC with fresh cartridge.': '更換全新檢測卡匣並重新執行 Bio-Analyzer CBC。',
+    'Inspect Bio-Analyzer optical reader during weekly maintenance.': '於每週設備保養時檢查 Bio-Analyzer 光學判讀頭。',
+
+    'Hold high-load E4D squats/deadlifts until Cardiovascular & Immune return to YELLOW/GREEN.': '在心血管與免疫系統恢復至黃燈或綠燈前，持續暫停高負荷 E4D 深蹲與硬舉訓練。'
+  };
+
+  function zhText(raw) {
+    if (raw === null || raw === undefined) return '';
+    const s = String(raw).trim();
+    if (state.lang !== 'zh') return s;
+    if (EXACT_ZH[s]) return EXACT_ZH[s];
+
+    let out = s;
+    out = out.replace(/^cabin_environment\.spe_alert -> immune_metabolic\.spe_event_flag$/, '艙內輻射風暴警報 (SPE) ➔ 免疫代謝模組（觸發 48h 淋巴球複檢）');
+    out = out.replace(/^cabin_environment\.ppco2_1h_mmHg \(([^)]+)\) -> neuro_ocular$/, '艙內 ppCO2 濃度 ($1 mmHg) ➔ 神經眼壓 SANS 協同判讀');
+    out = out.replace(/^CO2-SANS SYNERGY ALERT: Cabin ppCO2 \(([^)]+)\) elevates intracranial venous congestion risk alongside Neuro-Ocular findings\. Prioritize CDRA scrubber inspection and avoid head-down tilt or prolonged supine posture\.$/, 'CO2-SANS 協同風險警報：艙內二氧化碳分壓 ($1) 與神經眼壓異常同時發生，將顯著提高顱內靜脈鬱積風險。請優先檢查 CDRA 除碳器並避免頭低位姿勢。');
+    out = out.replace(/^SAFETY OVERRIDE: Heavy E4D axial resistance loading & maximal CEVIS intervals SUSPENDED due to (.+)\. Switch to light passive ROM \/ hydration monitoring only\.$/, '安全衝突強制介入：由於 $1，系統已自動暫停高負荷 E4D 軸向抗阻與高強度 CEVIS 訓練，僅保留輕度關節活動與水分補充監測。');
+    out = out.replace(/^SPE SHELTER OVERRIDE: Relocate crew to Water Wall \/ storm shelter immediately\. Defer non-essential E4D\/CEVIS sessions and schedule mandatory 48h post-SPE CBC lymphocyte check\.$/, '太陽質子風暴避難介入：立即將乘員撤離至 Water Wall 輻射掩體。延後非必要體能訓練並自動排入 48 小時後 CBC 淋巴球追蹤。');
+    out = out.replace(/Cardiovascular RED \(arrhythmia \/ IJV thrombosis \/ hemodynamic alert\)/g, '心血管系統紅燈（心律不整 / 頸內靜脈血栓 / 血流動力警示）');
+    out = out.replace(/Immune RED \(fever \/ acute inflammatory or viral reactivation alert\)/g, '免疫系統紅燈（發燒 / 急性發炎或病毒再活化警示）');
+
+    out = out.replace(/^ppCO2 ([\d.]+) mmHg, Proton ([\d.]+) pfu \(SPE=(True|False)\), LEQ8 ([\d.]+) dBA, Sleep ([\d.]+)h\.$/, (_, a, b, c, d, e) => `艙內 CO2 ${a} mmHg｜質子通量 ${b} pfu (風暴=${c === 'True' ? '是' : '否'})｜8h噪音 ${d} dBA｜睡眠 ${e} 小時`);
+    out = out.replace(/^Rest HR ([\d.]+) bpm, SpO2 ([\d.]+)%, IJV '([^']+)', PVC ([\d.]+)%\.$/, (_, a, b, c, d) => `靜息心率 ${a} bpm｜血氧 ${b}%｜頸靜脈血流 '${c === 'forward' ? '順向' : (c === 'stagnant' ? '滯留' : '逆流')}'｜PVC ${d}%`);
+    out = out.replace(/^S_bone=([\d.]+), VBT=([\d.]+)%, Thigh=([^,]+), Calf=([^,]+), CTX=([^,]+), Est Hip Loss=([^\s]+)\.$/, (_, a, b, c, d, e, f) => `骨骼刺激 S_bone=${a}｜速度衰減 ${b}%｜大腿 ${c}｜小腿 ${d}｜骨吸收 CTX ${e}｜推估髖骨流失 ${f}`);
+    out = out.replace(/^(OD|OS) delta TRT \+([\d.]+) um, delta V_ONH \+([\d.]+) mm3, ONSD ([\d.]+) mm(?: \| Cross-context cabin ppCO2=([\d.]+) mmHg)?\.$/, (_, eye, trt, vonh, onsd, co2) => `${eye} 眼視網膜 ΔTRT +${trt} µm｜視神經盤 ΔV_ONH +${vonh} mm³｜ONSD ${onsd} mm` + (co2 ? `｜連動艙內 ppCO2=${co2} mmHg` : ''));
+    out = out.replace(/^Temp ([\d.]+) C, Lymph ([\d.]+) \(([^)]+)\), VZV ([\d.]+), SPE=(True|False)\.$/, (_, temp, ly, dp, vzv, spe) => `體溫 ${temp}°C｜淋巴球 ${ly} (${dp})｜水痘病毒 VZV ${vzv}｜風暴警報=${spe === 'True' ? '是' : '否'}`);
+    out = out.replace(/^MCA CO2 sensor flatlined for ([\d.]+)h \(>=24h stuck-sensor QC fault\)\.$/, 'MCA 二氧化碳感測器讀數已凍結 $1 小時（觸發 ≥24h 故障閘門）。');
+    out = out.replace(/^Bio-Monitor ECG \/ PTT lead quality below 0\.50 threshold\.$/, 'Bio-Monitor 心電/脈搏波導極訊號品質低於 0.50 門檻，請重新貼合電極。');
+    out = out.replace(/^Mini OCT QC failed for (OD|OS) \(score=([\d.]+), registered=(True|False)\)\.$/, '$1 眼 Mini OCT 品質檢核未通過（品質分=$2，對位=$3），請重新掃描。');
+    out = out.replace(/^Bio-Analyzer QC failed: Neutrophil fraction ([\d.]+)% < 10% \(possible sample mis-sort\)\.$/, 'Bio-Analyzer 品質檢核失敗：嗜中性球比例僅 $1% (<10%)，疑為採血分選異常。');
+    out = out.replace(/^Layer 0 QC Gatekeeper rejected telemetry:/, 'Layer 0 品質閘門已攔截異常遙測：');
+    return out;
+  }
+
+  function metricLabel(name) {
+    if (state.lang !== 'zh') return name;
+    return METRIC_ZH[name] || name;
+  }
+
+  function layerLabel(decidedBy) {
+    if (state.lang !== 'zh') return decidedBy || 'rule';
+    return LAYER_ZH[decidedBy] || decidedBy || 'rule';
+  }
+
+  function ruleLabel(rule) {
+    if (state.lang !== 'zh') return rule;
+    const map = {
+      HALT_HEAVY_EXERCISE_ON_CARDIO_OR_IMMUNE_RED: '安全衝突強制暫停重訓 (心血管/免疫紅燈)',
+      SPE_SHELTER_AND_48H_LYMPHOCYTE_CHECK: '太陽風暴避難與 48h 淋巴球複檢連動',
+      CO2_SANS_SYNERGY_MITIGATION: 'CO2 與 SANS 眼壓協同風險處置'
+    };
+    return map[rule] || rule;
   }
 
   function badgeLabel(modObj) {
@@ -1425,6 +1617,38 @@ export default function(component) {
     `;
   }
 
+  const DRAWER_ZH = {
+    ppco2_1h_mmHg: '艙內 1 小時二氧化碳分壓 (mmHg)',
+    proton_flux_10mev_pfu: 'GOES ≥10MeV 質子通量 (pfu)',
+    crew_leq8_dBA: '乘員 8 小時噪音暴露 (dBA)',
+    sleep_tst_h: 'Actiwatch 睡眠時數 (小時)',
+    spe_alert: 'SPE 太陽質子風暴警報',
+    rest_hr_bpm: '靜息心率 (bpm)',
+    spo2_pct: '周邊血氧飽和度 SpO2 (%)',
+    pvc_burden_pct: 'Holter 24小時 PVC 負荷 (%)',
+    ijv_flow: '頸內靜脈 (IJV) 超音波血流',
+    ijv_thrombus: '偵測到頸內靜脈血栓',
+    csa_thigh_cm2: '大腿肌肉截面積 CSA (cm²)',
+    velocity_loss_pct: 'E4D 深蹲速度衰減率 (%)',
+    ctx: '骨吸收指標 CTX (ng/mL)',
+    body_mass_kg: 'SLAMMD 微重力體重 (kg)',
+    delta_trt_um: 'Mini OCT 視網膜厚度變化 ΔTRT (µm)',
+    delta_v_onh_mm3: '視神經盤體積變化 ΔV_ONH (mm³)',
+    onsd_mm: '超音波視神經鞘直徑 ONSD (mm)',
+    sph_eq_shift_d: '遠視屈光偏移量 (Diopters)',
+    folds_foveal: '出現黃斑部/脈絡膜皺摺',
+    temp_c: '口腔體溫 (°C)',
+    lymph: '淋巴球計數 (10⁹/L)',
+    saliva_vzv: '唾液水痘病毒 VZV DNA (copies/mL)',
+    hydration_ml: '24小時飲水量 (mL)'
+  };
+
+  const FLOW_OPT_ZH = {
+    forward: '順向 (FORWARD)',
+    stagnant: '滯留 (STAGNANT)',
+    reversed: '逆流 (REVERSED)'
+  };
+
   function buildDrawerFields() {
     const tab = state.drawerTab;
     const cur = state.inputs[tab] || {};
@@ -1467,19 +1691,23 @@ export default function(component) {
 
     return (schemas[tab] || []).map(f => {
       const val = cur[f.key];
+      const lbl = state.lang === 'zh' ? (DRAWER_ZH[f.key] || f.label) : f.label;
       if (f.type === 'checkbox') {
         return `
           <label class="field-group" style="flex-direction:row;align-items:center;gap:9px;padding-top:14px;cursor:pointer;">
             <input type="checkbox" data-input-key="${f.key}" data-input-type="checkbox" ${val ? 'checked' : ''} />
-            <span class="field-label" style="font-size:12px;color:#e2e8f0;">${esc(f.label)}</span>
+            <span class="field-label" style="font-size:12px;color:#e2e8f0;">${esc(lbl)}</span>
           </label>
         `;
       }
       if (f.type === 'select') {
-        const opts = f.options.map(o => `<option value="${o}" ${val === o ? 'selected' : ''}>${o.toUpperCase()}</option>`).join('');
+        const opts = f.options.map(o => {
+          const optTxt = state.lang === 'zh' ? (FLOW_OPT_ZH[o] || o.toUpperCase()) : o.toUpperCase();
+          return `<option value="${o}" ${val === o ? 'selected' : ''}>${esc(optTxt)}</option>`;
+        }).join('');
         return `
           <div class="field-group">
-            <span class="field-label">${esc(f.label)}</span>
+            <span class="field-label">${esc(lbl)}</span>
             <select class="field-select" data-input-key="${f.key}" data-input-type="select">${opts}</select>
           </div>
         `;
@@ -1487,7 +1715,7 @@ export default function(component) {
       return `
         <div class="field-group">
           <div class="field-label">
-            <span>${esc(f.label)}</span>
+            <span>${esc(lbl)}</span>
             <strong style="color:#38bdf8;" id="lbl-${f.key}">${val}</strong>
           </div>
           <input class="field-range" type="range"
@@ -1515,7 +1743,9 @@ export default function(component) {
       const m = modulesMap[modId];
       const sk = statusKey(m);
       const isSel = modId === state.selectedModule;
-      const srcBadge = m && m.data_source === 'REAL' ? t('src_real') : (m ? m.data_source : 'DEMO');
+      const srcBadge = m && m.data_source === 'REAL'
+        ? t('src_real')
+        : (m && m.data_source === 'SIMULATED' ? t('src_sim') : (m ? m.data_source : t('src_demo')));
       return `
         <div class="subsys-pill ${isSel ? 'selected' : ''}" data-select-mod="${modId}">
           <div class="subsys-left">
@@ -1535,11 +1765,11 @@ export default function(component) {
       const msk = !m.quality_passed ? 'QC' : (m.status_light || 'GREEN');
       const deltaTxt = (m.delta_pct !== null && m.delta_pct !== undefined)
         ? `${m.delta_pct > 0 ? '+' : ''}${m.delta_pct}% ${t('vs_base')}`
-        : `${t('layer_prefix')} ${m.decided_by || 'rule'}`;
+        : `${t('layer_prefix')} ${layerLabel(m.decided_by)}`;
       return `
         <div class="metric-card ${idx === state.selectedMetricIdx ? 'active' : ''}" data-metric-idx="${idx}">
           <div class="m-top">
-            <span class="m-name" title="${esc(m.metric_name)}">${esc(m.metric_name)}</span>
+            <span class="m-name" title="${esc(metricLabel(m.metric_name))}">${esc(metricLabel(m.metric_name))}</span>
             <span class="led-dot led-${msk}" style="width:7px;height:7px;"></span>
           </div>
           <div class="m-val-row">
@@ -1555,25 +1785,25 @@ export default function(component) {
     const g = selMod.guidance || {};
     let guideContentHtml = '';
     if (state.guideTab === 'measure') {
-      guideContentHtml = `<div>${esc(g.how_to_measure)}</div>`;
+      guideContentHtml = `<div>${esc(zhText(g.how_to_measure))}</div>`;
     } else if (state.guideTab === 'meaning') {
-      guideContentHtml = `<div>${esc(g.plain_explanation)}</div>`;
+      guideContentHtml = `<div>${esc(zhText(g.plain_explanation))}</div>`;
     } else {
       const steps = Array.isArray(g.action_protocol) ? g.action_protocol : [g.action_protocol || 'Nominal'];
-      guideContentHtml = `<ol class="protocol-list">${steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>`;
+      guideContentHtml = `<ol class="protocol-list">${steps.map(s => `<li>${esc(zhText(s))}</li>`).join('')}</ol>`;
     }
 
     // Conflicts & cross-module signals
     const conflictsHtml = (schedule.conflicts_resolved || []).map(c => `
       <div class="conflict-banner">
-        <div class="conflict-rule">⚡ ${esc(c.rule)}</div>
-        <div class="conflict-text">${esc(c.resolution)}</div>
+        <div class="conflict-rule">⚡ ${esc(ruleLabel(c.rule))}</div>
+        <div class="conflict-text">${esc(zhText(c.resolution))}</div>
       </div>
     `).join('');
 
     const flags = data.propagated_flags || [];
     const signalsHtml = flags.length
-      ? `<div class="signal-box"><strong>${esc(t('bus_title'))}</strong>${flags.map(f => `<span>• ${esc(f)}</span>`).join('')}</div>`
+      ? `<div class="signal-box"><strong>${esc(t('bus_title'))}</strong>${flags.map(f => `<span>• ${esc(zhText(f))}</span>`).join('')}</div>`
       : '';
 
     // Timeline cards
@@ -1582,13 +1812,13 @@ export default function(component) {
           mod: item.module_id,
           status: item.status_light,
           tag: item.next_hours === 0 ? t('tag_immediate') : `T+${item.next_hours}H`,
-          text: item.action
+          text: zhText(item.action)
         }))
       : (schedule.long_term_board || []).map(item => ({
           mod: item.module_id,
           status: item.status_light,
           tag: item.days_until_red !== null && item.days_until_red !== undefined ? t('tag_red_in', { d: item.days_until_red }) : t('tag_regimen'),
-          text: item.adjustment
+          text: zhText(item.adjustment)
         }));
 
     const timelineHtml = timelineItems.map(it => {
@@ -1697,7 +1927,7 @@ export default function(component) {
                 <span class="badge badge-${selSk}">${esc(badgeLabel(selMod))}</span>
               </div>
 
-              ${selMod.summary_note ? `<div class="summary-strip">${esc(selMod.summary_note)}</div>` : ''}
+              ${selMod.summary_note ? `<div class="summary-strip">${esc(zhText(selMod.summary_note))}</div>` : ''}
 
               <div class="metric-grid">
                 ${metricTilesHtml}
@@ -1706,7 +1936,7 @@ export default function(component) {
               <div class="chart-card">
                 <div class="chart-hdr">
                   <span class="chart-title">
-                    ${esc(t('traj_title'))} · <span style="color:#38bdf8">${esc(activeMetric ? activeMetric.metric_name : '')}</span>
+                    ${esc(t('traj_title'))} · <span style="color:#38bdf8">${esc(activeMetric ? metricLabel(activeMetric.metric_name) : '')}</span>
                     ${activeMetric && activeMetric.unit ? `(${esc(activeMetric.unit)})` : ''}
                   </span>
                   <div class="chart-legend">
