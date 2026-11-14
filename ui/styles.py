@@ -132,6 +132,147 @@ HUD_CSS = """
   gap: 10px;
 }
 
+/* ================= OFFLINE SPACECRAFT CLOCK & REMINDER BANNER ================= */
+.rtc-widget {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: rgba(5, 11, 24, 0.88);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  box-shadow: inset 0 0 12px rgba(56, 189, 248, 0.08);
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.rtc-widget:hover {
+  border-color: #38bdf8;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.22);
+}
+
+.rtc-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+  animation: pulseRing 2s infinite ease-out;
+}
+
+.rtc-readout {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.15;
+}
+
+.rtc-time {
+  font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #f8fafc;
+}
+
+.rtc-date {
+  font-size: 10px;
+  letter-spacing: 0.7px;
+  color: #7dd3fc;
+  font-weight: 600;
+}
+
+.rtc-scale-chip {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: rgba(56, 189, 248, 0.14);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.rtc-scale-chip.fast {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.45);
+}
+
+.reminder-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 15px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.18), rgba(127, 29, 29, 0.28));
+  border: 1px solid rgba(251, 191, 36, 0.55);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.15);
+}
+
+.reminder-banner.urgent {
+  background: linear-gradient(90deg, rgba(220, 38, 38, 0.30), rgba(69, 10, 10, 0.55));
+  border-color: rgba(248, 113, 113, 0.7);
+  box-shadow: 0 0 22px rgba(239, 68, 68, 0.25);
+}
+
+.reminder-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #fef3c7;
+}
+
+.reminder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.rem-btn {
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  background: rgba(15, 23, 42, 0.82);
+  color: #e0f2fe;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.rem-btn:hover {
+  background: rgba(56, 189, 248, 0.22);
+}
+
+.clock-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(56, 189, 248, 0.26);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.clock-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.clock-speed-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .scen-group {
   display: inline-flex;
   background: rgba(5, 10, 20, 0.78);

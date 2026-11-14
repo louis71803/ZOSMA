@@ -217,11 +217,19 @@ def load_module_files_into_payload(module_id: str) -> tuple[dict[str, Any], Opti
 def load_runtime_session() -> dict[str, Any]:
     """Load persisted manual telemetry & session metadata from data/runtime_session.json."""
     ensure_data_directories()
+    now_ms = int(datetime.now().timestamp() * 1000)
     default_session: dict[str, Any] = {
         "crew_id": "C002",
         "mission_day": 124,
         "scenario": "green",
         "lang": "en",
+        "offline_clock": {
+            "spacecraft_epoch_ms": now_ms,
+            "host_epoch_ms": now_ms,
+            "time_scale": 1,
+            "sound_enabled": True,
+            "module_due_ms": {},
+        },
         "updated_at": None,
         "manual_overrides": {mod: {} for mod in MODULE_ORDER},
         "history": [],
@@ -236,6 +244,14 @@ def load_runtime_session() -> dict[str, Any]:
             return default_session
         merged = dict(default_session)
         merged.update(data)
+        if not isinstance(data.get("offline_clock"), dict):
+            merged["offline_clock"] = dict(default_session["offline_clock"])
+        else:
+            clk = dict(default_session["offline_clock"])
+            clk.update(data["offline_clock"])
+            if not isinstance(clk.get("module_due_ms"), dict):
+                clk["module_due_ms"] = {}
+            merged["offline_clock"] = clk
         overrides = dict(default_session["manual_overrides"])
         if isinstance(data.get("manual_overrides"), dict):
             for mod in MODULE_ORDER:
@@ -256,6 +272,7 @@ def save_runtime_session(
     scenario: str = "green",
     results: Optional[dict[str, ModuleEvaluationResult]] = None,
     lang: str = "en",
+    offline_clock: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     """Persist manual input overrides and a compact summary snapshot to runtime_session.json."""
     ensure_data_directories()
@@ -281,6 +298,7 @@ def save_runtime_session(
         "mission_day": mission_day,
         "scenario": scenario,
         "lang": lang if lang in {"en", "zh"} else "en",
+        "offline_clock": offline_clock if isinstance(offline_clock, dict) else existing.get("offline_clock", {}),
         "updated_at": timestamp,
         "manual_overrides": manual_overrides,
         "history": history,

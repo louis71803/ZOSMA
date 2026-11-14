@@ -124,6 +124,7 @@ def _init_hud_session_state() -> None:
     st.session_state["scenario"] = scen if scen in {"green", "yellow", "red", "bad_data"} else "green"
     lang = str(disk_session.get("lang", "en"))
     st.session_state["lang"] = lang if lang in {"en", "zh"} else "en"
+    st.session_state["offline_clock"] = dict(disk_session.get("offline_clock", {}))
     st.session_state["prefer_real_csv"] = True
     st.session_state["use_manual_overrides"] = False
     st.session_state["selected_module"] = "neuro_ocular"
@@ -170,6 +171,7 @@ def _serialize_hud_payload(
         "crew_id": st.session_state["crew_id"],
         "mission_day": st.session_state["mission_day"],
         "scenario": st.session_state["scenario"],
+        "offline_clock": st.session_state.get("offline_clock", {}),
         "prefer_real_csv": st.session_state["prefer_real_csv"],
         "use_manual_overrides": st.session_state["use_manual_overrides"],
         "default_module": st.session_state["selected_module"],
@@ -192,6 +194,8 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
     act_type = str(action.get("type", ""))
     if action.get("lang") in {"en", "zh"}:
         st.session_state["lang"] = str(action["lang"])
+    if isinstance(action.get("offline_clock"), dict):
+        st.session_state["offline_clock"] = dict(action["offline_clock"])
     if action.get("selected_module") in MODULE_ORDER:
         st.session_state["selected_module"] = action["selected_module"]
     if action.get("crew_id"):
@@ -235,21 +239,34 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
             scenario=st.session_state["scenario"],
             results=new_results,
             lang=st.session_state["lang"],
+            offline_clock=st.session_state.get("offline_clock"),
         )
         st.toast("Saved telemetry to data/runtime_session.json & executed all 5 agents!", icon="🚀")
         st.rerun()
 
-    elif act_type == "switch_lang":
+    elif act_type in {"switch_lang", "save_clock"}:
         save_runtime_session(
             manual_overrides=st.session_state["manual_inputs"],
             crew_id=st.session_state["crew_id"],
             mission_day=st.session_state["mission_day"],
             scenario=st.session_state["scenario"],
             lang=st.session_state["lang"],
+            offline_clock=st.session_state.get("offline_clock"),
         )
+        if act_type == "save_clock":
+            st.toast("Offline Spacecraft RTC synced & saved!", icon="⏱️")
         st.rerun()
 
     elif act_type in {"switch_scenario", "reset_overrides"}:
+        if act_type == "switch_scenario":
+            save_runtime_session(
+                manual_overrides=st.session_state["manual_inputs"],
+                crew_id=st.session_state["crew_id"],
+                mission_day=st.session_state["mission_day"],
+                scenario=st.session_state["scenario"],
+                lang=st.session_state["lang"],
+                offline_clock=st.session_state.get("offline_clock"),
+            )
         st.rerun()
 
 

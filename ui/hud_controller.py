@@ -21,6 +21,14 @@ HUD_CONTROLLER_BODY_JS = r"""
   // - Selecting a subsystem automatically switches to its dedicated holographic anatomy ('anatomy')
   // - Neuro-Ocular defaults to 'eye_zoom' (Eye Cross-Section + Vestibular Labyrinth)
   // - Musculoskeletal supports 'front' / 'back' toggle
+  const savedClk = data.offline_clock || {};
+  const nowHost = Date.now();
+  const initialScEpoch = Number(savedClk.spacecraft_epoch_ms) || nowHost;
+  const initialHostEpoch = Number(savedClk.host_epoch_ms) || nowHost;
+  const initialScale = Number(savedClk.time_scale) || 1;
+  // Advance saved spacecraft clock by elapsed host wall time since last save
+  const currentScMsOnLoad = initialScEpoch + Math.max(0, nowHost - initialHostEpoch) * initialScale;
+
   const state = {
     lang: data.lang || 'en',
     selectedModule: data.default_module || 'neuro_ocular',
@@ -37,8 +45,111 @@ HUD_CONTROLLER_BODY_JS = r"""
     scenario: data.scenario || 'green',
     prefer_real_csv: data.prefer_real_csv !== false,
     use_manual_overrides: Boolean(data.use_manual_overrides),
-    inputs: JSON.parse(JSON.stringify(data.manual_inputs || {}))
+    inputs: JSON.parse(JSON.stringify(data.manual_inputs || {})),
+    clock: {
+      spacecraft_epoch_ms: currentScMsOnLoad,
+      host_epoch_ms: nowHost,
+      time_scale: initialScale,
+      sound_enabled: savedClk.sound_enabled !== false,
+      module_due_ms: Object.assign({}, savedClk.module_due_ms || {})
+    },
+    chimedKeys: {}
   };
+
+  function getSpacecraftNowMs() {
+    const elapsed = Math.max(0, Date.now() - state.clock.host_epoch_ms);
+    return state.clock.spacecraft_epoch_ms + elapsed * (state.clock.time_scale || 1);
+  }
+
+  function formatScDate(ms) {
+    const d = new Date(ms);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+  }
+
+  function formatScTime(ms) {
+    const d = new Date(ms);
+    const pad = n => String(n).padStart(2, '0');
+    return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+  }
+
+  function formatCountdown(diffMs) {
+    if (diffMs <= 0) return t('rtc_due_now');
+    const totalSec = Math.floor(diffMs / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    const pad = n => String(n).padStart(2, '0');
+    return `${pad(h)}:${pad(m)}:${pad(s)}`;
+  }
+
+  function ensureModuleDueTimers(modulesMap, scNow) {
+    Object.keys(modulesMap).forEach(modId => {
+      const m = modulesMap[modId];
+      const nextH = Number((m && m.short_term_plan && m.short_term_plan.next_measurement_in_hours) ?? 24);
+      const maxHorizonMs = Math.max(1, nextH) * 3600 * 1000;
+      const existing = state.clock.module_due_ms[modId];
+      if (existing === undefined || existing === null || isNaN(Number(existing))) {
+        state.clock.module_due_ms[modId] = nextH === 0 ? scNow : (scNow + nextH * 3600 * 1000);
+      } else if (nextH === 0 && existing > scNow) {
+        state.clock.module_due_ms[modId] = scNow;
+      } else if ((existing - scNow) > maxHorizonMs + 60000) {
+        // Clamp if scenario switched from longer interval (168h) to tighter interval (4h/12h)
+        state.clock.module_due_ms[modId] = scNow + nextH * 3600 * 1000;
+      }
+    });
+  }
+
+  function playAlertChime() {
+    if (!state.clock.sound_enabled) return;
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const now = ctx.currentTime;
+      [880, 1174.66].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + i * 0.14);
+        gain.gain.setValueAtTime(0.06, now + i * 0.14);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.14 + 0.18);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + i * 0.14);
+        osc.stop(now + i * 0.14 + 0.19);
+      });
+    } catch (_) {}
+  }
+
+  function getDueModules(modulesMap, scNow) {
+    const due = [];
+    Object.keys(modulesMap).forEach(modId => {
+      const dueAt = Number(state.clock.module_due_ms[modId] ?? (scNow + 3600000));
+      if (dueAt <= scNow) {
+        const m = modulesMap[modId];
+        due.push({
+          module_id: modId,
+          status: statusKey(m),
+          overdue_ms: scNow - dueAt
+        });
+      }
+    });
+    return due;
+  }
+
+  function snapshotClockForSave() {
+    const scNow = getSpacecraftNowMs();
+    state.clock.spacecraft_epoch_ms = scNow;
+    state.clock.host_epoch_ms = Date.now();
+    return {
+      spacecraft_epoch_ms: Math.round(scNow),
+      host_epoch_ms: state.clock.host_epoch_ms,
+      time_scale: state.clock.time_scale,
+      sound_enabled: state.clock.sound_enabled,
+      module_due_ms: state.clock.module_due_ms
+    };
+  }
 
   function esc(str) {
     return String(str === null || str === undefined ? '' : str)
@@ -70,6 +181,7 @@ HUD_CONTROLLER_BODY_JS = r"""
       crew_id: state.crew_id,
       mission_day: Number(state.mission_day) || 124,
       scenario: state.scenario,
+      offline_clock: snapshotClockForSave(),
       prefer_real_csv: Boolean(state.prefer_real_csv),
       use_manual_overrides: Boolean(state.use_manual_overrides),
       manual_inputs: state.inputs,
@@ -301,6 +413,15 @@ HUD_CONTROLLER_BODY_JS = r"""
     const modulesMap = data.modules || {};
     const schedule = data.schedule || {};
     const order = data.module_order || Object.keys(modulesMap);
+    const scNow = getSpacecraftNowMs();
+    ensureModuleDueTimers(modulesMap, scNow);
+    const dueModules = getDueModules(modulesMap, scNow);
+    const minDueMs = order.reduce((acc, modId) => {
+      const d = Number(state.clock.module_due_ms[modId] ?? (scNow + 3600000));
+      return Math.min(acc, d);
+    }, scNow + 999 * 3600 * 1000);
+    const nextDiffMs = minDueMs - scNow;
+
     const selMod = modulesMap[state.selectedModule] || modulesMap[order[0]] || {};
     const metrics = selMod.metrics || [];
     if (state.selectedMetricIdx >= metrics.length) state.selectedMetricIdx = 0;
@@ -379,27 +500,38 @@ HUD_CONTROLLER_BODY_JS = r"""
 
     // Timeline cards
     const timelineItems = state.planTab === 'short'
-      ? (schedule.short_term_board || []).map(item => ({
-          mod: item.module_id,
-          status: item.status_light,
-          tag: item.next_hours === 0 ? t('tag_immediate') : `T+${item.next_hours}H`,
-          text: zhText(item.action)
-        }))
+      ? (schedule.short_term_board || []).map(item => {
+          const dueAt = state.clock.module_due_ms[item.module_id];
+          let tag = item.next_hours === 0 ? t('tag_immediate') : `T+${item.next_hours}H`;
+          if (dueAt !== undefined) {
+            const rem = dueAt - scNow;
+            tag = rem <= 0 ? t('rtc_due_now') : t('rtc_due_in', { t: formatCountdown(rem) });
+          }
+          return {
+            mod: item.module_id,
+            status: item.status_light,
+            tag: tag,
+            dueModId: dueAt !== undefined ? item.module_id : '',
+            text: zhText(item.action)
+          };
+        })
       : (schedule.long_term_board || []).map(item => ({
           mod: item.module_id,
           status: item.status_light,
           tag: item.days_until_red !== null && item.days_until_red !== undefined ? t('tag_red_in', { d: item.days_until_red }) : t('tag_regimen'),
+          dueModId: '',
           text: zhText(item.adjustment)
         }));
 
     const timelineHtml = timelineItems.map(it => {
       const col = STATUS_HEX[it.status] || '#10b981';
       const modTitle = modShortName(it.mod, it.mod.replace('_', ' '));
+      const dueAttr = it.dueModId ? `data-due-mod="${it.dueModId}"` : '';
       return `
         <div class="timeline-card" style="--tl-color:${col}">
           <div class="tl-hdr">
             <span class="tl-mod">${esc(modTitle)}</span>
-            <span class="tl-time">${esc(it.tag)}</span>
+            <span class="tl-time" ${dueAttr}>${esc(it.tag)}</span>
           </div>
           <div class="tl-desc">${esc(it.text)}</div>
         </div>
@@ -424,6 +556,22 @@ HUD_CONTROLLER_BODY_JS = r"""
       ? `env-stage-${selSk}`
       : '';
 
+    const dueBannerHtml = dueModules.length ? `
+      <div class="reminder-banner ${dueModules.some(d => d.status === 'RED') ? 'urgent' : ''}" id="reminder-banner">
+        <div class="reminder-left">
+          <span>⏰</span>
+          <span>
+            <strong>${esc(t('rem_banner_title'))}</strong>
+            ${dueModules.map(d => `<span class="badge badge-${d.status}" style="margin-left:6px;">${esc(modShortName(d.module_id, d.module_id))}</span>`).join('')}
+          </span>
+        </div>
+        <div class="reminder-actions">
+          <button class="rem-btn" id="ack-due-btn">${esc(t('rem_mark_done'))}</button>
+          <button class="rem-btn" id="toggle-sound-btn">${esc(state.clock.sound_enabled ? t('rem_mute') : t('rem_unmute'))}</button>
+        </div>
+      </div>
+    ` : '';
+
     root.innerHTML = `
       <div class="hud-shell">
         <div class="hud-content">
@@ -442,6 +590,16 @@ HUD_CONTROLLER_BODY_JS = r"""
             </div>
 
             <div class="cmd-controls">
+              <!-- OFFLINE SPACECRAFT CLOCK WIDGET -->
+              <div class="rtc-widget" id="open-clock-btn" title="${esc(t('clk_section_title'))}">
+                <span class="rtc-dot"></span>
+                <div class="rtc-readout">
+                  <span class="rtc-time" id="sc-clock-time">${esc(formatScTime(scNow))}</span>
+                  <span class="rtc-date" id="sc-clock-date">${esc(formatScDate(scNow))} · ${esc(t('rtc_offline_tag'))}</span>
+                </div>
+                <span class="rtc-scale-chip ${state.clock.time_scale > 1 ? 'fast' : ''}" id="sc-clock-scale">${state.clock.time_scale}x</span>
+              </div>
+
               <div class="scen-group" title="Switch Simulation Preset">
                 ${['green', 'yellow', 'red', 'bad_data'].map(sc => `
                   <button class="scen-btn ${state.scenario === sc ? 'active-' + sc : ''}" data-scen="${sc}">
@@ -455,6 +613,9 @@ HUD_CONTROLLER_BODY_JS = r"""
             </div>
           </div>
 
+          <!-- LIVE DUE / OVERDUE REMINDER BANNER -->
+          <div id="reminder-slot">${dueBannerHtml}</div>
+
           <!-- KPI RIBBON -->
           <div class="kpi-ribbon">
             <div class="kpi-tile" style="--accent:${overallAccent}">
@@ -467,9 +628,9 @@ HUD_CONTROLLER_BODY_JS = r"""
               <span class="kpi-val">${(schedule.urgent_modules || []).length} <span style="font-size:13px;color:#64748b;">/ 5</span></span>
               <span class="kpi-sub">${(schedule.urgent_modules || []).length ? esc(schedule.urgent_modules.map(m => modShortName(m, m)).join(', ')) : esc(t('kpi_red_sub_ok'))}</span>
             </div>
-            <div class="kpi-tile" style="--accent:#38bdf8">
+            <div class="kpi-tile" style="--accent:${nextDiffMs <= 0 ? '#f59e0b' : '#38bdf8'}">
               <span class="kpi-label">${esc(t('kpi_triage_lbl'))}</span>
-              <span class="kpi-val">T + ${esc(schedule.next_check_hours)} H</span>
+              <span class="kpi-val" id="kpi-countdown-val" style="color:${nextDiffMs <= 0 ? '#fbbf24' : '#f8fafc'}">${esc(formatCountdown(nextDiffMs))}</span>
               <span class="kpi-sub">${esc(t('kpi_triage_sub'))}</span>
             </div>
             <div class="kpi-tile" style="--accent:#a855f7">
@@ -607,6 +768,45 @@ HUD_CONTROLLER_BODY_JS = r"""
             </div>
           </div>
 
+          <!-- OFFLINE SPACECRAFT RTC CALIBRATION & SIMULATION SPEED -->
+          <div class="clock-box">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <span style="font-size:11.5px;font-weight:700;color:#38bdf8;letter-spacing:0.6px;">⏱ ${esc(t('clk_section_title'))}</span>
+                <span style="font-size:10.5px;color:#94a3b8;">${esc(t('clk_section_desc'))}</span>
+              </div>
+              <label style="font-size:11px;color:#cbd5e1;display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;">
+                <input type="checkbox" id="inp-clock-sound" ${state.clock.sound_enabled ? 'checked' : ''} />
+                ${esc(t('clk_sound_lbl'))}
+              </label>
+            </div>
+            <div class="clock-grid">
+              <div class="field-group">
+                <span class="field-label">${esc(t('clk_date_lbl'))}</span>
+                <input class="field-input" type="date" id="inp-clk-date" value="${esc(formatScDate(scNow))}" />
+              </div>
+              <div class="field-group">
+                <span class="field-label">${esc(t('clk_time_lbl'))}</span>
+                <input class="field-input" type="time" step="1" id="inp-clk-time" value="${esc(formatScTime(scNow))}" />
+              </div>
+              <button class="rem-btn" style="padding:8px 12px;" id="apply-clock-btn">${esc(t('clk_apply_btn'))}</button>
+            </div>
+            <div class="clock-speed-row">
+              <div style="display:flex;align-items:center;gap:5px;">
+                <span style="font-size:10.5px;color:#94a3b8;font-weight:600;">${esc(t('clk_speed_lbl'))}</span>
+                ${[1, 60, 3600].map(sp => `
+                  <button class="view-pill-btn ${state.clock.time_scale === sp ? 'active' : ''}" data-clk-speed="${sp}">${sp}x</button>
+                `).join('')}
+              </div>
+              <div style="display:flex;align-items:center;gap:5px;">
+                <span style="font-size:10.5px;color:#94a3b8;font-weight:600;">${esc(t('clk_jump_lbl'))}</span>
+                ${[1, 12, 24].map(hrs => `
+                  <button class="view-pill-btn" data-clk-jump="${hrs}">+${hrs}H</button>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+
           <div class="form-meta-grid">
             <div class="field-group">
               <span class="field-label">${esc(t('crew_id_lbl'))}</span>
@@ -667,12 +867,102 @@ HUD_CONTROLLER_BODY_JS = r"""
       };
     });
 
-    // Scenario preset buttons -> trigger Python evaluation immediately
+    // Scenario preset buttons -> reset module timers to new scenario cadence and evaluate
     root.querySelectorAll('[data-scen]').forEach(btn => {
       btn.onclick = () => {
         state.scenario = btn.getAttribute('data-scen');
         state.use_manual_overrides = false;
+        state.clock.module_due_ms = {};
+        state.chimedKeys = {};
         sendPayload('switch_scenario');
+      };
+    });
+
+    // Top Clock Pill opens Settings Drawer for calibration
+    const openClkBtn = root.querySelector('#open-clock-btn');
+    if (openClkBtn) openClkBtn.onclick = () => { state.drawerOpen = true; render(); };
+
+    // Reminder Banner: Mark Checked & Reset Timer / Toggle Mute
+    function bindReminderBannerEvents() {
+      const ackBtn = root.querySelector('#ack-due-btn');
+      if (ackBtn) {
+        ackBtn.onclick = () => {
+          const scNow = getSpacecraftNowMs();
+          const modulesMap = data.modules || {};
+          Object.keys(modulesMap).forEach(modId => {
+            const dueAt = Number(state.clock.module_due_ms[modId] ?? scNow);
+            if (dueAt <= scNow) {
+              const nextH = Number((modulesMap[modId].short_term_plan && modulesMap[modId].short_term_plan.next_measurement_in_hours) ?? 24);
+              const resetH = nextH > 0 ? nextH : 1;
+              state.clock.module_due_ms[modId] = scNow + resetH * 3600 * 1000;
+              delete state.chimedKeys[modId];
+            }
+          });
+          render();
+          sendPayload('save_clock');
+        };
+      }
+      const soundBtn = root.querySelector('#toggle-sound-btn');
+      if (soundBtn) {
+        soundBtn.onclick = () => {
+          state.clock.sound_enabled = !state.clock.sound_enabled;
+          render();
+          sendPayload('save_clock');
+        };
+      }
+    }
+    bindReminderBannerEvents();
+
+    // Drawer Offline Clock Controls
+    const soundChk = root.querySelector('#inp-clock-sound');
+    if (soundChk) {
+      soundChk.onchange = () => {
+        state.clock.sound_enabled = soundChk.checked;
+      };
+    }
+
+    const applyClkBtn = root.querySelector('#apply-clock-btn');
+    if (applyClkBtn) {
+      applyClkBtn.onclick = () => {
+        const dEl = root.querySelector('#inp-clk-date');
+        const tEl = root.querySelector('#inp-clk-time');
+        if (dEl && tEl && dEl.value && tEl.value) {
+          const tStr = tEl.value.length === 5 ? `${tEl.value}:00` : tEl.value;
+          const parsed = Date.parse(`${dEl.value}T${tStr}Z`);
+          if (!isNaN(parsed)) {
+            const oldNow = getSpacecraftNowMs();
+            const shift = parsed - oldNow;
+            state.clock.spacecraft_epoch_ms = parsed;
+            state.clock.host_epoch_ms = Date.now();
+            // Keep existing countdown intervals relative to the new calibrated clock
+            Object.keys(state.clock.module_due_ms).forEach(k => {
+              state.clock.module_due_ms[k] = Number(state.clock.module_due_ms[k]) + shift;
+            });
+            render();
+            sendPayload('save_clock');
+          }
+        }
+      };
+    }
+
+    root.querySelectorAll('[data-clk-speed]').forEach(btn => {
+      btn.onclick = () => {
+        const sp = Number(btn.getAttribute('data-clk-speed')) || 1;
+        state.clock.spacecraft_epoch_ms = getSpacecraftNowMs();
+        state.clock.host_epoch_ms = Date.now();
+        state.clock.time_scale = sp;
+        render();
+        sendPayload('save_clock');
+      };
+    });
+
+    root.querySelectorAll('[data-clk-jump]').forEach(btn => {
+      btn.onclick = () => {
+        const hrs = Number(btn.getAttribute('data-clk-jump')) || 1;
+        state.clock.spacecraft_epoch_ms = getSpacecraftNowMs() + hrs * 3600 * 1000;
+        state.clock.host_epoch_ms = Date.now();
+        render();
+        sendPayload('save_clock');
       };
     });
 
@@ -803,11 +1093,13 @@ HUD_CONTROLLER_BODY_JS = r"""
       };
     });
 
-    // Save & Run All 5 Agents
+    // Save & Run All 5 Agents (also resets due timers based on newly computed next_measurement_in_hours)
     const saveRunBtn = root.querySelector('#save-run-btn');
     if (saveRunBtn) {
       saveRunBtn.onclick = () => {
         state.drawerOpen = false;
+        state.clock.module_due_ms = {};
+        state.chimedKeys = {};
         sendPayload('save_and_run');
       };
     }
@@ -818,6 +1110,8 @@ HUD_CONTROLLER_BODY_JS = r"""
       resetBtn.onclick = () => {
         state.use_manual_overrides = false;
         state.drawerOpen = false;
+        state.clock.module_due_ms = {};
+        state.chimedKeys = {};
         sendPayload('reset_overrides');
       };
     }
@@ -830,6 +1124,61 @@ HUD_CONTROLLER_BODY_JS = r"""
       };
     }
   }
+
+  // Background 1-second offline clock ticker (updates DOM smoothly without full re-render)
+  if (root._zosmaTimerId) {
+    clearInterval(root._zosmaTimerId);
+  }
+  root._zosmaTimerId = setInterval(() => {
+    const modulesMap = data.modules || {};
+    const order = data.module_order || Object.keys(modulesMap);
+    const scNow = getSpacecraftNowMs();
+
+    const tEl = root.querySelector('#sc-clock-time');
+    const dEl = root.querySelector('#sc-clock-date');
+    if (tEl) tEl.textContent = formatScTime(scNow);
+    if (dEl) dEl.textContent = `${formatScDate(scNow)} · ${t('rtc_offline_tag')}`;
+
+    const minDueMs = order.reduce((acc, modId) => {
+      const d = Number(state.clock.module_due_ms[modId] ?? (scNow + 3600000));
+      return Math.min(acc, d);
+    }, scNow + 999 * 3600 * 1000);
+    const nextDiffMs = minDueMs - scNow;
+    const kpiCd = root.querySelector('#kpi-countdown-val');
+    if (kpiCd) {
+      kpiCd.textContent = formatCountdown(nextDiffMs);
+      kpiCd.style.color = nextDiffMs <= 0 ? '#fbbf24' : '#f8fafc';
+    }
+
+    root.querySelectorAll('[data-due-mod]').forEach(el => {
+      const modId = el.getAttribute('data-due-mod');
+      const dueAt = Number(state.clock.module_due_ms[modId] ?? (scNow + 3600000));
+      const rem = dueAt - scNow;
+      el.textContent = rem <= 0 ? t('rtc_due_now') : t('rtc_due_in', { t: formatCountdown(rem) });
+    });
+
+    const dueModules = getDueModules(modulesMap, scNow);
+    const slot = root.querySelector('#reminder-slot');
+    if (slot) {
+      if (dueModules.length && !root.querySelector('#reminder-banner')) {
+        render();
+        playAlertChime();
+        dueModules.forEach(d => { state.chimedKeys[d.module_id] = true; });
+      } else if (dueModules.length) {
+        let newlyDue = false;
+        dueModules.forEach(d => {
+          if (!state.chimedKeys[d.module_id]) {
+            state.chimedKeys[d.module_id] = true;
+            newlyDue = true;
+          }
+        });
+        if (newlyDue) {
+          render();
+          playAlertChime();
+        }
+      }
+    }
+  }, 1000);
 
   render();
 """
