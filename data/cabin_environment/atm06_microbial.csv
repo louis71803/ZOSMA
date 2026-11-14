@@ -1,0 +1,2 @@
+timestamp_utc,incubation_complete,condensation_spread,blank_present,air_bacteria_cfu_m3,air_fungi_cfu_m3,surface_bacteria_cfu_100cm2,surface_fungi_cfu_100cm2,water_heterotrophic_cfu_mL,water_coliform_100mL_detected,water_fungi_100mL_detected,history_5_limit_ratio,history_5_timestamps
+2026-11-14T12:00:00Z,True,False,True,140.0,12.0,950.0,10.0,6.0,False,False,"[0.12, 0.13, 0.14, 0.13, 0.14]","['2025-11-19T12:00:00Z', '2026-02-17T12:00:00Z', '2026-05-18T12:00:00Z', '2026-08-16T12:00:00Z', '2026-11-14T12:00:00Z']"

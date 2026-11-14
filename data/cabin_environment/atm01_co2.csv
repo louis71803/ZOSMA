@@ -1,0 +1,6 @@
+timestamp_utc,location,co2_ppm,ppco2_1h_mmHg,ppco2_7d_mmHg,second_sensor_confirmed
+2026-11-14T08:00:00Z,Columbus,2410.0,1.832,1.8,True
+2026-11-14T09:00:00Z,Columbus,2425.0,1.843,1.8,True
+2026-11-14T10:00:00Z,Columbus,2420.0,1.839,1.8,True
+2026-11-14T11:00:00Z,Columbus,2435.0,1.851,1.8,True
+2026-11-14T12:00:00Z,Columbus,2434.0,1.85,1.8,True

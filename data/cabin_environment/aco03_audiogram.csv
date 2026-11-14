@@ -1,0 +1,3 @@
+timestamp_utc,crew_id,ear,ambient_above_nc40,max_repeat_diff_dB,retest_confirmed,hz_500_dB,hz_1000_dB,hz_2000_dB,hz_3000_dB,hz_4000_dB,hz_6000_dB
+2026-11-14T12:00:00Z,C002,right,False,5.0,True,10.0,10.0,10.0,12.0,12.0,15.0
+2026-11-14T12:00:00Z,C002,left,False,5.0,True,10.0,10.0,10.0,12.0,12.0,15.0

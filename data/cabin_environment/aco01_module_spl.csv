@@ -1,0 +1,2 @@
+timestamp_utc,location,area_type,pre_cal_dB,post_cal_dB,lab_cal_age_months,spl_dBA,impulse_peak_dB,tonal_margin_dB,hz_63_dB,hz_125_dB,hz_250_dB,hz_500_dB,hz_1000_dB,hz_2000_dB,hz_4000_dB,hz_8000_dB
+2026-11-14T12:00:00Z,Columbus,work,94.0,94.1,4,54.2,96.0,15.0,63.0,57.0,52.0,49.0,47.0,44.0,41.0,38.0

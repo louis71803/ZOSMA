@@ -1,6 +1,7 @@
 # 忽略個人身分與本地記憶庫
 USER.md
 memory/
+DREAMS.md
 
 # 忽略 Python 相關快取與虛擬環境
 __pycache__/

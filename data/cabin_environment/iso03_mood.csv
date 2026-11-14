@@ -1,0 +1,8 @@
+timestamp_utc,crew_id,vas_stress,bedford_workload,poms37_tmd,hopelessness_flag,straight_lined,complete
+2026-11-08T12:00:00Z,C002,22.0,2,4.0,False,False,True
+2026-11-09T12:00:00Z,C002,23.0,2,4.0,False,False,True
+2026-11-10T12:00:00Z,C002,24.0,2,4.0,False,False,True
+2026-11-11T12:00:00Z,C002,22.0,2,4.0,False,False,True
+2026-11-12T12:00:00Z,C002,23.0,2,4.0,False,False,True
+2026-11-13T12:00:00Z,C002,24.0,2,4.0,False,False,True
+2026-11-14T12:00:00Z,C002,22.0,2,4.0,False,False,True
