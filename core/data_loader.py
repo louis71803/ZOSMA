@@ -71,16 +71,21 @@ EXPECTED_DATA_FILES: dict[str, list[str]] = {
     "cabin_environment": [
         "rad01_area_dose.csv",
         "rad02_crew_dose_daily.csv",
-        "goes_integral_protons_6h.json",
+        "goes_integral_protons.json",
         "aco01_module_spl.csv",
         "aco02_crew_dosimetry.csv",
+        "aco03_audiogram.csv",
         "atm01_co2.csv",
         "atm02_pressure_o2.csv",
         "atm03_thermal.csv",
         "atm04_voc.csv",
+        "atm05_water_chem.csv",
+        "atm06_microbial.csv",
+        "atm07_particulates.csv",
         "iso01_sleep.csv",
         "iso02_pvt.csv",
         "iso03_mood.csv",
+        "iso04_light.csv",
     ],
 }
 

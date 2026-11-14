@@ -1,0 +1,9 @@
+crew_id,mission_day,gls_pct,gls_change_pct,ijv_flow,ijv_compressible,ijv_thrombus
+C002,1,-20.0,0.0,forward,True,False
+C002,15,-19.9,-0.5,forward,True,False
+C002,30,-19.8,-1.0,forward,True,False
+C002,60,-19.7,-1.5,forward,True,False
+C002,90,-19.6,-2.0,forward,True,False
+C002,110,-19.56,-2.2,forward,True,False
+C002,117,-19.52,-2.4,forward,True,False
+C002,124,-19.5,-2.5,forward,True,False

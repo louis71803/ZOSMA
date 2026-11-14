@@ -1,0 +1,9 @@
+crew_id,mission_day,protocol_mode,stand_hr_rise_bpm,stand_sbp_drop_mmHg,dizzy,prcp_reference_ok
+C002,1,LBNP,11,4,False,True
+C002,15,LBNP,11,4,False,True
+C002,30,LBNP,12,5,False,True
+C002,60,LBNP,12,5,False,True
+C002,90,LBNP,12,5,False,True
+C002,110,LBNP,13,5,False,True
+C002,117,LBNP,12,5,False,True
+C002,124,LBNP,12,5,False,True
