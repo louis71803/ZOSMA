@@ -1,0 +1,897 @@
+{
+  "_readme": "骨骼肌肉模組的真實文獻參考值。這裡只放已發表的統計值（平均、範圍、標準差），不含任何個別太空人的原始數據。模擬數據請依這些比例產生。verified 欄位：fetched＝已讀原文；excerpt＝讀到搜尋結果中的原文摘錄，使用前請點開原文核對；user_pasted＝由使用者貼上原文。",
+  "_updated": "2026-11-14 v2",
+  "sources": {
+    "S01": {
+      "plan_ref": 1,
+      "type": "NASA",
+      "verified": "excerpt",
+      "title": "NASA HRP - Risk of Spaceflight-Induced Bone Changes",
+      "url": "https://www.nasa.gov/reference/risk-of-spaceflight-induced-bone-changes/"
+    },
+    "S02": {
+      "plan_ref": 2,
+      "type": "ISS_study",
+      "verified": "excerpt",
+      "title": "Lang et al. 2004, J Bone Miner Res 19(6):1006-12",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/15125798/"
+    },
+    "S03": {
+      "plan_ref": 3,
+      "type": "NASA",
+      "verified": "fetched",
+      "title": "NASA HRP - Risk of Reduced Cardiorespiratory and Musculoskeletal Fitness",
+      "url": "https://www.nasa.gov/reference/risk-of-reduced-cardiorespiratory-and-musculoskeletal-fitness/"
+    },
+    "S04": {
+      "plan_ref": 4,
+      "type": "ISS_study",
+      "verified": "excerpt",
+      "title": "Gopalakrishnan et al. 2010, Aviat Space Environ Med 81:91-104",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/20131648/"
+    },
+    "S05": {
+      "plan_ref": 5,
+      "type": "ISS_study",
+      "verified": "excerpt",
+      "title": "Trappe et al. 2009, J Appl Physiol 106(4):1159-68",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/19150852/"
+    },
+    "S06": {
+      "plan_ref": 6,
+      "type": "other_literature",
+      "verified": "excerpt",
+      "title": "Science News - The Zero Gravity Diet (quoting NASA nutritionist Scott M. Smith)",
+      "url": "https://www.sciencenews.org/blog/food-for-thought/zero-gravity-diet"
+    },
+    "S07": {
+      "plan_ref": 7,
+      "type": "ISS_study",
+      "verified": "excerpt",
+      "title": "Smith et al. 2005, J Bone Miner Res 20(2):208-18 (Mir)",
+      "url": "https://ntrs.nasa.gov/citations/20050184836"
+    },
+    "S08": {
+      "plan_ref": 8,
+      "type": "NASA",
+      "verified": "fetched",
+      "title": "NASA OCHMO-TB-030 Bone Loss Technical Brief, Rev C",
+      "url": "https://www.nasa.gov/wp-content/uploads/2023/12/ochmo-tb-030-bone-loss.pdf"
+    },
+    "S09": {
+      "plan_ref": 9,
+      "type": "other_literature",
+      "verified": "excerpt",
+      "title": "Sanchez-Medina & Gonzalez-Badillo 2011, Med Sci Sports Exerc 43(9):1725-34",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/21311352/"
+    },
+    "S10": {
+      "plan_ref": 10,
+      "type": "NASA",
+      "verified": "excerpt",
+      "title": "NASA NTRS - Exploration Exercise System (EES) Development",
+      "url": "https://ntrs.nasa.gov/citations/20240008204"
+    },
+    "S11": {
+      "plan_ref": 11,
+      "type": "NASA",
+      "verified": "user_pasted",
+      "title": "NASA - Science in Space: May 2024 (Astronaut Exercise)",
+      "url": "https://www.nasa.gov/missions/station/iss-research/astronaut-exercise/"
+    },
+    "S16": {
+      "plan_ref": 16,
+      "type": "NASA",
+      "verified": "fetched",
+      "title": "NASA HRP - 5 Hazards of Human Spaceflight",
+      "url": "https://www.nasa.gov/hrp/hazards/"
+    },
+    "X01": {
+      "plan_ref": null,
+      "type": "ISS_study",
+      "verified": "excerpt",
+      "title": "Rice et al. - Inadequate Loading Stimulus on ISS Results in Bone and Muscle Loss (NASA NTRS 20110015001)",
+      "url": "https://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/20110015001.pdf"
+    },
+    "X02": {
+      "plan_ref": null,
+      "type": "ISS_study",
+      "verified": "excerpt",
+      "title": "English et al. 2015, Aerosp Med Hum Perform 86(12 Suppl):A68-77",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/26630197/"
+    },
+    "X03": {
+      "plan_ref": null,
+      "type": "ISS_study",
+      "verified": "excerpt",
+      "title": "Scott et al. 2023, npj Microgravity 9:11",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9898566"
+    },
+    "X04": {
+      "plan_ref": null,
+      "type": "ISS_study",
+      "verified": "excerpt",
+      "title": "English et al. 2020, npj Microgravity 6:21 (NASA Sprint Study)",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7434884"
+    },
+    "X05": {
+      "plan_ref": null,
+      "type": "ISS_study",
+      "verified": "excerpt",
+      "title": "Zwart et al. 2014, Aviat Space Environ Med 85(9):897-904 (Body mass changes)",
+      "url": "https://www.ncbi.nlm.nih.gov/pubmed/25197887"
+    },
+    "X06": {
+      "plan_ref": null,
+      "type": "other_literature",
+      "verified": "excerpt",
+      "title": "Scott et al. 2017, J Cachexia Sarcopenia Muscle 8:475-481 (Panoramic ultrasound, bed rest)",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5476852"
+    },
+    "X07": {
+      "plan_ref": null,
+      "type": "NASA",
+      "verified": "excerpt",
+      "title": "Smith - Calcium and Bone Metabolism During Spaceflight (NASA NTRS 20100030546)",
+      "url": "https://ntrs.nasa.gov/api/citations/20100030546/downloads/20100030546.pdf"
+    },
+    "X08": {
+      "plan_ref": null,
+      "type": "NASA",
+      "verified": "excerpt",
+      "title": "NASA JSC-67378 Rev 1 - Nutritional Requirements for Exploration Missions up to 365 days",
+      "url": "https://ntrs.nasa.gov/api/citations/20205008306/downloads/JSC67378%20Expl%20Nutr%20Reqs%20042020.pdf"
+    },
+    "X09": {
+      "plan_ref": null,
+      "type": "NASA",
+      "verified": "excerpt",
+      "title": "Whitson et al. - Renal Stone Risk During Spaceflight (NASA NTRS 20000020539, 20090006694)",
+      "url": "https://ntrs.nasa.gov/citations/20000020539"
+    },
+    "X10": {
+      "plan_ref": null,
+      "type": "ISS_study",
+      "verified": "excerpt",
+      "title": "LeBlanc et al. 2013, Osteoporos Int 24(7):2105-14; update NASA NTRS 20140003448",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/23334732/"
+    },
+    "X11": {
+      "plan_ref": null,
+      "type": "NASA",
+      "verified": "excerpt",
+      "title": "NASA Nutritional Status Assessment (Nutrition SMO) fact sheet (NTRS 20090014816)",
+      "url": "https://ntrs.nasa.gov/api/citations/20090014816/downloads/20090014816.pdf"
+    },
+    "X12": {
+      "plan_ref": null,
+      "type": "other_literature",
+      "verified": "excerpt",
+      "title": "Danish Aerospace Company - E4D product page; ESA E4D image release (Jan 2026)",
+      "url": "https://www.danishaerospace.com/en/work/products/e4d"
+    },
+    "X13": {
+      "plan_ref": null,
+      "type": "other_literature",
+      "verified": "excerpt",
+      "title": "Space.com - How do astronauts weigh themselves in space?",
+      "url": "https://www.space.com/space-exploration/human-spaceflight/how-do-astronauts-weigh-themselves-in-space"
+    },
+    "X14": {
+      "plan_ref": 14,
+      "type": "other_literature",
+      "verified": "excerpt",
+      "title": "Canadian Space Agency - Bio-Analyzer",
+      "url": "https://www.asc-csa.gc.ca/eng/iss/bio-analyzer.asp"
+    },
+    "X15": {
+      "plan_ref": null,
+      "type": "other_literature",
+      "verified": "excerpt",
+      "title": "UCSF news release 2004 on Lang et al.",
+      "url": "https://www.ucsf.edu/news/2004/03/97565/ucsfbaylor-team-uses-new-method-measure-bone-loss-astronauts-flying-long"
+    },
+    "X16": {
+      "plan_ref": null,
+      "type": "NASA",
+      "verified": "excerpt",
+      "title": "Smith - Bone Metabolism on ISS Missions (NASA NTRS 20140013483)",
+      "url": "https://ntrs.nasa.gov/citations/20140013483"
+    },
+    "N01": {
+      "plan_ref": null,
+      "type": "NASA",
+      "verified": "fetched",
+      "title": "NASA/SP-20250000273 (Jan 2025) Astronaut physiological deconditioning and exercise prescription countermeasures in spaceflight, NASA OCHMO",
+      "url": "https://www.nasa.gov/wp-content/uploads/2025/02/sp-20250000273.pdf"
+    },
+    "N02": {
+      "plan_ref": null,
+      "type": "NASA",
+      "verified": "excerpt",
+      "title": "Varanoske et al. 2023 - Inter-Individual Variability in Astronaut Strength Response to Long-Duration Spaceflight (NASA NTRS 20230004166)",
+      "url": "https://ntrs.nasa.gov/citations/20230004166"
+    },
+    "N03": {
+      "plan_ref": null,
+      "type": "NASA",
+      "verified": "excerpt",
+      "title": "Pennline & Mulugeta 2014 - Evaluating Daily Load Stimulus Formulas in Relating Bone Response to Exercise (NASA/TM-2014-218306)",
+      "url": "https://ntrs.nasa.gov/citations/20140012744"
+    },
+    "N04": {
+      "plan_ref": null,
+      "type": "NASA",
+      "verified": "excerpt",
+      "title": "NASA OSDR OSD-575 - SpaceX Inspiration4 Blood Serum Metabolic Panel",
+      "url": "https://osdr.nasa.gov/bio/repo/data/studies/OSD-575"
+    },
+    "N05": {
+      "plan_ref": null,
+      "type": "NASA",
+      "verified": "excerpt",
+      "title": "NASA OCHMO-TB-031 Exercise Overview Technical Brief",
+      "url": "https://www.nasa.gov/wp-content/uploads/2023/12/ochmo-tb-031-exercise-overview.pdf"
+    },
+    "L01": {
+      "plan_ref": null,
+      "type": "ISS_study",
+      "verified": "fetched",
+      "title": "Stavnichuk et al. 2020, npj Microgravity 6:13 (meta-analysis, ~148 astronauts bone density, ~124 bone markers)",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7200725"
+    },
+    "L02": {
+      "plan_ref": null,
+      "type": "ISS_study",
+      "verified": "excerpt",
+      "title": "Gabel et al. 2022, Br J Sports Med 56:196-203 (TBone, n=17)",
+      "url": "https://d-nb.info/1251562248/34"
+    }
+  },
+  "bone": {
+    "bmd_loss_pct_per_month": {
+      "min": 1.0,
+      "max": 1.5,
+      "note": "4-6 個月任務的平均",
+      "source": "S01"
+    },
+    "lang2004": {
+      "n": 14,
+      "mission_months": "4-6",
+      "spine_abmd_loss_pct_per_month": 0.9,
+      "hip_abmd_loss_pct_per_month": {
+        "min": 1.4,
+        "max": 1.5
+      },
+      "spine_integral_vbmd_loss_pct_per_month": 0.9,
+      "spine_trabecular_vbmd_loss_pct_per_month": 0.7,
+      "hip_integral_vbmd_loss_pct_per_month": {
+        "min": 1.2,
+        "max": 1.5
+      },
+      "hip_cortical_vbmd_loss_pct_per_month": {
+        "min": 0.4,
+        "max": 0.5
+      },
+      "hip_trabecular_vbmd_loss_pct_per_month": {
+        "min": 2.2,
+        "max": 2.7
+      },
+      "calcaneus_abmd_loss_pct_per_month": 0.4,
+      "source": "S02"
+    },
+    "hip_strength_loss_pct_per_month": {
+      "value": 2.5,
+      "note": "由 CT 影像估算",
+      "source": "X15"
+    },
+    "exercising_crew_abmd_loss_pct_per_month": {
+      "femoral_neck": {
+        "mean": 0.71,
+        "sd": 0.34
+      },
+      "total_hip": {
+        "mean": 0.81,
+        "sd": 0.21
+      },
+      "source": "X01"
+    },
+    "total_hip_bmd_change_pct_postflight": {
+      "pre_ared_control": {
+        "mean": -6.2,
+        "sd": 2.8,
+        "n": 18
+      },
+      "ared_control": {
+        "mean": -2.7,
+        "sd": 3.2,
+        "n": 5
+      },
+      "ared_plus_alendronate": {
+        "mean": -0.2,
+        "sd": 1.5,
+        "n": 7
+      },
+      "note": "ARED 讓骨流失減少約一半；加上藥物後接近維持",
+      "source": "X10"
+    },
+    "bone_resorption_increase_pct_inflight": {
+      "value": 50,
+      "note": "約值；阻力訓練不會降低骨吸收，改善來自骨生成同步上升",
+      "source": "X07",
+      "source_2": "X16"
+    },
+    "calcium_kinetics_mir": {
+      "n_study1": 13,
+      "bone_resorption_mg_day": {
+        "inflight": {
+          "mean": 668,
+          "sd": 130
+        },
+        "preflight": {
+          "mean": 427,
+          "sd": 153
+        }
+      },
+      "intestinal_ca_absorption_mg_day": {
+        "inflight": {
+          "mean": 233,
+          "sd": 87
+        },
+        "preflight": {
+          "mean": 460,
+          "sd": 47
+        }
+      },
+      "calcium_retention_mg_day": {
+        "inflight": {
+          "mean": -234,
+          "sd": 102
+        },
+        "preflight": {
+          "mean": 63,
+          "sd": 75
+        }
+      },
+      "source": "S07"
+    },
+    "serum_calcium_note": {
+      "value": "飛行中血鈣調節維持正常，不可作為骨流失指標",
+      "source": "X07"
+    },
+    "inflight_bmd_measurement_available": {
+      "value": false,
+      "source": "S08"
+    },
+    "t_score": {
+      "preflight_min_long_duration": -1.0,
+      "countermeasure_target_min": -2.0,
+      "source": "S08"
+    },
+    "vitamin_d_25oh_ng_ml": {
+      "min": 35,
+      "max": 90,
+      "source": "S08"
+    },
+    "postflight_reconditioning": {
+      "days": 45,
+      "hours_per_day": 2,
+      "source": "S08"
+    },
+    "ared_era_summary": {
+      "bmd_change_pct_per_month": {
+        "min": -1.0,
+        "max": -0.5
+      },
+      "bmd_change_pct_range_total": {
+        "min": -8.5,
+        "max": -2.1
+      },
+      "ared_users": {
+        "lumbar_spine_pct": -2.6,
+        "femoral_neck_pct": -4.1
+      },
+      "ired_users": {
+        "lumbar_spine_pct": -3.7,
+        "femoral_neck_pct": -6.1
+      },
+      "source": "N01"
+    },
+    "meta_analysis_2020": {
+      "lower_limbs_change_pct": {
+        "mean": -5.4,
+        "ci": [
+          -6.0,
+          -4.9
+        ]
+      },
+      "lumbar_spine_pelvis_change_pct": {
+        "mean": -6.2,
+        "ci": [
+          -6.7,
+          -5.6
+        ]
+      },
+      "thorax_upper_limbs_change_pct": {
+        "mean": -0.7,
+        "ci": [
+          -1.3,
+          -0.2
+        ]
+      },
+      "skull_change_pct": {
+        "mean": 2.2,
+        "ci": [
+          1.1,
+          3.3
+        ]
+      },
+      "lower_limb_loss_pct_per_month": {
+        "mean": 0.8,
+        "ci": [
+          0.5,
+          1.1
+        ]
+      },
+      "resorption_markers_inflight": {
+        "plateau_pct_above_preflight": 113,
+        "ci": [
+          108,
+          117
+        ],
+        "days_to_half_max": 11,
+        "note": "骨吸收標記在飛行中快速上升後持平；與鈣動力學測得的約 50% 是不同量法"
+      },
+      "formation_markers_inflight": {
+        "first_30_days": "unchanged",
+        "then_pct_per_month": 7,
+        "ci": [
+          5,
+          10
+        ]
+      },
+      "source": "L01"
+    },
+    "tbone_dxa_loss_pct_per_month": {
+      "min": 0.5,
+      "max": 0.9,
+      "n": 17,
+      "source": "L02"
+    },
+    "daily_load_stimulus": {
+      "formula": "DLS = ( sum_j N_j * load_j^m )^(1/m)",
+      "meaning": "N_j 為每日該負荷的重複次數，load_j 為負荷大小，m 為加權指數（m 越大，強度比次數越重要）",
+      "note": "NASA 比較了六種公式，沒有一種能完全反映實驗觀察；可作為骨骼刺激指數公式的文獻依據，m 值仍屬團隊規格",
+      "source": "N03"
+    }
+  },
+  "muscle_and_fitness": {
+    "strength_and_aerobic_loss_pct_mean": {
+      "min": 10,
+      "max": 12,
+      "source": "S03"
+    },
+    "crew_pct_losing_over_20pct": {
+      "min": 12,
+      "max": 38,
+      "source": "S03"
+    },
+    "crew_pct_at_risk_with_current_countermeasures": {
+      "max": 17,
+      "source": "S11"
+    },
+    "gopalakrishnan2010": {
+      "n": 4,
+      "mission_days": {
+        "mean": 181,
+        "sd": 15
+      },
+      "calf_volume_change_pct": {
+        "min": -16,
+        "max": -10
+      },
+      "thigh_volume_change_pct": {
+        "min": -7,
+        "max": -4
+      },
+      "upper_extremity_volume_change_pct": {
+        "min": -0.8,
+        "max": 0.4
+      },
+      "knee_strength_change_pct": {
+        "min": -24.1,
+        "max": -10.4
+      },
+      "ankle_strength_change_pct": {
+        "min": -22.3,
+        "max": -4.0
+      },
+      "elbow_strength_change_pct": {
+        "min": -16.7,
+        "max": -7.5
+      },
+      "endurance_total_work_change_pct": -14,
+      "source": "S04",
+      "source_2": "X01"
+    },
+    "trappe2009": {
+      "n": 9,
+      "mission_months": 6,
+      "calf_volume_change_pct": {
+        "mean": -13,
+        "se": 2
+      },
+      "soleus_volume_change_pct": {
+        "mean": -15,
+        "se": 2
+      },
+      "gastrocnemius_volume_change_pct": {
+        "mean": -10,
+        "se": 2
+      },
+      "calf_peak_power_change_pct": -32,
+      "source": "S05"
+    },
+    "english2015_isokinetic": {
+      "n": 37,
+      "mission_days": {
+        "mean": 163,
+        "sd": 38
+      },
+      "strength_change_pct": {
+        "min": -17,
+        "max": -8
+      },
+      "residual_deficit_pct_1_month_postflight": {
+        "min": 1,
+        "max": 9
+      },
+      "source": "X02"
+    },
+    "vo2peak_change_pct": {
+      "mean": -7.4,
+      "sd": 2.0,
+      "n": 46,
+      "source": "X03"
+    },
+    "iss_strength_change_pct": {
+      "lower_body": {
+        "mean": -9,
+        "min": -12,
+        "max": -4
+      },
+      "upper_body": {
+        "mean": -1,
+        "min": -3,
+        "max": -1
+      },
+      "source": "N01"
+    },
+    "vo2peak_change_pct_range": {
+      "min": -11.21,
+      "max": -2.35,
+      "source": "N01"
+    },
+    "varanoske2023": {
+      "n": 87,
+      "min_flight_days": 90,
+      "lower_body_load_pct_of_preflight_body_weight": {
+        "strength_maintained": {
+          "mean": 110.0,
+          "sd": 16.5
+        },
+        "largest_strength_loss": {
+          "mean": 88.7,
+          "sd": 25.0
+        }
+      },
+      "note": "維持肌力的組員下肢阻力訓練負荷較高；可作為負荷目標的依據",
+      "source": "N02"
+    },
+    "bed_rest_no_exercise_knee_extension_change_pct_30d": {
+      "value": -20.1,
+      "source": "N05"
+    }
+  },
+  "exercise": {
+    "days_per_week": {
+      "min": 6,
+      "max": 7,
+      "source": "S03"
+    },
+    "hours_per_day": {
+      "value": 1.5,
+      "source": "S03"
+    },
+    "hours_per_day_average_incl_all": {
+      "value": 2,
+      "source": "S11"
+    },
+    "total_minutes_per_week": {
+      "typical": 600,
+      "min": 450,
+      "max": 720,
+      "source": "X03"
+    },
+    "ared_median_load_lb": {
+      "squat": 181,
+      "deadlift": 192,
+      "heel_raise": 239,
+      "bench_press": 122,
+      "source": "X03"
+    },
+    "ared_max_load": {
+      "lbf": 600,
+      "kg": 272,
+      "note": "約為體重 2-3 倍",
+      "source": "S08",
+      "source_2": "X04"
+    },
+    "ired_max_load_lbf": {
+      "value": 300,
+      "note": "舊設備，不足以維持骨密度",
+      "source": "S08",
+      "source_2": "S11"
+    },
+    "sprint_study": {
+      "resistance_days_per_week": 3,
+      "volume_load_lower_pct": {
+        "min": 34,
+        "max": 44
+      },
+      "average_load_higher_pct": {
+        "min": 6,
+        "max": 15
+      },
+      "note": "高強度、低訓練量，保護效果與標準處方相近",
+      "source": "X04"
+    },
+    "single_leg_load_body_weights": {
+      "orbit_walking": {
+        "mean": 0.89,
+        "sd": 0.17
+      },
+      "orbit_running": {
+        "mean": 1.28,
+        "sd": 0.18
+      },
+      "earth_walking": {
+        "mean": 1.18,
+        "sd": 0.11
+      },
+      "earth_running": {
+        "mean": 2.36,
+        "sd": 0.22
+      },
+      "source": "X01"
+    },
+    "velocity_loss_limit_pct": {
+      "squat": 30,
+      "bench_press": 35,
+      "n": 18,
+      "note": "受試者為有訓練經驗的男性，不是太空人；超過此值血氨明顯上升",
+      "source": "S09"
+    },
+    "ared_load_range_lb": {
+      "squat": [
+        150,
+        223
+      ],
+      "deadlift": [
+        156,
+        215
+      ],
+      "heel_raise": [
+        198,
+        293
+      ],
+      "bench_press": [
+        98,
+        153
+      ],
+      "source": "N01"
+    },
+    "ared_average_repetitions": {
+      "heel_raise": 207,
+      "deadlift": 230,
+      "squat": 189,
+      "bench_press": 44,
+      "source": "N01"
+    },
+    "session_minutes": {
+      "resistance": {
+        "min": 30,
+        "max": 60
+      },
+      "aerobic_mean": 27,
+      "source": "N01"
+    },
+    "recommended_schedule": {
+      "hours_per_day": 2.5,
+      "days_per_week": 6,
+      "note": "含準備與收拾時間",
+      "source": "N01"
+    }
+  },
+  "body_mass": {
+    "typical_postflight_loss_pct": {
+      "value": 5,
+      "source": "S06"
+    },
+    "energy_intake_below_recommended_pct": {
+      "value": 20,
+      "source": "S06"
+    },
+    "concern_threshold_pct": {
+      "min": 5,
+      "max": 10,
+      "source": "S06"
+    },
+    "critical_threshold_pct": {
+      "value": 10,
+      "source": "S06"
+    },
+    "inflight_change_pct": {
+      "bmmd": -4.4,
+      "slammd": -2.8,
+      "n": 25,
+      "note": "流失集中在前 30 天，之後持平",
+      "source": "X05"
+    },
+    "slammd_accuracy_kg": {
+      "value": 0.2,
+      "source": "X13"
+    },
+    "slammd_vs_bmmd_mean_difference_kg": {
+      "value": 1.1,
+      "source": "X05"
+    }
+  },
+  "devices": {
+    "e4d": {
+      "resistive_max_lb": 600,
+      "cycling_max_w": 500,
+      "modes": [
+        "resistive",
+        "cycling",
+        "rowing",
+        "rope_pulling"
+      ],
+      "iss_arrival": "2026-04",
+      "evaluation_years": 2,
+      "source": "X12",
+      "source_2": "S10"
+    },
+    "ultrasound_muscle_csa": {
+      "method": "panoramic ultrasound",
+      "concordance_vs_mri": {
+        "quadriceps": 0.78,
+        "gastrocnemius": 0.37
+      },
+      "quadriceps_sensitivity_pct": 73.7,
+      "quadriceps_specificity_pct": 74.2,
+      "gastrocnemius_atrophy_sensitivity_pct": 83.1,
+      "note": "70 天臥床實驗，n=27；小腿數值可信度較低",
+      "source": "X06"
+    },
+    "bio_analyzer": {
+      "result_time_hours": {
+        "min": 2,
+        "max": 3
+      },
+      "sample_types": [
+        "blood",
+        "saliva",
+        "urine"
+      ],
+      "measures": [
+        "blood cell counts",
+        "protein biomarkers"
+      ],
+      "bone_markers_ntx_ctx_p1np_confirmed": false,
+      "source": "X14"
+    }
+  },
+  "countermeasures": {
+    "protein_g_per_kg_per_day": {
+      "min": 1.2,
+      "max": 1.8,
+      "source": "X08"
+    },
+    "vitamin_d_iu_per_day": {
+      "value": 1000,
+      "source": "X08"
+    },
+    "target_urine_output_l_per_day": {
+      "value": 2,
+      "source": "X09"
+    },
+    "potassium_citrate_meq_per_day": {
+      "value": 20,
+      "note": "2 顆，每顆 10 mEq；需醫師決定",
+      "source": "X09"
+    },
+    "alendronate_mg_per_week": {
+      "value": 70,
+      "note": "飛行前 3 週開始；需醫師決定",
+      "source": "X10"
+    },
+    "inflight_blood_urine_sampling_flight_days": {
+      "value": [
+        15,
+        30,
+        60,
+        120,
+        180
+      ],
+      "note": "樣本冷凍後送回地面分析",
+      "source": "X11"
+    }
+  },
+  "mission_context": {
+    "mars_distance_million_miles": {
+      "value": 140,
+      "source": "S16"
+    },
+    "mars_mission_years": {
+      "value": 3,
+      "source": "S16"
+    },
+    "mars_gravity_fraction_of_earth": {
+      "value": 0.375,
+      "source": "S16"
+    }
+  },
+  "nasa_standards": {
+    "_note": "NASA 對任務中體能維持的要求，可直接作為燈號或上報線的依據",
+    "maintain_muscle_strength_pct_of_preflight_min": {
+      "value": 80,
+      "source": "N01"
+    },
+    "maintain_vo2max_pct_of_preflight_min": {
+      "value": 80,
+      "source": "N01"
+    },
+    "maintain_bmd_hip_spine_pct_of_preflight_min": {
+      "value": 95,
+      "source": "N01"
+    },
+    "maintain_bmd_femoral_neck_pct_of_preflight_min": {
+      "value": 90,
+      "source": "N01"
+    }
+  },
+  "real_datasets": {
+    "_note": "目前唯一可公開下載、與本模組相關的真實太空人數據",
+    "osd_575_cmp": {
+      "file_name": "LSDS-8_Comprehensive_Metabolic_Panel_CMP_TRANSFORMED.csv",
+      "target_path": "data/shared_real/OSD-575_cmp.csv",
+      "mission": "SpaceX Inspiration4 (2021)",
+      "mission_days": 3,
+      "crew": 4,
+      "observations": 28,
+      "timepoints": [
+        "L-92",
+        "L-44",
+        "L-3",
+        "R+1",
+        "R+45",
+        "R+82",
+        "R+194"
+      ],
+      "relevant_analytes": [
+        "calcium",
+        "alkaline phosphatase",
+        "creatinine"
+      ],
+      "limitation": "任務只有 3 天，且沒有飛行中採樣；只能當血液基本值參考，不能用來驗證骨骼肌肉流失",
+      "file_details_verified": "檔名、筆數與時間點取自第三方專案的描述，下載後請自行核對",
+      "source": "N04"
+    },
+    "not_publicly_available": [
+      "LSDA 太空人骨骼肌肉數據（需申請）",
+      "TBone 研究個別數據（隱私，不公開）",
+      "Stavnichuk 2020 原始數據（需向作者索取）"
+    ]
+  }
+}
