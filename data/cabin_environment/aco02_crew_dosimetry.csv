@@ -1,0 +1,2 @@
+timestamp_utc,crew_id,valid_hours,mic_covered,leq16_work_dBA,leq8_sleep_dBA,lmax_dBA,peak_dB,dose_24h_pct
+2026-11-14T12:00:00Z,C002,23.8,False,55.5,45.0,76.0,108.0,28.0

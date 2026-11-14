@@ -1,0 +1,8 @@
+crew_id,timestamp_utc,morning_lux,presleep_lux,midpoint_shift_h,off_wrist,sleeve_covered
+C002,2026-11-08T12:00:00Z,380.0,14.0,0.15,False,False
+C002,2026-11-09T12:00:00Z,380.0,14.0,0.15,False,False
+C002,2026-11-10T12:00:00Z,380.0,14.0,0.15,False,False
+C002,2026-11-11T12:00:00Z,380.0,14.0,0.15,False,False
+C002,2026-11-12T12:00:00Z,380.0,14.0,0.15,False,False
+C002,2026-11-13T12:00:00Z,380.0,14.0,0.15,False,False
+C002,2026-11-14T12:00:00Z,380.0,14.0,0.15,False,False

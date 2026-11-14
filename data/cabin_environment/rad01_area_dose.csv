@@ -1,0 +1,6 @@
+timestamp_utc,module,dose_rate_uGy_h,lat_deg,lon_deg,second_detector_confirmed
+2026-11-14T08:00:00Z,Columbus,4.02,18.0,40.0,True
+2026-11-14T09:00:00Z,Columbus,4.08,32.0,75.0,True
+2026-11-14T10:00:00Z,Columbus,4.05,46.0,110.0,True
+2026-11-14T11:00:00Z,Columbus,4.12,34.0,145.0,True
+2026-11-14T12:00:00Z,Columbus,4.1,10.0,175.0,True

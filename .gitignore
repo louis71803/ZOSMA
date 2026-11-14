@@ -2,7 +2,7 @@
 USER.md
 memory/
 data/runtime_session.json
-
+DREAMS.md
 # 忽略 Python 相關快取與虛擬環境
 __pycache__/
 *.pyc

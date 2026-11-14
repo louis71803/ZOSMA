@@ -1,0 +1,6 @@
+timestamp_utc,total_dust_mg_m3,respirable_pm25_mg_m3,lunar_dust_twa_mg_m3,self_clean_active,sensor_rated_max_mg_m3
+2026-11-14T08:00:00Z,0.28,0.11,0.02,False,10.0
+2026-11-14T09:00:00Z,0.29000000000000004,0.11,0.02,False,10.0
+2026-11-14T10:00:00Z,0.28,0.11,0.02,False,10.0
+2026-11-14T11:00:00Z,0.29000000000000004,0.11,0.02,False,10.0
+2026-11-14T12:00:00Z,0.28,0.11,0.02,False,10.0

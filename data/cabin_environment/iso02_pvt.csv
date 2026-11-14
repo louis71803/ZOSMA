@@ -1,0 +1,6 @@
+crew_id,timestamp_utc,response_speed_1_s,lapses,false_starts,missed_stimuli_pct,pre_eva
+C002,2026-10-29T12:00:00Z,4.26,1,2,2.0,False
+C002,2026-11-02T12:00:00Z,4.279999999999999,1,2,2.0,False
+C002,2026-11-06T12:00:00Z,4.26,1,2,2.0,False
+C002,2026-11-10T12:00:00Z,4.279999999999999,1,2,2.0,False
+C002,2026-11-14T12:00:00Z,4.26,1,2,2.0,False
