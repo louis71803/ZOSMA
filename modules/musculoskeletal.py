@@ -7,11 +7,11 @@ Self-contained stateless evaluator implementing Layer 0 QC + 3-Layer Decision Mo
 - Layer 3: 4-Point Trend Slope Projection (upgrades GREEN -> YELLOW if RED projected
            within the next 30-day scheduled monitoring cycle)
 
+Hardware Context:
+- European multi-purpose exercise device E4D, launched to the ISS for testing in April 2026.
+
 Scientific Literature & Threshold Provenance:
-- Background literature (see REFERENCES) establishes physiological mechanisms and ISS
-  benchmarks; specific Z.O.S.M.A. traffic-light cutoffs (e.g., Thigh CSA 4%/7%, Calf CSA
-  5%/10%, P1NP 15%/25%, VBT >30%, S_bone 0.90/0.75) are project-defined operational
-  heuristics informed by that literature rather than direct trial-derived cutoffs.
+- Tagged strictly using four provenance categories: `NASA`, `ISS_study`, `other_literature`, `team_spec`.
 """
 
 from __future__ import annotations
@@ -37,27 +37,59 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data" / "musculoskeletal"
 SHARED_REAL_DIR = BASE_DIR / "data" / "shared_real"
 
-REFERENCES: dict[str, dict[str, str]] = {
-    "bone_loss_iss": {
-        "citation": "LeBlanc et al. (2000), J Bone Miner Res; Sibonga et al. (2007), Bone 41(6):973-983.",
-        "supports": "Background ISS BMD loss rates (~0.9%/mo lumbar spine, ~1.4-1.5%/mo proximal hip).",
-        "project_heuristic_note": "est_monthly_bone_loss_pct is a Z.O.S.M.A. heuristic risk model (not direct DXA).",
+# Provenance tags strictly restricted to four labels:
+# "NASA" | "ISS_study" | "other_literature" | "team_spec"
+REFERENCES: dict[str, dict[str, Any]] = {
+    "e4d_hardware": {
+        "provenance": "NASA",
+        "description": "European multi-purpose exercise device E4D, launched to the ISS for testing in April 2026.",
     },
-    "muscle_atrophy": {
-        "citation": "Trappe et al. (2009), J Appl Physiol 106(4):1159-1168; Gopalakrishnan et al. (2010), Aviat Space Environ Med.",
-        "supports": "Spaceflight lower-limb muscle atrophy & resistive exercise countermeasure principles.",
-        "project_heuristic_note": "Thigh CSA (4%/7%), Calf CSA (5%/10%), Body mass (5%/10%), and S_bone (0.90/0.75) cutoffs are Z.O.S.M.A. operational thresholds.",
+    "bone_loss_iss_avg": {
+        "provenance": "NASA",
+        "citation": "NASA Human Research Program / Spaceflight Bone Loss Overview",
+        "covers": "Average spaceflight bone mineral density loss 1.0-1.5%/month.",
     },
-    "vbt_training": {
-        "citation": "Pareja-Blanco et al. (2017), Scand J Med Sci Sports 27(7):724-735.",
-        "supports": "Compared 20% vs 40% intra-set velocity loss, showing 20% preserves adaptations with less neuromuscular fatigue.",
-        "project_heuristic_note": "20-30% green zone and >30% acute set-fatigue cutoff are Z.O.S.M.A. interpolated operational limits.",
+    "strength_avg_loss": {
+        "provenance": "NASA",
+        "covers": "Average strength loss under microgravity 10-12%.",
     },
-    "bone_markers_cmp": {
-        "citation": "Smith et al. (2005, 2012), J Bone Miner Res; NASA-STD-3001 Vol 2 (nutrition/hydration principles).",
-        "supports": "Elevated bone resorption (NTX/CTX) in microgravity, Vitamin D3 supplementation, and hydration for renal stone risk.",
-        "project_heuristic_note": "NTX/CTX +50% Red, P1NP 15%/25%, +350 kcal/d, 800-1000 IU/d Vit D3, and 2.5-2.8 L/d are Z.O.S.M.A. operational guidance targets.",
+    "nutrition_hydration": {
+        "provenance": "NASA",
+        "citation": "NASA-STD-3001 Vol 2",
+        "covers": "Vitamin D 35-90 ng/mL reference range, protein 1.2-1.8 g/kg/day, Vitamin D 1000 IU/day, daily urine output >= 2 L/day.",
     },
+    "iss_site_bone_muscle_resorption": {
+        "provenance": "ISS_study",
+        "citation": "LeBlanc et al. (2000), JBMR; Sibonga et al. (2007), Bone 41(6):973-983; Trappe et al. (2009), J Appl Physiol; Smith et al. (2005, 2012), JBMR.",
+        "covers": "Thigh CSA 4%/7%, Calf CSA 5%/10%, isometric strength thresholds (<5%/5-10%/>10%), bone resorption +50%, lumbar spine 0.9%/mo and proximal hip 1.4-1.5%/mo.",
+    },
+    "vbt_and_body_mass": {
+        "provenance": "other_literature",
+        "citation": "Pareja-Blanco et al. (2017), Scand J Med Sci Sports 27(7):724-735; clinical nutritional anthropometry.",
+        "covers": "Intra-set velocity loss 30% upper fatigue limit; SLAMMD body mass loss 5%/10%.",
+    },
+    "team_operational_specs": {
+        "provenance": "team_spec",
+        "covers": (
+            "E4D Bone Stimulus Index (S_bone) and 0.90/0.75 thresholds; VBT 20% lower stimulus limit; "
+            "modeled monthly bone loss risk formula (0.30 + 1.45*resorption_excess + 1.35*unloading_deficit) "
+            "and <1.0 / 1.0-1.5 / >1.5%/mo thresholds; +5% E4D load progression; recheck intervals "
+            "(168h/72h/24h for E4D/isometric/body mass, minimum 7d for ultrasound CSA, minimum 14d for bone markers); "
+            "isometric mid-thigh pull 3-rep max protocol."
+        ),
+    },
+    "osd575_limitation": {
+        "provenance": "NASA",
+        "citation": "NASA OSDR OSD-575 (Inspiration4 CMP).",
+        "covers": "OSD-575 is blood chemistry from the 3-day Inspiration4 mission; it serves only as baseline blood reference and cannot validate long-duration musculoskeletal loss.",
+    },
+}
+
+# Re-test minimum intervals (team_spec)
+RETEST_MIN_INTERVALS_HOURS: dict[str, int] = {
+    "e4d_isometric_mass": 24,
+    "ultrasound_csa_min_days": 7,
+    "bone_markers_min_days": 14,
 }
 
 EXPECTED_FILES: dict[str, list[str]] = {
@@ -145,13 +177,111 @@ CA_RED_HIGH = 10.5
 ALP_YELLOW_HIGH = 120.0
 ALP_RED_HIGH = 147.0
 
-# Synthetic fallback cohort used ONLY when real NASA OSDR OSD-575_cmp.csv is absent
+# Built-in reference CMP cohort used ONLY when real NASA OSDR OSD-575_cmp.csv is absent
 SIMULATED_CMP_FALLBACK: list[dict[str, Any]] = [
-    {"subject_id": "SIM_REF_01", "timepoint": "Simulated_Preflight", "calcium_mg_dl": 9.3, "alp_u_l": 64.0},
-    {"subject_id": "SIM_REF_02", "timepoint": "Simulated_Preflight", "calcium_mg_dl": 9.5, "alp_u_l": 71.0},
-    {"subject_id": "SIM_REF_03", "timepoint": "Simulated_Preflight", "calcium_mg_dl": 9.2, "alp_u_l": 66.0},
-    {"subject_id": "SIM_REF_04", "timepoint": "Simulated_Preflight", "calcium_mg_dl": 9.6, "alp_u_l": 75.0},
+    {"subject_id": "REF_01", "timepoint": "Reference_Preflight", "calcium_mg_dl": 9.3, "alp_u_l": 64.0},
+    {"subject_id": "REF_02", "timepoint": "Reference_Preflight", "calcium_mg_dl": 9.5, "alp_u_l": 71.0},
+    {"subject_id": "REF_03", "timepoint": "Reference_Preflight", "calcium_mg_dl": 9.2, "alp_u_l": 66.0},
+    {"subject_id": "REF_04", "timepoint": "Reference_Preflight", "calcium_mg_dl": 9.6, "alp_u_l": 75.0},
 ]
+
+# Fixed canonical UI-matched strings (kept static for exact dictionary matching)
+QC_INVALID_GUIDANCE_TEXT = (
+    "Invalid measurement. Check probe contact and load-cell zeroing, then re-measure immediately."
+)
+URGENT_REPORT_LINE = "Urgent escalation: Report to ground at the next communication pass."
+SERUM_CA_REFERENCE_MSG = (
+    "Serum calcium remains stable during flight; basic check only and does not reflect bone loss severity."
+)
+P1NP_REFERENCE_MSG = "Reference value only; not used for status light evaluation."
+RECHECK_IMMEDIATE_ULTRASOUND_LINE = (
+    "Re-measure once immediately to rule out measurement error; then follow up during weekly routine checks."
+)
+REF_TEXT_VBT = "Target range 20-30%"
+REF_TEXT_SBONE = "Target >= 0.90"
+REF_TEXT_BONE_LOSS = "ISS average 1.0-1.5%/mo"
+
+# 4-group 3-step Crew Guidance templates (strictly matching specification numbers & units)
+GUIDANCE_GROUPS: dict[str, dict[str, Any]] = {
+    "training": {
+        "how_to_measure": (
+            "1) Push with maximum effort on every repetition during resistance training; E4D automatically records force and velocity for each rep. "
+            "2) Velocity loss equals the percentage drop in mean velocity from the fastest rep to the last rep in each set. "
+            "3) Isometric strength: once per week, pull maximally against the fixed bar for 3 repetitions and take the maximum value."
+        ),
+        "plain_explanation": (
+            "In microgravity, muscle strength drops by an average of 10%-12%, and about 12%-38% of crewmembers lose more than 20%, "
+            "impairing EVA capability and post-landing mobility. Resistance training is currently the only proven effective countermeasure, "
+            "and intensity matters more than repetition count."
+        ),
+        "actions": {
+            "yellow": "Complete full range of motion, push every rep maximally, and finish any incomplete sets for this week.",
+            "red": "Starting from the next workout, increase squat, deadlift, and calf-raise load by approximately +5%.",
+            "vbt_over_30": "Stop the fatigued set immediately today and switch to recovery training.",
+            "iso_over_20": "Report to ground at the next communication pass.",
+        },
+    },
+    "csa": {
+        "how_to_measure": (
+            "1) Once per week, scan the quadriceps and gastrocnemius using Ultrasound 2 in panoramic mode. "
+            "2) Use the pre-flight positioning template selected by leg length and sweep the probe smoothly along the template in one pass. "
+            "3) Repeat 3 times at the same site and average the values. Calf readings have higher variance; follow the trend rather than a single scan."
+        ),
+        "plain_explanation": (
+            "After a 6-month ISS mission, calf muscle volume decreases by an average of 10%-16% and thigh volume by 4%-7%. "
+            "Lower-limb muscle loss increases the risk of falls and injury after landing."
+        ),
+        "actions": {
+            "yellow": "Confirm training targets are met; consume 1.2-1.8 g protein per kg body mass daily with adequate calories.",
+            "red": "Starting from the next workout, increase lower-limb load by approximately +5% and add 1 set of calf raises.",
+            "sudden_change": "Re-measure once immediately to rule out measurement error; then follow up during weekly routine checks.",
+        },
+    },
+    "body_mass": {
+        "how_to_measure": (
+            "1) Measure in the morning before eating. "
+            "2) Wrap legs and torso securely around the SLAMMD mount and remain still. "
+            "3) Record the spring-driven readout and average consecutive measurements."
+        ),
+        "plain_explanation": (
+            "Body mass loss is usually caused by insufficient caloric intake and accelerates bone and muscle loss. "
+            "A 5%-10% loss requires attention, and over 10% is critical."
+        ),
+        "actions": {
+            "yellow": "Log dietary intake for 3 days and add high-calorie foods.",
+            "red": "Report to ground at the next communication pass so the medical team can adjust nutrition.",
+        },
+    },
+    "bone_metabolism": {
+        "how_to_measure": (
+            "1) Draw fasting blood in the morning; sample at the same time of day each session for comparability. "
+            "2) Bone loss rate is a modeled estimate: BMD cannot be measured directly in flight and is confirmed post-flight by DXA. "
+            "3) Note: On the ISS, samples are frozen and returned to Earth for analysis; onboard real-time testing is a planned feature of this system."
+        ),
+        "plain_explanation": (
+            "In microgravity, bone resorption increases by about 50% and bone mineral density declines by an average of 1%-1.5% per month, "
+            "most prominently at the hip. Lost bone calcium is excreted in urine (serum calcium remains normal), increasing kidney stone risk."
+        ),
+        "actions": {
+            "yellow": "Confirm resistance training targets are met; take Vitamin D 1000 IU daily; hydrate to maintain daily urine output above 2 L.",
+            "red": "Report to ground at the next communication pass for flight surgeon medication decision; increase monitoring frequency.",
+        },
+    },
+}
+
+COMBINED_HOW_TO_MEASURE = (
+    "[Training] " + GUIDANCE_GROUPS["training"]["how_to_measure"] + " | "
+    "[Muscle CSA] " + GUIDANCE_GROUPS["csa"]["how_to_measure"] + " | "
+    "[Body Mass] " + GUIDANCE_GROUPS["body_mass"]["how_to_measure"] + " | "
+    "[Bone Metabolism] " + GUIDANCE_GROUPS["bone_metabolism"]["how_to_measure"]
+)
+
+COMBINED_PLAIN_EXPLANATION = (
+    "[Training] " + GUIDANCE_GROUPS["training"]["plain_explanation"] + " | "
+    "[Muscle CSA] " + GUIDANCE_GROUPS["csa"]["plain_explanation"] + " | "
+    "[Body Mass] " + GUIDANCE_GROUPS["body_mass"]["plain_explanation"] + " | "
+    "[Bone Metabolism] " + GUIDANCE_GROUPS["bone_metabolism"]["plain_explanation"]
+)
 
 
 def _find_osd575_csv() -> Optional[Path]:
@@ -253,20 +383,20 @@ def demo_payload(scenario: str = "green") -> dict[str, Any]:
             "loading_rate_n_s": 2550.0,
             "reps": 8,
             "velocity_loss_pct": 16.5,  # < 20% under-stimulus (YELLOW)
-            "iso_peak_force_n": 1645.0,  # -11.1% strength loss (YELLOW >= 10%)
+            "iso_peak_force_n": 1700.0,  # -8.11% strength loss (YELLOW 5-10%)
             "csa_thigh_cm2": 140.5,      # -5.1% loss (YELLOW >= 4%)
             "csa_calf_cm2": 77.2,       # -5.9% loss (YELLOW >= 5%)
             "body_mass_kg": 69.8,       # -5.7% loss (YELLOW >= 5%)
             "ntx": 18.6,                # +32.9% elevation (YELLOW)
             "ctx": 0.49,                # +36.1% elevation (YELLOW)
-            "p1np": 37.5,               # -16.7% suppression (YELLOW)
-            "serum_ca_mg_dl": 10.2,
-            "serum_alp_u_l": 92.0,
+            "p1np": 37.5,               # -16.7% (REFERENCE only)
+            "serum_ca_mg_dl": 9.5,
+            "serum_alp_u_l": 70.0,
             "history_days": [30, 60, 90, 124],
             "history_series": {
                 "csa_thigh_cm2": [146.5, 144.8, 142.6, 140.5],
                 "csa_calf_cm2": [81.0, 79.8, 78.5, 77.2],
-                "iso_peak_force_n": [1800.0, 1750.0, 1700.0, 1645.0],
+                "iso_peak_force_n": [1810.0, 1775.0, 1735.0, 1700.0],
                 "body_mass_kg": [73.0, 72.0, 70.9, 69.8],
                 "ntx": [15.0, 16.2, 17.4, 18.6],
                 "ctx": [0.38, 0.42, 0.45, 0.49],
@@ -284,15 +414,15 @@ def demo_payload(scenario: str = "green") -> dict[str, Any]:
             "loading_rate_n_s": 1650.0,
             "reps": 5,
             "velocity_loss_pct": 33.5,  # > 30% Red set-fatigue limit
-            "iso_peak_force_n": 1440.0,  # -22.2% strength loss (RED >= 20%)
+            "iso_peak_force_n": 1440.0,  # -22.16% strength loss (RED > 10%, triggers urgent report > 20%)
             "csa_thigh_cm2": 136.0,     # -8.1% loss (RED >= 7%)
             "csa_calf_cm2": 73.0,      # -11.0% loss (RED >= 10%)
-            "body_mass_kg": 66.0,      # -10.8% loss (RED >= 10%)
+            "body_mass_kg": 66.0,      # -10.81% loss (RED > 10%, triggers urgent report)
             "ntx": 22.8,               # +62.9% elevation (RED >= +50%)
             "ctx": 0.58,               # +61.1% elevation (RED >= +50%)
-            "p1np": 32.5,              # -27.8% suppression (RED >= 25% drop)
-            "serum_ca_mg_dl": 10.7,    # > 10.5 mg/dL hypercalcemia alert
-            "serum_alp_u_l": 152.0,    # >= 147 U/L elevated ALP (RED)
+            "p1np": 32.5,              # -27.8% (REFERENCE only)
+            "serum_ca_mg_dl": 9.6,
+            "serum_alp_u_l": 72.0,
             "history_days": [30, 60, 90, 124],
             "history_series": {
                 "csa_thigh_cm2": [145.5, 142.2, 139.0, 136.0],
@@ -484,7 +614,7 @@ def _load_osd575_summary() -> dict[str, Any]:
     return {
         "data_source": "SIMULATED",
         "load_error": None,
-        "source_file": "synthetic CMP clinical fallback (OSD-575 CSV not present)",
+        "source_file": "Built-in reference (non-NASA data)",
         "n_records": len(SIMULATED_CMP_FALLBACK),
         "ca_mean": round(float(np.mean(ca_ref)), 2),
         "ca_sd": None,
@@ -1030,32 +1160,22 @@ def evaluate(
             "summary_note": f"Layer 0 QC Gatekeeper rejected telemetry: {issue_summary}",
             "metrics": qc_metrics,
             "guidance": {
-                "how_to_measure": (
-                    "1) Zero the E4D load cell with no cable tension. 2) Apply acoustic gel to Ultrasound 2 linear probe "
-                    "at the pre-marked 30% proximal calf & 50% mid-thigh skin landmarks. 3) Log all required musculoskeletal "
-                    "fields and verify readings sit inside physiological bounds (Calf CSA 25-200 cm^2, Thigh CSA 50-350 cm^2)."
-                ),
-                "plain_explanation": (
-                    "Incomplete, corrupted, or implausible measurements (e.g., partial payload, 999 cm^2 ultrasound artifact, "
-                    "or null biomarker/history) are blocked before evaluation so false green clearance cannot occur."
-                ),
-                "action_protocol": [
-                    "Inspect E4D cable/load-cell connector, Ultrasound 2 probe contact, or Bio-Analyzer cartridge.",
-                    "Complete missing fields and re-measure immediately (next_measurement_in_hours = 0).",
-                ],
+                "how_to_measure": QC_INVALID_GUIDANCE_TEXT,
+                "plain_explanation": QC_INVALID_GUIDANCE_TEXT,
+                "action_protocol": [QC_INVALID_GUIDANCE_TEXT],
             },
             "short_term_plan": {
                 "next_measurement_in_hours": 0,
-                "immediate_actions": [f"Sensor QC failure: {issue_summary} Recalibrate and complete measurement immediately."],
+                "immediate_actions": [QC_INVALID_GUIDANCE_TEXT],
                 "urgent_alert": False,
             },
             "long_term_plan": {
                 "days_until_red_prediction": None,
-                "routine_prescription_adjustment": "Verify E4D, Ultrasound 2, and Bio-Analyzer calibration checklist prior to each session.",
+                "routine_prescription_adjustment": QC_INVALID_GUIDANCE_TEXT,
             },
             "schedule_mutation": {
                 "next_measurement_in_hours": 0,
-                "prescription_adjustment": "Hold automated load progression until valid complete telemetry is logged.",
+                "prescription_adjustment": QC_INVALID_GUIDANCE_TEXT,
                 "urgent_alert": False,
             },
         }
@@ -1096,8 +1216,8 @@ def evaluate(
         {
             "metric_name": "e4d_s_bone_index",
             "current_val": round(s_bone, 3),
-            "baseline_val": float(base["s_bone_target"]),
-            "delta_pct": round((s_bone - float(base["s_bone_target"])) * 100.0, 1),
+            "baseline_val": None,
+            "delta_pct": None,
             "slope_per_day": 0.0,
             "unit": "index",
             "status_light": s_bone_status,
@@ -1106,26 +1226,27 @@ def evaluate(
             "yellow_threshold": 0.90,
             "red_threshold": 0.75,
             "lower_is_worse": True,
-            "message": (
-                f"Heuristic E4D Bone Stimulus Index S_bone={s_bone:.2f} "
-                f"(force={pf_txt}, loading rate={lr_txt}, reps={rep_txt})."
-            ),
+            "message": REF_TEXT_SBONE,
             "action": (
-                "Increase E4D squat/deadlift load +5% and use crisp concentric drive to raise loading rate."
-                if s_bone_status != "GREEN"
-                else "E4D osteogenic stimulus index within Z.O.S.M.A. target zone (>= 0.90)."
+                GUIDANCE_GROUPS["training"]["actions"]["red"]
+                if s_bone_status == "RED"
+                else (
+                    GUIDANCE_GROUPS["training"]["actions"]["yellow"]
+                    if s_bone_status == "YELLOW"
+                    else "Follow current prescription."
+                )
             ),
         }
     )
 
-    # 2. Isometric Peak Force SRI
+    # 2. Isometric Peak Force SRI (<5% Green, 5-10% Yellow, >10% Red)
     iso_metric, iso_dtr = _evaluate_loss_metric(
         metric_name="iso_peak_force_n",
         history_keys=("iso_peak_force_n",),
         current_val=float(pay["iso_peak_force_n"]),
         baseline_val=float(base["iso_peak_force_n"]),
-        yellow_loss_pct=10.0,
-        red_loss_pct=20.0,
+        yellow_loss_pct=5.0,
+        red_loss_pct=10.0,
         unit="N",
         mission_day=mission_day,
         data_source=data_source,
@@ -1133,8 +1254,8 @@ def evaluate(
         base=base,
         sample_key="iso_peak_force_n",
         horizon_days=30,
-        action_nominal="Strength retention index within normal operational envelope.",
-        action_abnormal="Prioritize heavy E4D isometric mid-thigh pulls & squats (+5% load if form clean).",
+        action_nominal="Follow current prescription.",
+        action_abnormal=GUIDANCE_GROUPS["training"]["actions"]["red"],
     )
     metrics.append(iso_metric)
     clinical_statuses.append(iso_metric["status_light"])
@@ -1145,23 +1266,20 @@ def evaluate(
     vbt_loss = float(pay["velocity_loss_pct"])
     if vbt_loss > 30.0:
         vbt_status = "RED"
-        vbt_msg = f"E4D VBT intra-set velocity loss {vbt_loss:.1f}% EXCEEDS 30% operational set-fatigue limit."
-        vbt_act = "STOP current fatigued set immediately, rest 3 min, and reduce working load 10% for remaining sets."
+        vbt_act = GUIDANCE_GROUPS["training"]["actions"]["vbt_over_30"]
     elif vbt_loss < 20.0:
         vbt_status = "YELLOW"
-        vbt_msg = f"E4D VBT intra-set velocity loss {vbt_loss:.1f}% < 20% optimal zone (under-stimulus)."
-        vbt_act = "Increase E4D squat/deadlift load +5% or add 1-2 reps on next workout to reach 20-30% velocity loss."
+        vbt_act = GUIDANCE_GROUPS["training"]["actions"]["yellow"]
     else:
         vbt_status = "GREEN"
-        vbt_msg = f"E4D VBT velocity loss {vbt_loss:.1f}% inside optimal 20-30% operational window."
-        vbt_act = "Maintain current E4D load and intra-set velocity target."
+        vbt_act = "Follow current prescription."
 
     metrics.append(
         {
             "metric_name": "velocity_loss_pct",
             "current_val": round(vbt_loss, 1),
-            "baseline_val": 25.0,
-            "delta_pct": round(vbt_loss - 25.0, 1),
+            "baseline_val": None,
+            "delta_pct": None,
             "slope_per_day": 0.0,
             "unit": "%",
             "status_light": vbt_status,
@@ -1170,7 +1288,7 @@ def evaluate(
             "yellow_threshold": 20.0,
             "red_threshold": 30.0,
             "lower_is_worse": False,
-            "message": vbt_msg,
+            "message": REF_TEXT_VBT,
             "action": vbt_act,
         }
     )
@@ -1282,40 +1400,47 @@ def evaluate(
     if ctx_dtr is not None:
         dtr_candidates.append(ctx_dtr)
 
-    # 9. Bio-Analyzer Bone Formation: P1NP
+    # 9. Bio-Analyzer Bone Formation: P1NP (A8: preserve value & delta_pct, REFERENCE only, never affects status_light)
     _, raw_p1np = _resolve_alias(pay, "p1np", "p1np_ug_l")
-    p1np_metric, p1np_dtr = _evaluate_loss_metric(
-        metric_name="p1np_bone_formation",
-        history_keys=("p1np", "p1np_ug_l", "p1np_bone_formation"),
-        current_val=float(raw_p1np),
-        baseline_val=float(base["p1np_ug_l"]),
-        yellow_loss_pct=15.0,
-        red_loss_pct=25.0,
-        unit="ug/L",
-        mission_day=mission_day,
-        data_source=data_source,
-        pay=pay,
-        base=base,
-        sample_key="p1np",
-        horizon_days=30,
-        action_nominal="Osteoblast bone formation marker P1NP stable.",
-        action_abnormal="Combine high-impact E4D axial loading with Vitamin D3 & adequate protein intake.",
+    p1np_val = float(raw_p1np)
+    p1np_base = float(base["p1np_ug_l"])
+    p1np_delta_pct = round(((p1np_val - p1np_base) / max(p1np_base, 1e-6)) * 100.0, 2)
+    p1np_days, p1np_vals, p1np_hist_src = _extract_history(
+        pay, ("p1np", "p1np_ug_l", "p1np_bone_formation"), p1np_val, p1np_base, mission_day
     )
+    p1np_slope = _compute_slope(p1np_days, p1np_vals)
+    p1np_metric = {
+        "metric_name": "p1np_bone_formation",
+        "current_val": round(p1np_val, 2),
+        "baseline_val": round(p1np_base, 2),
+        "delta_pct": p1np_delta_pct,
+        "slope_per_day": p1np_slope,
+        "unit": "ug/L",
+        "status_light": "GREEN",
+        "raw_status": "REFERENCE",
+        "decided_by": "rule",
+        "data_source": data_source,
+        "yellow_threshold": None,
+        "red_threshold": None,
+        "lower_is_worse": False,
+        "history_days": p1np_days,
+        "history_values": p1np_vals,
+        "history_source": p1np_hist_src,
+        "message": P1NP_REFERENCE_MSG,
+        "action": P1NP_REFERENCE_MSG,
+    }
     metrics.append(p1np_metric)
-    clinical_statuses.append(p1np_metric["status_light"])
-    if p1np_dtr is not None:
-        dtr_candidates.append(p1np_dtr)
 
-    # 10. Modeled Monthly Bone Loss Risk Estimate (heuristic from CTX & S_bone)
+    # 10. Modeled Monthly Bone Loss Risk Estimate (heuristic from CTX & S_bone; <1.0 Green, 1.0-1.5 Yellow, >1.5 Red)
     ctx_ratio = ctx_val / max(float(base["ctx_ng_ml"]), 1e-6)
     resorption_excess = max(0.0, ctx_ratio - 1.0)
     unloading_deficit = max(0.0, 1.0 - s_bone)
     est_hip_loss_mo = round(min(2.5, 0.30 + 1.45 * resorption_excess + 1.35 * unloading_deficit), 2)
     est_spine_loss_mo = round(est_hip_loss_mo * (0.90 / 1.45), 2)
 
-    if est_hip_loss_mo >= 1.4:
+    if est_hip_loss_mo > 1.5:
         bone_rate_status = "RED"
-    elif est_hip_loss_mo >= 0.9:
+    elif est_hip_loss_mo >= 1.0:
         bone_rate_status = "YELLOW"
     else:
         bone_rate_status = "GREEN"
@@ -1325,167 +1450,150 @@ def evaluate(
         {
             "metric_name": "est_monthly_bone_loss_pct",
             "current_val": est_hip_loss_mo,
-            "baseline_val": 0.40,
-            "delta_pct": round((est_hip_loss_mo - 0.40) * 100.0, 1),
+            "baseline_val": None,
+            "delta_pct": None,
             "slope_per_day": round(-est_hip_loss_mo / 30.0, 4),
             "unit": "%/mo",
             "status_light": bone_rate_status,
             "decided_by": "rule",
             "data_source": data_source,
-            "yellow_threshold": 0.90,
-            "red_threshold": 1.40,
+            "yellow_threshold": 1.0,
+            "red_threshold": 1.5,
             "lower_is_worse": False,
-            "message": (
-                f"Modeled bone loss risk (heuristic from CTX & S_bone, not direct DXA): "
-                f"Hip ~{est_hip_loss_mo:.2f}%/mo, Spine ~{est_spine_loss_mo:.2f}%/mo "
-                "(ISS reference: Spine ~0.9%/mo, Hip ~1.4-1.5%/mo; Sibonga et al.)."
-            ),
+            "message": REF_TEXT_BONE_LOSS,
             "action": (
-                "Increase axial E4D resistance load & verify anti-resorptive/nutrition protocol."
-                if bone_rate_status != "GREEN"
-                else "Modeled bone loss risk well below ISS unmitigated benchmark."
+                GUIDANCE_GROUPS["bone_metabolism"]["actions"]["red"]
+                if bone_rate_status == "RED"
+                else (
+                    GUIDANCE_GROUPS["bone_metabolism"]["actions"]["yellow"]
+                    if bone_rate_status == "YELLOW"
+                    else "Follow current prescription."
+                )
             ),
         }
     )
 
-    # 11. Serum Calcium & ALP vs Clinical CMP / NASA OSDR OSD-575 Reference
-    # Clinical Ca/ALP evaluation ALWAYS runs first so file-load issues NEVER mask hypercalcemia or ALP >= 147 RED!
+    # 11. Serum Calcium & ALP (A6: reference only, never affects status_light; A7: label real OSD-575 only when CSV exists)
     has_ca, raw_ca = _resolve_alias(pay, "serum_ca_mg_dl")
     has_alp, raw_alp = _resolve_alias(pay, "serum_alp_u_l")
     osd_summary = _load_osd575_summary()
     ca_val = float(raw_ca) if has_ca else osd_summary["ca_mean"]
     alp_val = float(raw_alp) if has_alp else osd_summary["alp_mean"]
+    ref_display_name = (
+        "NASA OSDR OSD-575"
+        if osd_summary["data_source"] == "REAL"
+        else "Built-in reference (non-NASA data)"
+    )
 
-    if ca_val > CA_RED_HIGH:
-        osd_status, osd_by = "RED", "fixed_threshold"
-        osd_msg = (
-            f"HYPERCALCEMIA ALERT: Serum Ca={ca_val:.2f} mg/dL (> {CA_RED_HIGH:.1f} mg/dL), ALP={alp_val:.0f} U/L "
-            "— elevated renal stone & bone demineralization risk."
-        )
-        osd_act = "Ensure hydration >= 2.5-2.8 L/day, audit Ca/Vit D3 intake, and notify Flight Surgeon."
-    elif ca_val < CA_RED_LOW:
-        osd_status, osd_by = "RED", "fixed_threshold"
-        osd_msg = (
-            f"HYPOCALCEMIA ALERT: Serum Ca={ca_val:.2f} mg/dL (< {CA_RED_LOW:.1f} mg/dL), ALP={alp_val:.0f} U/L "
-            "— neuromuscular irritability / tetany risk."
-        )
-        osd_act = "Evaluate Chvostek/Trousseau symptoms, check Mg/Vit D3/PTH status, and notify Flight Surgeon immediately."
-    elif alp_val >= ALP_RED_HIGH:
-        osd_status, osd_by = "RED", "fixed_threshold"
-        osd_msg = (
-            f"ELEVATED ALP ALERT: Serum ALP={alp_val:.0f} U/L (>= {ALP_RED_HIGH:.0f} U/L Red limit), "
-            f"Ca={ca_val:.2f} mg/dL — high bone turnover / hepatobiliary stress."
-        )
-        osd_act = "Repeat full CMP & liver/bone isoenzyme check within 24h and notify Flight Surgeon."
-    elif ca_val >= CA_YELLOW_HIGH or ca_val < CA_YELLOW_LOW or alp_val >= ALP_YELLOW_HIGH:
-        osd_status, osd_by = "YELLOW", "fixed_threshold"
-        direction = "low" if ca_val < CA_YELLOW_LOW else "elevated"
-        osd_msg = (
-            f"Serum Ca={ca_val:.2f} mg/dL ({direction}), ALP={alp_val:.0f} U/L outside optimal CMP envelope "
-            f"(Ca {CA_YELLOW_LOW:.1f}-{CA_YELLOW_HIGH:.1f} mg/dL, ALP < {ALP_YELLOW_HIGH:.0f} U/L)."
-        )
-        osd_act = "Maintain hydration >= 2.5 L/day and repeat Bio-Analyzer CMP panel in 72h."
-    elif (
-        osd_summary["data_source"] == "REAL"
-        and osd_summary.get("ca_sd")
-        and abs(ca_val - osd_summary["ca_mean"]) > 2.0 * float(osd_summary["ca_sd"])
-    ):
-        osd_status, osd_by = "YELLOW", "baseline"
-        osd_msg = (
-            f"Serum Ca={ca_val:.2f} mg/dL deviates >2 SD from real OSD-575 cohort "
-            f"({osd_summary['ca_mean']:.2f} +/- {osd_summary['ca_sd']:.2f} mg/dL)."
-        )
-        osd_act = "Repeat Bio-Analyzer CMP panel in 72h to verify trend against OSD-575 baseline."
-    else:
-        osd_status, osd_by = "GREEN", "rule"
-        osd_msg = (
-            f"Serum Ca={ca_val:.2f} mg/dL & ALP={alp_val:.0f} U/L within clinical CMP range "
-            f"({osd_summary['source_file']}: mean Ca {osd_summary['ca_mean']:.2f} mg/dL, ALP {osd_summary['alp_mean']:.0f} U/L)."
-        )
-        osd_act = "Serum Calcium and ALP stable."
-
-    if osd_summary.get("load_error"):
-        osd_msg += f" [Note: OSD-575 reference file warning: {osd_summary['load_error']}]"
-
-    clinical_statuses.append(osd_status)
     metrics.append(
         {
             "metric_name": "osd575_ca_alp_baseline",
+            "display_name": ref_display_name,
             "current_val": round(ca_val, 2),
             "baseline_val": osd_summary["ca_mean"],
             "delta_pct": round(((ca_val - osd_summary["ca_mean"]) / max(osd_summary["ca_mean"], 1e-6)) * 100.0, 1),
             "slope_per_day": 0.0,
             "unit": "mg/dL",
-            "status_light": osd_status,
-            "decided_by": osd_by,
+            "status_light": "GREEN",
+            "raw_status": "REFERENCE",
+            "decided_by": "rule",
             "data_source": data_source,
             "ref_data_source": osd_summary["data_source"],
+            "ref_display_name": ref_display_name,
             "ref_load_error": osd_summary.get("load_error"),
-            "yellow_threshold": CA_YELLOW_HIGH,
-            "red_threshold": CA_RED_HIGH,
+            "alp_val": round(alp_val, 1),
+            "yellow_threshold": None,
+            "red_threshold": None,
             "lower_is_worse": False,
-            "message": osd_msg,
-            "action": osd_act,
+            "message": SERUM_CA_REFERENCE_MSG,
+            "action": SERUM_CA_REFERENCE_MSG,
         }
     )
 
     # ---------------- OVERALL STATUS & CLOSED-LOOP SCHEDULE ----------------
-    # Isolated single-set VBT fatigue (>30% or <20%) produces coaching feedback without
-    # turning the entire body-map HUD RED or paging Flight Surgeon when clinical/structural metrics are intact.
+    # A3: Yellow = form/ROM/completeness + Vit D & nutrition (NO load increase), 72h.
+    #     Red    = +5% load starting next workout (NOT stop training), 24h, report to ground.
+    #     VBT > 30% = STOP this set TODAY, switch to recovery; load increase starts NEXT workout.
+    # A4: 168h / 72h / 24h apply to E4D, isometric force, body mass; Ultrasound CSA min 7d; bone markers min 14d.
+    # A5: Urgent escalation triggers ONLY when isometric strength loss > 20% OR body mass loss > 10%.
     clinical_worst = _worst(clinical_statuses)
-    isolated_vbt_red = (vbt_status == "RED" and clinical_worst != "RED")
-    isolated_vbt_yellow = (vbt_status == "YELLOW" and clinical_worst == "GREEN")
+    iso_loss_pct = -(float(iso_metric["delta_pct"]))
+    mass_loss_pct = -(float(mass_metric["delta_pct"]))
+    urgent_escalation = (iso_loss_pct > 20.0) or (mass_loss_pct > 10.0)
+
+    training_worst = _worst([s_bone_status, iso_metric["status_light"], vbt_status])
+    csa_worst = _worst([thigh_metric["status_light"], calf_metric["status_light"]])
+    mass_status = mass_metric["status_light"]
+    bone_worst = _worst([ntx_metric["status_light"], ctx_metric["status_light"], bone_rate_status])
 
     if clinical_worst == "RED":
         overall = "RED"
         next_hours = 24
-        urgent_alert = True
-        immediate_actions = [
-            "Alert Flight Surgeon / ground medical team and log acute musculoskeletal red-flag event.",
-            "STOP any E4D set exceeding 30% VBT velocity loss; shift to controlled hypertrophy (cap VBT <= 25%) after Cardio/Immune clearance.",
-            "Verify hydration >= 2.5-2.8 L/day, protein >= 1.6 g/kg/day, and Vitamin D3 (800-1000 IU/d target); repeat Ultrasound 2 scan within 24h.",
-        ]
         long_adj = (
-            "24h medical alert + 4-week progressive lower-limb hypertrophy block, caloric/protein support, "
-            "and 14-day Bio-Analyzer CTX/NTX & Ultrasound CSA re-evaluation."
+            "Starting from the next workout, increase E4D load by approximately +5% or add sets; "
+            "recheck E4D, isometric strength, and body mass in 24h, Ultrasound CSA >= 7 days, bone markers >= 14 days."
         )
-    elif isolated_vbt_red:
-        overall = "YELLOW"  # Single-set coaching caution on dashboard; velocity_loss_pct metric itself remains RED
-        next_hours = 48
-        urgent_alert = False
-        immediate_actions = [
-            "STOP current fatigued E4D set immediately (VBT > 30%), rest 3 min, and drop working load 10% for remaining sets.",
-            "Structural CSA and bone biomarkers remain non-RED; re-verify VBT on next scheduled E4D session (48h).",
-        ]
-        long_adj = "Reduce E4D working load 5-10% next session to keep intra-set velocity loss inside 20-30%."
-    elif clinical_worst == "YELLOW":
+    elif clinical_worst == "YELLOW" or vbt_status == "YELLOW":
         overall = "YELLOW"
         next_hours = 72
-        urgent_alert = False
-        immediate_actions = [
-            "Increase E4D squat/deadlift load +5% with faster concentric loading rate to push S_bone >= 0.90 and VBT loss into 20-30%.",
-            "Add 1 extra unilateral heel-raise / posterior-chain set and confirm protein >= 1.4-1.7 g/kg/day.",
-            "Schedule follow-up Ultrasound 2 thigh/calf & E4D check in 72 hours.",
-        ]
-        long_adj = "+5% E4D squat/deadlift load progression with higher loading rate; repeat Ultrasound CSA & bone markers in 72h-7d."
-    elif isolated_vbt_yellow:
+        long_adj = (
+            "Complete full range of motion and slow eccentric control without increasing load; "
+            "recheck E4D, isometric strength, and body mass in 72h, Ultrasound CSA >= 7 days, bone markers >= 14 days."
+        )
+    elif vbt_status == "RED":
         overall = "YELLOW"
-        next_hours = 168
-        urgent_alert = False
-        immediate_actions = [
-            "Increase E4D squat/deadlift load +5% on next scheduled workout to lift intra-set VBT loss from <20% into the 20-30% target zone.",
-            "Structural CSA and bone biomarkers remain GREEN; keep standard 168h diagnostic cadence.",
-        ]
-        long_adj = "Progress E4D working load +5% on next workout while keeping weekly (168h) Ultrasound/biomarker schedule."
+        next_hours = 72
+        long_adj = (
+            "Stop fatigued set today and switch to recovery training; "
+            "recheck E4D, isometric strength, and body mass in 72h, Ultrasound CSA >= 7 days, bone markers >= 14 days."
+        )
     else:
         overall = "GREEN"
         next_hours = 168
-        urgent_alert = False
-        immediate_actions = [
-            "Continue nominal 6-day/week E4D resistance & CEVIS countermeasure schedule; keep VBT loss in 20-30% window."
-        ]
-        long_adj = "Maintain current E4D progressive resistance schedule (weekly 168h verification)."
+        long_adj = (
+            "Follow current prescription; weekly (168h) E4D, isometric strength, body mass, and Ultrasound CSA checks; "
+            "bone markers >= 14 days."
+        )
 
+    immediate_actions: list[str] = []
+    if urgent_escalation:
+        immediate_actions.append(URGENT_REPORT_LINE)
+
+    if vbt_status == "RED":
+        immediate_actions.append(GUIDANCE_GROUPS["training"]["actions"]["vbt_over_30"])
+    if overall == "RED":
+        immediate_actions.append(GUIDANCE_GROUPS["training"]["actions"]["red"])
+        if csa_worst == "RED":
+            immediate_actions.append(GUIDANCE_GROUPS["csa"]["actions"]["red"])
+        elif csa_worst == "YELLOW":
+            immediate_actions.append(GUIDANCE_GROUPS["csa"]["actions"]["yellow"])
+        if mass_status == "RED":
+            immediate_actions.append(GUIDANCE_GROUPS["body_mass"]["actions"]["red"])
+        elif mass_status == "YELLOW":
+            immediate_actions.append(GUIDANCE_GROUPS["body_mass"]["actions"]["yellow"])
+        if bone_worst == "RED":
+            immediate_actions.append(GUIDANCE_GROUPS["bone_metabolism"]["actions"]["red"])
+        elif bone_worst == "YELLOW":
+            immediate_actions.append(GUIDANCE_GROUPS["bone_metabolism"]["actions"]["yellow"])
+    elif overall == "YELLOW":
+        if training_worst == "YELLOW" or vbt_status == "YELLOW":
+            immediate_actions.append(GUIDANCE_GROUPS["training"]["actions"]["yellow"])
+        if csa_worst in {"YELLOW", "RED"}:
+            immediate_actions.append(GUIDANCE_GROUPS["csa"]["actions"]["yellow"])
+        if mass_status in {"YELLOW", "RED"}:
+            immediate_actions.append(GUIDANCE_GROUPS["body_mass"]["actions"]["yellow"])
+        if bone_worst in {"YELLOW", "RED"}:
+            immediate_actions.append(GUIDANCE_GROUPS["bone_metabolism"]["actions"]["yellow"])
+        if not immediate_actions:
+            immediate_actions.append(GUIDANCE_GROUPS["training"]["actions"]["yellow"])
+    else:
+        immediate_actions.append("Follow current prescription.")
+
+    # Deduplicate while preserving order
+    seen_acts: set[str] = set()
+    immediate_actions = [a for a in immediate_actions if not (a in seen_acts or seen_acts.add(a))]
+
+    urgent_alert = bool(urgent_escalation)
     days_until_red: Optional[int] = 0 if overall == "RED" else (min(dtr_candidates) if dtr_candidates else None)
 
     return {
@@ -1496,25 +1604,88 @@ def evaluate(
         "status_light": overall,
         "quality_passed": True,
         "data_source": data_source,
+        "urgent_escalation": urgent_escalation,
+        "recheck_intervals_hours": {
+            "e4d_isometric_mass": next_hours,
+            "ultrasound_csa": max(next_hours, 7 * 24),
+            "bone_markers": max(next_hours, 14 * 24),
+        },
         "summary_note": (
             f"S_bone={s_bone:.2f}, VBT={vbt_loss:.1f}%, Thigh={thigh_metric['delta_pct']:+.1f}%, "
             f"Calf={calf_metric['delta_pct']:+.1f}%, CTX={ctx_metric['delta_pct']:+.1f}%, "
             f"Modeled Hip Loss={est_hip_loss_mo:.2f}%/mo."
-            + (" [Single-set VBT >30% coaching caution]" if isolated_vbt_red else "")
+            + (" [URGENT ESCALATION]" if urgent_escalation else "")
         ),
         "metrics": metrics,
         "guidance": {
-            "how_to_measure": (
-                "1) Attach E4D VBT linear encoder & zero the load cell; log squat peak force, loading rate, reps, "
-                "and intra-set velocity loss. 2) Scan pre-marked 50% mid-thigh & 30% proximal calf landmarks with "
-                "Ultrasound 2. 3) Record morning SLAMMD body mass and run Bio-Analyzer NTX/CTX/P1NP cartridge."
-            ),
-            "plain_explanation": (
-                "Without Earth's 1g gravity, weight-bearing leg muscles rapidly atrophy and bone calcium leaches into "
-                "blood (raising fracture and kidney-stone risk before landing). Tracking E4D mechanical loading, "
-                "muscle CSA, and bone turnover keeps countermeasures effective offline."
-            ),
+            "how_to_measure": COMBINED_HOW_TO_MEASURE,
+            "plain_explanation": COMBINED_PLAIN_EXPLANATION,
             "action_protocol": immediate_actions,
+            "groups": {
+                "training": {
+                    "how_to_measure": GUIDANCE_GROUPS["training"]["how_to_measure"],
+                    "plain_explanation": GUIDANCE_GROUPS["training"]["plain_explanation"],
+                    "action_protocol": [
+                        a
+                        for a in (
+                            [GUIDANCE_GROUPS["training"]["actions"]["vbt_over_30"]] if vbt_status == "RED" else []
+                        )
+                        + (
+                            [GUIDANCE_GROUPS["training"]["actions"]["red"]]
+                            if overall == "RED"
+                            else (
+                                [GUIDANCE_GROUPS["training"]["actions"]["yellow"]]
+                                if training_worst == "YELLOW"
+                                else []
+                            )
+                        )
+                        + (
+                            [GUIDANCE_GROUPS["training"]["actions"]["iso_over_20"]]
+                            if iso_loss_pct > 20.0
+                            else []
+                        )
+                    ] or ["Follow current prescription."],
+                },
+                "csa": {
+                    "how_to_measure": GUIDANCE_GROUPS["csa"]["how_to_measure"],
+                    "plain_explanation": GUIDANCE_GROUPS["csa"]["plain_explanation"],
+                    "action_protocol": (
+                        [GUIDANCE_GROUPS["csa"]["actions"]["red"]]
+                        if csa_worst == "RED"
+                        else (
+                            [GUIDANCE_GROUPS["csa"]["actions"]["yellow"]]
+                            if csa_worst == "YELLOW"
+                            else ["Follow current prescription."]
+                        )
+                    ),
+                },
+                "body_mass": {
+                    "how_to_measure": GUIDANCE_GROUPS["body_mass"]["how_to_measure"],
+                    "plain_explanation": GUIDANCE_GROUPS["body_mass"]["plain_explanation"],
+                    "action_protocol": (
+                        [GUIDANCE_GROUPS["body_mass"]["actions"]["red"]]
+                        if mass_status == "RED"
+                        else (
+                            [GUIDANCE_GROUPS["body_mass"]["actions"]["yellow"]]
+                            if mass_status == "YELLOW"
+                            else ["Follow current prescription."]
+                        )
+                    ),
+                },
+                "bone_metabolism": {
+                    "how_to_measure": GUIDANCE_GROUPS["bone_metabolism"]["how_to_measure"],
+                    "plain_explanation": GUIDANCE_GROUPS["bone_metabolism"]["plain_explanation"],
+                    "action_protocol": (
+                        [GUIDANCE_GROUPS["bone_metabolism"]["actions"]["red"]]
+                        if bone_worst == "RED"
+                        else (
+                            [GUIDANCE_GROUPS["bone_metabolism"]["actions"]["yellow"]]
+                            if bone_worst == "YELLOW"
+                            else ["Follow current prescription."]
+                        )
+                    ),
+                },
+            },
         },
         "short_term_plan": {
             "next_measurement_in_hours": next_hours,
@@ -1561,8 +1732,12 @@ def to_schema(
 # ==============================================================================
 
 
-def build_trajectory_figure() -> Any:
-    """Return interactive Plotly figure of 3-scenario Calf CSA & NTX trajectories with matching thresholds."""
+def build_trajectory_figure(eval_result: Optional[dict[str, Any]] = None) -> Any:
+    """Return interactive Plotly figure of 3-scenario Calf CSA & NTX trajectories with matching thresholds.
+
+    A10: If an evaluation result with invalid/bad_data points is provided, any non-plausible
+    or failed QC point is omitted from plotting so only prior valid points are drawn.
+    """
     if go is None or make_subplots is None:
         raise ImportError("plotly is required to build musculoskeletal figures.")
 
@@ -1579,21 +1754,66 @@ def build_trajectory_figure() -> Any:
     )
     colors = {"green": "#22c55e", "yellow": "#eab308", "red": "#ef4444"}
 
+    calf_low, calf_high, _ = PLAUSIBILITY_BOUNDS["csa_calf_cm2"]
+    ntx_low, ntx_high, _ = PLAUSIBILITY_BOUNDS["ntx"]
+
     for scen in ("green", "yellow", "red"):
         pay = demo_payload(scen)
         days = pay["history_days"]
-        calf_vals = pay["history_series"]["csa_calf_cm2"]
-        ntx_vals = pay["history_series"]["ntx"]
+        calf_pairs = [
+            (d, v)
+            for d, v in zip(days, pay["history_series"]["csa_calf_cm2"])
+            if _safe_float(v) is not None and calf_low <= float(v) <= calf_high
+        ]
+        ntx_pairs = [
+            (d, v)
+            for d, v in zip(days, pay["history_series"]["ntx"])
+            if _safe_float(v) is not None and ntx_low <= float(v) <= ntx_high
+        ]
         fig.add_trace(
-            go.Scatter(x=days, y=calf_vals, mode="lines+markers", name=f"Calf CSA ({scen.upper()})", line=dict(color=colors[scen], width=2.5)),
+            go.Scatter(
+                x=[p[0] for p in calf_pairs],
+                y=[p[1] for p in calf_pairs],
+                mode="lines+markers",
+                name=f"Calf CSA ({scen.upper()})",
+                line=dict(color=colors[scen], width=2.5),
+            ),
             row=1,
             col=1,
         )
         fig.add_trace(
-            go.Scatter(x=days, y=ntx_vals, mode="lines+markers", name=f"NTX ({scen.upper()})", line=dict(color=colors[scen], width=2.5, dash="dot")),
+            go.Scatter(
+                x=[p[0] for p in ntx_pairs],
+                y=[p[1] for p in ntx_pairs],
+                mode="lines+markers",
+                name=f"NTX ({scen.upper()})",
+                line=dict(color=colors[scen], width=2.5, dash="dot"),
+            ),
             row=1,
             col=2,
         )
+
+    if eval_result and not eval_result.get("quality_passed", True):
+        # Overlay only prior valid historical points if present; invalid point is never plotted
+        hist = eval_result.get("prior_valid_history") or {}
+        if isinstance(hist, dict) and hist.get("days") and hist.get("csa_calf_cm2"):
+            valid_calf = [
+                (d, v)
+                for d, v in zip(hist["days"], hist["csa_calf_cm2"])
+                if _safe_float(v) is not None and calf_low <= float(v) <= calf_high
+            ]
+            if valid_calf:
+                fig.add_trace(
+                    go.Scatter(
+                        x=[p[0] for p in valid_calf],
+                        y=[p[1] for p in valid_calf],
+                        mode="lines+markers",
+                        name="Prior Valid Calf CSA",
+                        line=dict(color="#38bdf8", width=2.0),
+                    ),
+                    row=1,
+                    col=1,
+                )
 
     fig.add_hline(y=calf_base * 0.95, line_dash="dash", line_color="#eab308", annotation_text="-5% Yellow", row=1, col=1)
     fig.add_hline(y=calf_base * 0.90, line_dash="dash", line_color="#ef4444", annotation_text="-10% Red", row=1, col=1)
@@ -1646,13 +1866,13 @@ def build_iss_comparison_figure(eval_result: Optional[dict[str, Any]] = None) ->
 
 
 def build_osd575_baseline_figure() -> Any:
-    """Plot Serum Calcium & ALP against OSD-575 (if present) or synthetic CMP clinical fallback."""
+    """Plot Serum Calcium & ALP against real NASA OSDR OSD-575 (if CSV present) or Built-in reference (non-NASA data)."""
     if go is None or make_subplots is None:
         raise ImportError("plotly is required to build musculoskeletal figures.")
 
     osd = _load_osd575_summary()
     idx = list(range(1, len(osd["ca_series"]) + 1))
-    src_label = "REAL OSD-575" if osd["data_source"] == "REAL" else "SIMULATED CMP FALLBACK"
+    src_label = "NASA OSDR OSD-575" if osd["data_source"] == "REAL" else "Built-in reference (non-NASA data)"
 
     fig = make_subplots(
         rows=1,
@@ -1667,18 +1887,11 @@ def build_osd575_baseline_figure() -> Any:
         row=1,
         col=1,
     )
-    fig.add_hline(y=CA_RED_HIGH, line_dash="dash", line_color="#ef4444", annotation_text=f"Red High {CA_RED_HIGH}", row=1, col=1)
-    fig.add_hline(y=CA_YELLOW_HIGH, line_dash="dot", line_color="#eab308", annotation_text=f"Yellow High {CA_YELLOW_HIGH}", row=1, col=1)
-    fig.add_hline(y=CA_YELLOW_LOW, line_dash="dot", line_color="#eab308", annotation_text=f"Yellow Low {CA_YELLOW_LOW}", row=1, col=1)
-    fig.add_hline(y=CA_RED_LOW, line_dash="dash", line_color="#ef4444", annotation_text=f"Red Low {CA_RED_LOW}", row=1, col=1)
-
     fig.add_trace(
         go.Bar(x=idx, y=osd["alp_series"], name="ALP (U/L)", marker_color="#a855f7"),
         row=1,
         col=2,
     )
-    fig.add_hline(y=ALP_YELLOW_HIGH, line_dash="dot", line_color="#eab308", annotation_text=f"Yellow {ALP_YELLOW_HIGH:.0f}", row=1, col=2)
-    fig.add_hline(y=ALP_RED_HIGH, line_dash="dash", line_color="#ef4444", annotation_text=f"Red {ALP_RED_HIGH:.0f}", row=1, col=2)
     fig.update_layout(template="plotly_dark", height=340, title=f"Serum Ca & ALP Baseline Check ({src_label})")
     return fig
 
@@ -1699,7 +1912,7 @@ if __name__ == "__main__":
     else:
         print(f"Present files: {folder_info['present_files']}")
 
-    # 1. Core 4 scenarios
+    # 1. Core 4 scenarios (A13 assertions)
     for scen in ("green", "yellow", "red", "bad_data"):
         raw = evaluate(demo_payload(scen))
         validated = to_schema(raw)
@@ -1707,23 +1920,45 @@ if __name__ == "__main__":
         assert validated.body_part_tag == "lower_limb_bone_muscle"
         if scen == "bad_data":
             assert validated.quality_passed is False
+            assert validated.raw_status == "INSUFFICIENT_DATA"
             assert validated.short_term_plan.next_measurement_in_hours == 0
+            assert validated.long_term_plan.days_until_red_prediction is None
+            assert "trend_series" not in raw
             assert any(m.metric_name == "qc_csa_calf_cm2" for m in validated.metrics)
         elif scen == "green":
             assert validated.status_light == "GREEN"
             assert validated.quality_passed is True
             assert validated.short_term_plan.next_measurement_in_hours == 168
+            assert validated.short_term_plan.urgent_alert is False
+            bone_m = next(m for m in validated.metrics if m.metric_name == "est_monthly_bone_loss_pct")
+            assert float(bone_m.current_val) < 1.0 and bone_m.status_light == "GREEN"
+            assert bone_m.delta_pct is None and bone_m.message == REF_TEXT_BONE_LOSS
         elif scen == "yellow":
             assert validated.status_light == "YELLOW"
             assert validated.quality_passed is True
             assert validated.short_term_plan.next_measurement_in_hours == 72
+            assert validated.short_term_plan.urgent_alert is False
+            iso_m = next(m for m in validated.metrics if m.metric_name == "iso_peak_force_n")
+            assert abs(float(iso_m.delta_pct) - (-8.11)) < 0.05 and iso_m.status_light == "YELLOW"
+            bone_m = next(m for m in validated.metrics if m.metric_name == "est_monthly_bone_loss_pct")
+            assert 1.0 <= float(bone_m.current_val) <= 1.5 and bone_m.status_light == "YELLOW"
+            actions_joined = " ".join(validated.short_term_plan.immediate_actions).lower()
+            assert "increase" not in actions_joined and "+5%" not in actions_joined
         elif scen == "red":
             assert validated.status_light == "RED"
             assert validated.quality_passed is True
             assert validated.short_term_plan.next_measurement_in_hours == 24
             assert validated.short_term_plan.urgent_alert is True
+            assert raw.get("urgent_escalation") is True
+            iso_m = next(m for m in validated.metrics if m.metric_name == "iso_peak_force_n")
+            assert abs(float(iso_m.delta_pct) - (-22.16)) < 0.05 and iso_m.status_light == "RED"
+            mass_m = next(m for m in validated.metrics if m.metric_name == "body_mass_kg")
+            assert abs(float(mass_m.delta_pct) - (-10.81)) < 0.05 and mass_m.status_light == "RED"
             bone_m = next(m for m in validated.metrics if m.metric_name == "est_monthly_bone_loss_pct")
-            assert bone_m.status_light == "RED"
+            assert float(bone_m.current_val) > 1.5 and bone_m.status_light == "RED"
+            assert validated.short_term_plan.immediate_actions[0] == URGENT_REPORT_LINE
+            assert any("starting from the next workout" in a.lower() and "5%" in a.lower() for a in validated.short_term_plan.immediate_actions)
+            assert not any("stop training" in a.lower() for a in validated.short_term_plan.immediate_actions)
         print(
             f"[{scen.upper():8s}] status={validated.status_light:6s} | raw={validated.raw_status:17s} | "
             f"qc={str(validated.quality_passed):5s} | next={validated.short_term_plan.next_measurement_in_hours:3d}h | "
@@ -1745,9 +1980,18 @@ if __name__ == "__main__":
     bad_hist_res = to_schema(evaluate(bad_hist))
     assert bad_hist_res.quality_passed is False
 
-    # 3. ALP >= 147 RED & Hypercalcemia NOT masked by OSD-575 load error
-    alp_red_res = to_schema(evaluate({**demo_payload("green"), "serum_alp_u_l": 200.0}))
-    assert alp_red_res.status_light == "RED"
+    # 3. Serum Ca, ALP, and P1NP NEVER change module status_light in any scenario (A6 & A8)
+    for scen_name in ("green", "yellow", "red"):
+        base_scen = demo_payload(scen_name)
+        base_res = to_schema(evaluate(base_scen))
+        extreme_ref = to_schema(
+            evaluate({**base_scen, "serum_ca_mg_dl": 12.0, "serum_alp_u_l": 250.0, "p1np": 10.0})
+        )
+        assert extreme_ref.status_light == base_res.status_light
+        ca_m = next(m for m in extreme_ref.metrics if m.metric_name == "osd575_ca_alp_baseline")
+        p1np_m = next(m for m in extreme_ref.metrics if m.metric_name == "p1np_bone_formation")
+        assert ca_m.status_light == "GREEN" and ca_m.raw_status == "REFERENCE"
+        assert p1np_m.status_light == "GREEN" and p1np_m.raw_status == "REFERENCE"
 
     # 4. Layer 2 personal baseline trigger (tight personal SD) vs Layer 1 fixed thresholds
     tight_base = demo_baseline()
@@ -1778,8 +2022,8 @@ if __name__ == "__main__":
     csv_res = to_schema(evaluate(csv_pay, baseline=csv_base))
     assert csv_res.quality_passed is True and csv_res.data_source == "SIMULATED"
 
-    # 8. Plotly figure helpers
-    assert build_trajectory_figure() is not None
+    # 8. Plotly figure helpers (including bad_data filtering check)
+    assert build_trajectory_figure(evaluate(demo_payload("bad_data"))) is not None
     assert build_iss_comparison_figure() is not None
     assert build_osd575_baseline_figure() is not None
 
