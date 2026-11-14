@@ -1,5 +1,5 @@
-mission_day,iso_peak_force_n,csa_thigh_cm2,csa_calf_cm2,body_mass_kg,ntx,ctx,p1np,serum_ca_mg_dl,serum_alp_u_l,sensor_qc_ok
-30,1840.0,147.6,81.7,73.8,14.2,0.36,45.0,9.4,68.0,True
-60,1832.0,147.2,81.4,73.6,14.4,0.37,44.8,9.4,69.0,True
-90,1822.0,146.8,81.1,73.4,14.6,0.37,44.6,9.5,69.5,True
-124,1815.0,146.4,80.9,73.2,14.8,0.38,44.5,9.5,70.0,True
+mission_day,iso_peak_force_n,csa_thigh_cm2,csa_calf_cm2,body_mass_kg,ntx,ctx,p1np,serum_ca_mg_dl,serum_alp_u_l,sensor_qc_ok,data_source
+30,1840.0,147.6,81.7,73.8,14.2,0.36,45.0,9.4,68.0,True,SIMULATED
+60,1832.0,147.2,81.4,73.6,14.4,0.37,44.8,9.4,69.0,True,SIMULATED
+90,1822.0,146.8,81.1,73.4,14.6,0.37,44.6,9.5,69.5,True,SIMULATED
+124,1815.0,146.4,80.9,73.2,14.8,0.38,44.5,9.5,70.0,True,SIMULATED
