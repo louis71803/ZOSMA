@@ -194,19 +194,28 @@ def aggregate_mission_schedule(
     )
 
     next_check_hours = min(
-        [res.short_term_plan.next_measurement_in_hours for res in results.values()],
+        [
+            res.short_term_plan.next_measurement_in_hours
+            for res in results.values()
+            if not getattr(res, "standby", False)
+        ],
         default=24,
     )
+    standby_modules = [
+        mod_id for mod_id, res in results.items() if getattr(res, "standby", False)
+    ]
     earliest_red_days_candidates = [
         res.long_term_plan.days_until_red_prediction
         for res in results.values()
-        if res.long_term_plan.days_until_red_prediction is not None
+        if not getattr(res, "standby", False)
+        and res.long_term_plan.days_until_red_prediction is not None
     ]
     earliest_red_days = min(earliest_red_days_candidates) if earliest_red_days_candidates else None
 
     return {
         "overall_status": overall_status,
         "urgent_modules": urgent_modules,
+        "standby_modules": standby_modules,
         "next_check_hours": next_check_hours,
         "earliest_red_days": earliest_red_days,
         "conflicts_resolved": conflicts_resolved,

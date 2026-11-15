@@ -72,6 +72,10 @@ class MetricItem(BaseModel):
     watch_flag: bool = Field(
         default=False, description="True when raw status was GREEN-WATCH."
     )
+    standby: bool = Field(
+        default=False,
+        description="True when pre-flight baseline is loaded but awaiting first in-orbit crew check-in.",
+    )
     raw_status: str = Field(
         default="GREEN", description="Original unnormalized status token."
     )
@@ -223,6 +227,10 @@ class ModuleEvaluationResult(BaseModel):
     status_light: StatusLight = Field(default="GREEN")
     watch_flag: bool = Field(
         default=False, description="True when module status was GREEN-WATCH."
+    )
+    standby: bool = Field(
+        default=False,
+        description="True when subsystem is in Day-1 Standby awaiting first crew check-in.",
     )
     raw_status: str = Field(default="GREEN")
     quality_passed: bool = Field(default=True)

@@ -20,6 +20,16 @@ from core.checkin_tracker import (
     default_module_checkins,
     get_active_checkin_payload,
 )
+from core.crew_store import (
+    ensure_crew_records_dir,
+    list_crew_profiles,
+    load_crew_record,
+    reset_crew_to_day1_standby,
+    sanitize_crew_id,
+    save_crew_record,
+    switch_crew_to_day124_showcase,
+)
+from core.onboarding import apply_day1_standby_mask
 from core.schema import ModuleEvaluationResult, normalize_module_result
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -101,6 +111,7 @@ EXPECTED_DATA_FILES: dict[str, list[str]] = {
 def ensure_data_directories() -> None:
     """Create standard data directories if they do not exist."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    ensure_crew_records_dir()
     for folder in EXPECTED_DATA_FILES:
         (DATA_DIR / folder).mkdir(parents=True, exist_ok=True)
 
@@ -533,6 +544,7 @@ def evaluate_all_modules(
     mission_day: int = 124,
     prefer_real_csv: bool = True,
     checkin_series: Optional[dict[str, Any]] = None,
+    data_lifecycle_mode: str = "day124_showcase",
 ) -> tuple[dict[str, ModuleEvaluationResult], dict[str, Any]]:
     """Run all 5 domain modules with CSV/demo fallback, crew daily check-ins, and cross-module context propagation.
 
@@ -540,6 +552,7 @@ def evaluate_all_modules(
     and `sleep_tst_h` are propagated to `immune_metabolic` and `neuro_ocular`.
     """
     overrides = manual_overrides or {}
+    has_manual_ov = any(bool(v) for v in overrides.values() if isinstance(v, dict))
     active_checkin_map = (
         get_active_checkin_payload(checkin_series, crew_id=crew_id, mission_day=mission_day)
         if (checkin_series and scenario == "green")
@@ -669,6 +682,17 @@ def evaluate_all_modules(
             checkin_series=checkin_series,
             crew_id=crew_id,
             mission_day=mission_day,
+        )
+
+    if data_lifecycle_mode == "day1_standby":
+        results = apply_day1_standby_mask(
+            results=results,
+            data_lifecycle_mode=data_lifecycle_mode,
+            checkin_series=checkin_series or {},
+            crew_id=crew_id,
+            mission_day=mission_day,
+            use_manual_overrides=has_manual_ov,
+            scenario=scenario,
         )
 
     return results, cross_context

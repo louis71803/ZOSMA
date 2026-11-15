@@ -4,6 +4,7 @@ USER4.md
 USER5.md
 memory/
 data/runtime_session.json
+data/crew_records/
 DREAMS.md
 # 忽略 Python 相關快取與虛擬環境
 __pycache__/
