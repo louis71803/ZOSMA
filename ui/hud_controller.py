@@ -412,10 +412,28 @@ HUD_CONTROLLER_BODY_JS = r"""
       `;
     }).join('');
 
-    const xTicks = [...days, projDays[2]].map(d => {
-      const px = sx(d).toFixed(1);
-      return `<text x="${px}" y="${H - 6}" fill="#64748b" font-size="9.5" text-anchor="middle">D${d}</text>`;
-    }).join('');
+    const rawXTicks = [...days, projDays[2]];
+    const filteredXTicks = [];
+    const MIN_TICK_GAP_PX = 34;
+    rawXTicks.forEach((d, idx) => {
+      const px = sx(d);
+      const isLastMeas = idx === days.length - 1;
+      const isForecastEnd = idx === rawXTicks.length - 1;
+      if (filteredXTicks.length === 0) {
+        filteredXTicks.push({ d, px });
+      } else {
+        const prev = filteredXTicks[filteredXTicks.length - 1];
+        if (px - prev.px >= MIN_TICK_GAP_PX) {
+          filteredXTicks.push({ d, px });
+        } else if (isLastMeas || isForecastEnd) {
+          filteredXTicks[filteredXTicks.length - 1] = { d, px };
+        }
+      }
+    });
+
+    const xTicks = filteredXTicks.map(({ d, px }) =>
+      `<text x="${px.toFixed(1)}" y="${H - 6}" fill="#64748b" font-size="9.5" text-anchor="middle">D${d}</text>`
+    ).join('');
 
     const dots = days.map((d, i) => {
       const px = sx(d).toFixed(1);
