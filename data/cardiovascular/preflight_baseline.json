@@ -1,5 +1,6 @@
 {
   "crew_id": "C002",
+  "is_demo_template": true,
   "rest_hr_bpm": 62.0,
   "rest_hr_sd": 4.0,
   "sbp_mmHg": 116.0,
