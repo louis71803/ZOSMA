@@ -620,8 +620,8 @@ HUD_CONTROLLER_BODY_JS = r"""
             </div>
 
             <div class="cmd-controls">
-              <!-- OFFLINE SPACECRAFT CLOCK WIDGET -->
-              <div class="rtc-widget" id="open-clock-btn" title="${esc(t('clk_section_title'))}">
+              <!-- OFFLINE SPACECRAFT CLOCK WIDGET (display only) -->
+              <div class="rtc-widget" title="${esc(t('clk_section_title'))}">
                 <span class="rtc-dot"></span>
                 <div class="rtc-readout">
                   <span class="rtc-time" id="sc-clock-time">${esc(formatScTime(scNow))}</span>
@@ -934,10 +934,7 @@ HUD_CONTROLLER_BODY_JS = r"""
       };
     });
 
-    // Top Clock Pill & Mode Badge open Settings Drawer
-    const openClkBtn = root.querySelector('#open-clock-btn');
-    if (openClkBtn) openClkBtn.onclick = () => { state.drawerOpen = true; render(); };
-
+    // Mode Badge opens Settings Drawer
     const modePillBtn = root.querySelector('#mode-pill-btn');
     if (modePillBtn) modePillBtn.onclick = () => { state.drawerOpen = true; render(); };
 

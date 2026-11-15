@@ -142,13 +142,7 @@ HUD_CSS = """
   background: rgba(5, 11, 24, 0.88);
   border: 1px solid rgba(56, 189, 248, 0.28);
   box-shadow: inset 0 0 12px rgba(56, 189, 248, 0.08);
-  cursor: pointer;
-  transition: all 0.16s ease;
-}
-
-.rtc-widget:hover {
-  border-color: #38bdf8;
-  box-shadow: 0 0 14px rgba(56, 189, 248, 0.22);
+  cursor: default;
 }
 
 .rtc-dot {
