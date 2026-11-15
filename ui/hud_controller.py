@@ -25,9 +25,22 @@ HUD_CONTROLLER_BODY_JS = r"""
   const nowHost = Date.now();
   const initialScEpoch = Number(savedClk.spacecraft_epoch_ms) || nowHost;
   const initialHostEpoch = Number(savedClk.host_epoch_ms) || nowHost;
-  const initialScale = Number(savedClk.time_scale) || 1;
+  const initialScale = Boolean(data.developer_mode) ? (Number(savedClk.time_scale) || 1) : 1;
   // Advance saved spacecraft clock by elapsed host wall time since last save
   const currentScMsOnLoad = initialScEpoch + Math.max(0, nowHost - initialHostEpoch) * initialScale;
+
+  function localMidnightMs(ms) {
+    const d = new Date(ms);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }
+
+  const initialAnchorMidnight = savedClk.anchor_midnight_ms !== undefined && savedClk.anchor_midnight_ms !== null
+    ? Number(savedClk.anchor_midnight_ms)
+    : localMidnightMs(nowHost);
+  const initialAnchorDay = savedClk.anchor_mission_day !== undefined && savedClk.anchor_mission_day !== null
+    ? Number(savedClk.anchor_mission_day)
+    : Number(data.mission_day || 124);
 
   const state = {
     lang: data.lang || 'en',
@@ -50,8 +63,10 @@ HUD_CONTROLLER_BODY_JS = r"""
     clock: {
       spacecraft_epoch_ms: currentScMsOnLoad,
       host_epoch_ms: nowHost,
-      time_scale: Boolean(data.developer_mode) ? initialScale : 1,
+      time_scale: initialScale,
       sound_enabled: savedClk.sound_enabled !== false,
+      anchor_midnight_ms: initialAnchorMidnight,
+      anchor_mission_day: initialAnchorDay,
       module_due_ms: Object.assign({}, savedClk.module_due_ms || {})
     },
     chimedKeys: {}
@@ -62,16 +77,31 @@ HUD_CONTROLLER_BODY_JS = r"""
     return state.clock.spacecraft_epoch_ms + elapsed * (state.clock.time_scale || 1);
   }
 
+  function computeMccMissionDay(scMs) {
+    const curMid = localMidnightMs(scMs);
+    const deltaDays = Math.round((curMid - state.clock.anchor_midnight_ms) / 86400000);
+    return Math.max(1, Number(state.clock.anchor_mission_day || 124) + deltaDays);
+  }
+
+  function getLocalTzLabel() {
+    const offsetMin = -new Date().getTimezoneOffset();
+    const sign = offsetMin >= 0 ? '+' : '-';
+    const absMin = Math.abs(offsetMin);
+    const h = Math.floor(absMin / 60);
+    const m = absMin % 60;
+    return m ? `UTC${sign}${h}:${String(m).padStart(2, '0')}` : `UTC${sign}${h}`;
+  }
+
   function formatScDate(ms) {
     const d = new Date(ms);
     const pad = n => String(n).padStart(2, '0');
-    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
 
   function formatScTime(ms) {
     const d = new Date(ms);
     const pad = n => String(n).padStart(2, '0');
-    return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   }
 
   function formatCountdown(diffMs) {
@@ -148,6 +178,8 @@ HUD_CONTROLLER_BODY_JS = r"""
       host_epoch_ms: state.clock.host_epoch_ms,
       time_scale: state.clock.time_scale,
       sound_enabled: state.clock.sound_enabled,
+      anchor_midnight_ms: state.clock.anchor_midnight_ms,
+      anchor_mission_day: state.clock.anchor_mission_day,
       module_due_ms: state.clock.module_due_ms
     };
   }
@@ -416,6 +448,7 @@ HUD_CONTROLLER_BODY_JS = r"""
     const schedule = data.schedule || {};
     const order = data.module_order || Object.keys(modulesMap);
     const scNow = getSpacecraftNowMs();
+    state.mission_day = computeMccMissionDay(scNow);
     ensureModuleDueTimers(modulesMap, scNow);
     const dueModules = getDueModules(modulesMap, scNow);
     const minDueMs = order.reduce((acc, modId) => {
@@ -613,7 +646,7 @@ HUD_CONTROLLER_BODY_JS = r"""
               <div class="brand-titles">
                 <div class="brand-name">
                   ${esc(t('hud_title'))}
-                  <span class="crew-pill">${esc(t('crew_badge', { crew: state.crew_id, day: state.mission_day }))}</span>
+                  <span class="crew-pill" id="crew-day-pill">${esc(t('crew_badge', { crew: state.crew_id, day: state.mission_day }))}</span>
                 </div>
                 <div class="brand-sub">${esc(t('hud_sub'))}</div>
               </div>
@@ -625,7 +658,7 @@ HUD_CONTROLLER_BODY_JS = r"""
                 <span class="rtc-dot"></span>
                 <div class="rtc-readout">
                   <span class="rtc-time" id="sc-clock-time">${esc(formatScTime(scNow))}</span>
-                  <span class="rtc-date" id="sc-clock-date">${esc(formatScDate(scNow))} · ${esc(t('rtc_offline_tag'))}</span>
+                  <span class="rtc-date" id="sc-clock-date">${esc(formatScDate(scNow))} · ${esc(getLocalTzLabel())} · ${esc(t('rtc_offline_tag'))}</span>
                 </div>
                 ${state.developer_mode ? `<span class="rtc-scale-chip ${state.clock.time_scale > 1 ? 'fast' : ''}" id="sc-clock-scale">${state.clock.time_scale}x</span>` : ''}
               </div>
@@ -840,6 +873,7 @@ HUD_CONTROLLER_BODY_JS = r"""
                 <input class="field-input" type="time" step="1" id="inp-clk-time" value="${esc(formatScTime(scNow))}" />
               </div>
               <button class="rem-btn" style="padding:8px 12px;" id="apply-clock-btn">${esc(t('clk_apply_btn'))}</button>
+              <button class="rem-btn" style="padding:8px 12px;border-color:rgba(16,185,129,0.5);color:#6ee7b7;" id="sync-earth-now-btn">${esc(t('clk_now_btn'))}</button>
             </div>
             ${state.developer_mode ? `
               <div class="clock-speed-row">
@@ -1004,12 +1038,13 @@ HUD_CONTROLLER_BODY_JS = r"""
         const tEl = root.querySelector('#inp-clk-time');
         if (dEl && tEl && dEl.value && tEl.value) {
           const tStr = tEl.value.length === 5 ? `${tEl.value}:00` : tEl.value;
-          const parsed = Date.parse(`${dEl.value}T${tStr}Z`);
+          const parsed = new Date(`${dEl.value}T${tStr}`).getTime();
           if (!isNaN(parsed)) {
             const oldNow = getSpacecraftNowMs();
             const shift = parsed - oldNow;
             state.clock.spacecraft_epoch_ms = parsed;
             state.clock.host_epoch_ms = Date.now();
+            state.mission_day = computeMccMissionDay(parsed);
             // Keep existing countdown intervals relative to the new calibrated clock
             Object.keys(state.clock.module_due_ms).forEach(k => {
               state.clock.module_due_ms[k] = Number(state.clock.module_due_ms[k]) + shift;
@@ -1021,12 +1056,29 @@ HUD_CONTROLLER_BODY_JS = r"""
       };
     }
 
+    const syncNowBtn = root.querySelector('#sync-earth-now-btn');
+    if (syncNowBtn) {
+      syncNowBtn.onclick = () => {
+        const nowMs = Date.now();
+        state.clock.spacecraft_epoch_ms = nowMs;
+        state.clock.host_epoch_ms = nowMs;
+        state.clock.time_scale = 1;
+        state.clock.module_due_ms = {};
+        state.chimedKeys = {};
+        state.mission_day = computeMccMissionDay(nowMs);
+        render();
+        sendPayload('sync_earth_now');
+      };
+    }
+
     root.querySelectorAll('[data-clk-speed]').forEach(btn => {
       btn.onclick = () => {
         const sp = Number(btn.getAttribute('data-clk-speed')) || 1;
-        state.clock.spacecraft_epoch_ms = getSpacecraftNowMs();
+        const scNow = getSpacecraftNowMs();
+        state.clock.spacecraft_epoch_ms = scNow;
         state.clock.host_epoch_ms = Date.now();
         state.clock.time_scale = sp;
+        state.mission_day = computeMccMissionDay(scNow);
         render();
         sendPayload('save_clock');
       };
@@ -1035,8 +1087,10 @@ HUD_CONTROLLER_BODY_JS = r"""
     root.querySelectorAll('[data-clk-jump]').forEach(btn => {
       btn.onclick = () => {
         const hrs = Number(btn.getAttribute('data-clk-jump')) || 1;
-        state.clock.spacecraft_epoch_ms = getSpacecraftNowMs() + hrs * 3600 * 1000;
+        const nextMs = getSpacecraftNowMs() + hrs * 3600 * 1000;
+        state.clock.spacecraft_epoch_ms = nextMs;
         state.clock.host_epoch_ms = Date.now();
+        state.mission_day = computeMccMissionDay(nextMs);
         render();
         sendPayload('save_clock');
       };
@@ -1143,7 +1197,15 @@ HUD_CONTROLLER_BODY_JS = r"""
     if (inpCrew) inpCrew.onchange = () => { state.crew_id = inpCrew.value; };
 
     const inpDay = root.querySelector('#inp-day');
-    if (inpDay) inpDay.onchange = () => { state.mission_day = Number(inpDay.value) || 124; };
+    if (inpDay) {
+      inpDay.onchange = () => {
+        const newDay = Math.max(1, Number(inpDay.value) || 124);
+        const scNow = getSpacecraftNowMs();
+        state.mission_day = newDay;
+        state.clock.anchor_midnight_ms = localMidnightMs(scNow);
+        state.clock.anchor_mission_day = newDay;
+      };
+    }
 
     const inpPreferCsv = root.querySelector('#inp-prefer-csv');
     if (inpPreferCsv) inpPreferCsv.onchange = () => { state.prefer_real_csv = inpPreferCsv.checked; };
@@ -1213,7 +1275,17 @@ HUD_CONTROLLER_BODY_JS = r"""
     const tEl = root.querySelector('#sc-clock-time');
     const dEl = root.querySelector('#sc-clock-date');
     if (tEl) tEl.textContent = formatScTime(scNow);
-    if (dEl) dEl.textContent = `${formatScDate(scNow)} · ${t('rtc_offline_tag')}`;
+    if (dEl) dEl.textContent = `${formatScDate(scNow)} · ${getLocalTzLabel()} · ${t('rtc_offline_tag')}`;
+
+    const liveDay = computeMccMissionDay(scNow);
+    if (liveDay !== state.mission_day) {
+      state.mission_day = liveDay;
+      const badgeEl = root.querySelector('#crew-day-pill');
+      if (badgeEl) badgeEl.textContent = t('crew_badge', { crew: state.crew_id, day: liveDay });
+      const dayInp = root.querySelector('#inp-day');
+      if (dayInp) dayInp.value = liveDay;
+      sendPayload('save_clock');
+    }
 
     const minDueMs = order.reduce((acc, modId) => {
       const d = Number(state.clock.module_due_ms[modId] ?? (scNow + 3600000));

@@ -17,6 +17,7 @@ import streamlit.components.v2 as components_v2
 from core.data_loader import (
     MODULE_DISPLAY_NAMES,
     MODULE_ORDER,
+    compute_mcc_mission_day,
     evaluate_all_modules,
     inspect_all_data_status,
     load_runtime_session,
@@ -223,6 +224,11 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
         st.session_state["crew_id"] = str(action["crew_id"])
     if action.get("mission_day") is not None:
         st.session_state["mission_day"] = max(1, int(action["mission_day"]))
+    elif isinstance(st.session_state.get("offline_clock"), dict):
+        st.session_state["mission_day"] = compute_mcc_mission_day(
+            st.session_state["offline_clock"],
+            fallback_day=st.session_state.get("mission_day", 124),
+        )
     if action.get("scenario") in {"green", "yellow", "red", "bad_data"}:
         st.session_state["scenario"] = str(action["scenario"])
         # When user explicitly clicks stress-test preset (yellow/red/bad_data), use simulated scenario presets
@@ -290,7 +296,7 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
         st.toast("Saved telemetry to data/runtime_session.json & executed all 5 agents!", icon="🚀")
         st.rerun()
 
-    elif act_type in {"switch_lang", "save_clock"}:
+    elif act_type in {"switch_lang", "save_clock", "sync_earth_now"}:
         save_runtime_session(
             manual_overrides=st.session_state["manual_inputs"],
             crew_id=st.session_state["crew_id"],
@@ -304,6 +310,8 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
         )
         if act_type == "save_clock":
             st.toast("Offline Spacecraft RTC synced & saved!", icon="⏱️")
+        elif act_type == "sync_earth_now":
+            st.toast("Reset to Earth local time & restored Mission Day!", icon="🌍")
         st.rerun()
 
     elif act_type in {"switch_scenario", "reset_overrides"}:
@@ -324,6 +332,12 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
 def main() -> None:
     _inject_shell_dark_css()
     _init_hud_session_state()
+
+    if isinstance(st.session_state.get("offline_clock"), dict):
+        st.session_state["mission_day"] = compute_mcc_mission_day(
+            st.session_state["offline_clock"],
+            fallback_day=st.session_state.get("mission_day", 124),
+        )
 
     active_overrides = (
         st.session_state["manual_inputs"]

@@ -254,9 +254,15 @@ HUD_CSS = """
 
 .clock-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: 1fr 1fr auto auto;
   gap: 8px;
   align-items: end;
+}
+
+@media (max-width: 600px) {
+  .clock-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .clock-speed-row {

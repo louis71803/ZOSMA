@@ -255,10 +255,36 @@ def load_module_files_into_payload(module_id: str) -> tuple[dict[str, Any], Opti
     return payload, baseline, "REAL"
 
 
+def _local_midnight_epoch_ms(epoch_ms: int) -> int:
+    """Return local midnight epoch (ms) for a given timestamp."""
+    dt_local = datetime.fromtimestamp(epoch_ms / 1000.0).astimezone()
+    midnight = dt_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    return int(midnight.timestamp() * 1000)
+
+
+def compute_mcc_mission_day(offline_clock: dict[str, Any], fallback_day: int = 124) -> int:
+    """Pure MCC function: derive Mission Day from simulated clock vs. mission anchor date (cross-00:00 +1)."""
+    now_host = int(datetime.now().timestamp() * 1000)
+    sc_epoch = int(offline_clock.get("spacecraft_epoch_ms") or now_host)
+    host_epoch = int(offline_clock.get("host_epoch_ms") or now_host)
+    scale = int(offline_clock.get("time_scale") or 1)
+    sim_now_ms = sc_epoch + max(0, now_host - host_epoch) * scale
+
+    anchor_midnight = offline_clock.get("anchor_midnight_ms")
+    anchor_day = offline_clock.get("anchor_mission_day")
+    if anchor_midnight is None or anchor_day is None:
+        return max(1, int(fallback_day))
+
+    cur_midnight = _local_midnight_epoch_ms(sim_now_ms)
+    delta_days = int(round((cur_midnight - int(anchor_midnight)) / 86_400_000.0))
+    return max(1, int(anchor_day) + delta_days)
+
+
 def load_runtime_session() -> dict[str, Any]:
     """Load persisted manual telemetry & session metadata from data/runtime_session.json."""
     ensure_data_directories()
     now_ms = int(datetime.now().timestamp() * 1000)
+    today_midnight_ms = _local_midnight_epoch_ms(now_ms)
     default_session: dict[str, Any] = {
         "crew_id": "C002",
         "mission_day": 124,
@@ -272,6 +298,8 @@ def load_runtime_session() -> dict[str, Any]:
             "host_epoch_ms": now_ms,
             "time_scale": 1,
             "sound_enabled": True,
+            "anchor_midnight_ms": today_midnight_ms,
+            "anchor_mission_day": 124,
             "module_due_ms": {},
         },
         "updated_at": None,
@@ -298,7 +326,14 @@ def load_runtime_session() -> dict[str, Any]:
             clk.update(data["offline_clock"])
             if not isinstance(clk.get("module_due_ms"), dict):
                 clk["module_due_ms"] = {}
+            if data["offline_clock"].get("anchor_midnight_ms") is None:
+                clk["anchor_midnight_ms"] = today_midnight_ms
+            if data["offline_clock"].get("anchor_mission_day") is None:
+                clk["anchor_mission_day"] = int(merged.get("mission_day", 124))
             merged["offline_clock"] = clk
+        merged["mission_day"] = compute_mcc_mission_day(
+            merged["offline_clock"], fallback_day=int(merged.get("mission_day", 124))
+        )
         overrides = dict(default_session["manual_overrides"])
         if isinstance(data.get("manual_overrides"), dict):
             for mod in MODULE_ORDER:
