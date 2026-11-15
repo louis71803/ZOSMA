@@ -1,5 +1,10 @@
 """Internal subpackage for Role 6: Radiation, Acoustics & Closed-Habitat Module."""
 
+from modules.cabin_env.acoustics import (
+    _eval_aco01,
+    _eval_aco02,
+    _eval_aco03,
+)
 from modules.cabin_env.card_helpers import (
     _check_staleness,
     _clean_time_series,
@@ -31,6 +36,11 @@ from modules.cabin_env.measurement_rules import (
     TREND_HORIZON_HOURS,
     get_rule_table_dicts,
 )
+from modules.cabin_env.radiation import (
+    _eval_rad01,
+    _eval_rad02,
+    _eval_rad03,
+)
 
 __all__ = [
     "AUDIO_FREQS_HZ",
@@ -58,4 +68,10 @@ __all__ = [
     "_make_timestamps_utc",
     "demo_payload",
     "export_demo_csvs",
+    "_eval_rad01",
+    "_eval_rad02",
+    "_eval_rad03",
+    "_eval_aco01",
+    "_eval_aco02",
+    "_eval_aco03",
 ]
