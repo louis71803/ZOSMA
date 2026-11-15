@@ -70,6 +70,7 @@ HUD_CONTROLLER_BODY_JS = r"""
     scenario: data.scenario || 'green',
     prefer_real_csv: data.prefer_real_csv !== false,
     use_manual_overrides: Boolean(data.use_manual_overrides),
+    dev_complete_history: data.dev_complete_history !== false,
     inputs: JSON.parse(JSON.stringify(data.manual_inputs || {})),
     dailyVitals: JSON.parse(JSON.stringify(data.daily_vitals || {})),
     moduleCheckins: JSON.parse(JSON.stringify(data.module_checkins || {})),
@@ -275,6 +276,7 @@ HUD_CONTROLLER_BODY_JS = r"""
       offline_clock: snapshotClockForSave(),
       prefer_real_csv: Boolean(state.prefer_real_csv),
       use_manual_overrides: Boolean(state.use_manual_overrides),
+      dev_complete_history: Boolean(state.dev_complete_history),
       manual_inputs: state.inputs,
       daily_vitals: state.dailyVitals,
       module_checkins: state.moduleCheckins,
@@ -363,27 +365,47 @@ HUD_CONTROLLER_BODY_JS = r"""
       return `<div style="padding:36px 18px;text-align:center;color:#fb923c;font-size:12.5px;font-weight:600;border:1px dashed rgba(249,115,22,0.35);border-radius:10px;background:rgba(249,115,22,0.06);">${esc(t('qc_trend_blocked'))}</div>`;
     }
 
-    // If only 0 or 1 measured point exists in history_days (e.g., Day-1 initial check-in), do NOT synthesize fake D0..D90 slope or +30d forecast
+    // If only 0 or 1 measured point exists in history_days:
+    // Distinguish: (a) Reference-only constant, (b) Day-1 single check-in point, vs. (c) Flight Mode Missing Longitudinal History
     if (Array.isArray(metric.history_days) && metric.history_days.length < 2) {
-      if (metric.history_days.length === 0) {
-        return `
-          <div style="padding:32px 18px;text-align:center;color:#7dd3fc;font-size:12.5px;font-weight:600;border:1px dashed rgba(56,189,248,0.38);border-radius:10px;background:rgba(56,189,248,0.06);">
-            <div>${esc(t('standby_chart_msg'))}</div>
-          </div>
-        `;
-      }
-      const d0 = metric.history_days[0];
-      const v0 = (Array.isArray(metric.history_values) && metric.history_values.length === 1)
-        ? metric.history_values[0]
-        : metric.current_val;
       const unitStr = metric.unit ? ` ${metric.unit}` : '';
+      const curDisp = (metric.current_val !== null && metric.current_val !== undefined) ? `${metric.current_val}${unitStr}` : '—';
       const baseNote = (metric.baseline_val !== null && metric.baseline_val !== undefined)
         ? `<div style="margin-top:6px;font-size:11.5px;color:#94a3b8;">${esc(t('standby_base_lbl'))} <strong style="color:#e2e8f0;">${esc(metric.baseline_val)}${esc(unitStr)}</strong></div>`
         : '';
+
+      if (metric.raw_status === 'REFERENCE' || metric.metric_name === 'osd575_ca_alp_baseline') {
+        return `
+          <div style="padding:28px 18px;text-align:center;color:#94a3b8;font-size:12.5px;font-weight:600;border:1px dashed rgba(148,163,184,0.35);border-radius:10px;background:rgba(15,23,42,0.5);">
+            <div>${esc(t('ref_only_chart_msg', { v: curDisp }))}</div>
+            ${baseNote}
+          </div>
+        `;
+      }
+
+      if (metric.history_days.length === 1 && state.data_lifecycle_mode === 'day1_standby') {
+        const d0 = metric.history_days[0];
+        const v0 = (Array.isArray(metric.history_values) && metric.history_values.length === 1)
+          ? metric.history_values[0]
+          : metric.current_val;
+        return `
+          <div style="padding:28px 18px;text-align:center;color:#38bdf8;font-size:12.5px;font-weight:600;border:1px dashed rgba(56,189,248,0.38);border-radius:10px;background:rgba(56,189,248,0.06);">
+            <div>${esc(t('single_pt_chart_msg', { d: d0, v: v0 + unitStr }))}</div>
+            ${baseNote}
+          </div>
+        `;
+      }
+
+      // Flight Mode / Day-124 missing longitudinal time-series
+      const dsEntry = (data.data_statuses || []).find(ds => ds.module_id === state.selectedModule);
+      const missFiles = (dsEntry && Array.isArray(dsEntry.missing_files) && dsEntry.missing_files.length)
+        ? `<div style="margin-top:6px;font-size:11px;color:#fbbf24;">${esc(t('missing_hist_files_sub', { mod: state.selectedModule, files: dsEntry.missing_files.join(', ') }))}</div>`
+        : '';
       return `
-        <div style="padding:28px 18px;text-align:center;color:#38bdf8;font-size:12.5px;font-weight:600;border:1px dashed rgba(56,189,248,0.38);border-radius:10px;background:rgba(56,189,248,0.06);">
-          <div>${esc(t('single_pt_chart_msg', { d: d0, v: v0 + unitStr }))}</div>
+        <div style="padding:28px 18px;text-align:center;color:#cbd5e1;font-size:12.5px;font-weight:600;border:1px dashed rgba(148,163,184,0.38);border-radius:10px;background:rgba(15,23,42,0.55);">
+          <div>${esc(t('missing_hist_chart_msg', { d: missionDay, v: curDisp }))}</div>
           ${baseNote}
+          ${missFiles}
         </div>
       `;
     }
@@ -956,6 +978,7 @@ HUD_CONTROLLER_BODY_JS = r"""
                   <span class="chart-title">
                     ${esc(t('traj_title'))} · <span style="color:#38bdf8">${esc(activeMetric ? resolveMetricDisplayName(activeMetric) : '')}</span>
                     ${activeMetric && activeMetric.unit ? `(${esc(activeMetric.unit)})` : ''}
+                    ${activeMetric && activeMetric.synthetic_completed ? `<span class="badge badge-YELLOW" style="margin-left:6px;font-size:9.5px;">${esc(t('dev_synth_badge'))}</span>` : ''}
                   </span>
                   <div class="chart-legend">
                     <span class="leg-item"><span class="leg-line" style="background:#38bdf8;"></span>${esc(t('leg_measured'))}</span>

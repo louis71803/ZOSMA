@@ -94,6 +94,10 @@ class MetricItem(BaseModel):
     lower_is_worse: bool = Field(default=False)
     history_days: list[int] = Field(default_factory=list)
     history_values: list[float] = Field(default_factory=list)
+    synthetic_completed: bool = Field(
+        default=False,
+        description="True when Developer Mode synthesized multi-day trajectory points for a single-point metric.",
+    )
 
     @model_validator(mode="before")
     @classmethod

@@ -30,6 +30,10 @@ from core.crew_store import (
     switch_crew_to_day124_showcase,
 )
 from core.onboarding import apply_day1_standby_mask
+from core.history_completer import (
+    attach_existing_file_histories,
+    complete_missing_histories_for_dev,
+)
 from core.schema import ModuleEvaluationResult, normalize_module_result
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -551,6 +555,7 @@ def evaluate_all_modules(
     prefer_real_csv: bool = True,
     checkin_series: Optional[dict[str, Any]] = None,
     data_lifecycle_mode: str = "day124_showcase",
+    dev_complete_history: bool = False,
 ) -> tuple[dict[str, ModuleEvaluationResult], dict[str, Any]]:
     """Run all 5 domain modules with CSV/demo fallback, crew daily check-ins, and cross-module context propagation.
 
@@ -640,6 +645,14 @@ def evaluate_all_modules(
             raw_result = mod.evaluate(payload=payload, baseline=baseline)
             norm_result = normalize_module_result(raw_result, module_id=module_id)
 
+            if file_payload and scenario == "green":
+                attach_existing_file_histories(
+                    module_id=module_id,
+                    result=norm_result,
+                    file_payload=file_payload,
+                    mission_day=mission_day,
+                )
+
             if not norm_result.data_source:
                 norm_result.data_source = data_source
 
@@ -699,6 +712,12 @@ def evaluate_all_modules(
             mission_day=mission_day,
             use_manual_overrides=has_manual_ov,
             scenario=scenario,
+        )
+    else:
+        results = complete_missing_histories_for_dev(
+            results=results,
+            mission_day=mission_day,
+            auto_complete_synthetic=bool(dev_complete_history),
         )
 
     return results, cross_context

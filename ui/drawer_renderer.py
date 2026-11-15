@@ -344,6 +344,10 @@ HUD_DRAWER_BODY_JS = r"""
               <input type="checkbox" id="inp-prefer-csv" ${state.prefer_real_csv ? 'checked' : ''} />
               ${esc(t('prefer_csv_lbl'))}
             </label>
+            <label style="font-size:11.5px;color:#fbbf24;display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="inp-dev-complete-hist" ${state.dev_complete_history ? 'checked' : ''} />
+              ${esc(t('dev_auto_hist_lbl'))}
+            </label>
             <label style="font-size:11.5px;color:#38bdf8;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;">
               <input type="checkbox" id="inp-use-manual" ${state.use_manual_overrides ? 'checked' : ''} />
               ${esc(t('enable_manual_lbl'))}
@@ -705,6 +709,14 @@ HUD_DRAWER_BODY_JS = r"""
 
     const inpPreferCsv = root.querySelector('#inp-prefer-csv');
     if (inpPreferCsv) inpPreferCsv.onchange = () => { state.prefer_real_csv = inpPreferCsv.checked; };
+
+    const inpDevHist = root.querySelector('#inp-dev-complete-hist');
+    if (inpDevHist) {
+      inpDevHist.onchange = () => {
+        state.dev_complete_history = inpDevHist.checked;
+        sendPayload('toggle_dev_complete_history');
+      };
+    }
 
     const inpUseManual = root.querySelector('#inp-use-manual');
     if (inpUseManual) inpUseManual.onchange = () => { state.use_manual_overrides = inpUseManual.checked; };

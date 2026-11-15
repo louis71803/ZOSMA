@@ -154,6 +154,7 @@ def _init_hud_session_state() -> None:
     st.session_state["offline_clock"] = clk
     st.session_state["prefer_real_csv"] = True if not dev_mode else bool(disk_session.get("prefer_real_csv", True))
     st.session_state["use_manual_overrides"] = bool(disk_session.get("use_manual_overrides", False))
+    st.session_state["dev_complete_history"] = bool(disk_session.get("dev_complete_history", True))
     st.session_state["selected_module"] = "cabin_environment" if st.session_state["data_lifecycle_mode"] == "day1_standby" else "neuro_ocular"
     st.session_state["selected_metric_idx"] = 0
     st.session_state["guide_tab"] = "measure"
@@ -215,6 +216,7 @@ def _serialize_hud_payload(
         "offline_clock": st.session_state.get("offline_clock", {}),
         "prefer_real_csv": st.session_state["prefer_real_csv"],
         "use_manual_overrides": st.session_state["use_manual_overrides"],
+        "dev_complete_history": bool(st.session_state.get("dev_complete_history", True)),
         "default_module": st.session_state["selected_module"],
         "default_metric_idx": st.session_state.get("selected_metric_idx", 0),
         "default_guide_tab": st.session_state.get("guide_tab", "measure"),
@@ -321,6 +323,8 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
         st.session_state["prefer_real_csv"] = bool(action["prefer_real_csv"])
     if "use_manual_overrides" in action:
         st.session_state["use_manual_overrides"] = bool(action["use_manual_overrides"])
+    if "dev_complete_history" in action:
+        st.session_state["dev_complete_history"] = bool(action["dev_complete_history"])
     if isinstance(action.get("manual_inputs"), dict):
         st.session_state["manual_inputs"] = action["manual_inputs"]
     if isinstance(action.get("daily_vitals"), dict):
@@ -401,6 +405,7 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
             prefer_real_csv=st.session_state["prefer_real_csv"],
             checkin_series=st.session_state["checkin_series"],
             data_lifecycle_mode=st.session_state["data_lifecycle_mode"],
+            dev_complete_history=bool(st.session_state["developer_mode"] and st.session_state.get("dev_complete_history", True)),
         )
         save_runtime_session(
             manual_overrides=st.session_state["manual_inputs"],
@@ -475,6 +480,7 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
             prefer_real_csv=st.session_state["prefer_real_csv"],
             checkin_series=st.session_state["checkin_series"],
             data_lifecycle_mode=st.session_state["data_lifecycle_mode"],
+            dev_complete_history=bool(st.session_state["developer_mode"] and st.session_state.get("dev_complete_history", True)),
         )
         save_crew_record(
             crew_id=st.session_state["crew_id"],
@@ -524,7 +530,7 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
             st.toast("Reset to Earth local time & restored Mission Day!", icon="🌍")
         st.rerun()
 
-    elif act_type in {"switch_scenario", "reset_overrides"}:
+    elif act_type in {"switch_scenario", "reset_overrides", "toggle_dev_complete_history"}:
         save_runtime_session(
             manual_overrides=st.session_state["manual_inputs"],
             crew_id=st.session_state["crew_id"],
@@ -565,6 +571,7 @@ def main() -> None:
         prefer_real_csv=st.session_state["prefer_real_csv"],
         checkin_series=st.session_state["checkin_series"],
         data_lifecycle_mode=st.session_state["data_lifecycle_mode"],
+        dev_complete_history=bool(st.session_state["developer_mode"] and st.session_state.get("dev_complete_history", True)),
     )
     schedule = aggregate_mission_schedule(results=results, cross_context=cross_context)
     data_statuses = inspect_all_data_status()
