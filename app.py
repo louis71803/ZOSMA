@@ -8,12 +8,18 @@ the Python 5-module evaluation contract, persistence, and closed-loop scheduler.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import importlib
 from typing import Any
 
 import streamlit as st
 import streamlit.components.v2 as components_v2
 
+from core.checkin_tracker import (
+    default_daily_vitals,
+    default_module_checkins,
+    record_checkin_entry,
+)
 from core.data_loader import (
     MODULE_DISPLAY_NAMES,
     MODULE_ORDER,
@@ -148,6 +154,25 @@ def _init_hud_session_state() -> None:
         merged_inputs[mod_id] = base_dict
 
     st.session_state["manual_inputs"] = merged_inputs
+
+    daily_v = default_daily_vitals()
+    if isinstance(disk_session.get("daily_vitals"), dict):
+        daily_v.update(disk_session["daily_vitals"])
+    st.session_state["daily_vitals"] = daily_v
+
+    mod_chk = default_module_checkins()
+    saved_mod_chk = disk_session.get("module_checkins", {})
+    if isinstance(saved_mod_chk, dict):
+        for mod_id in MODULE_ORDER:
+            if isinstance(saved_mod_chk.get(mod_id), dict):
+                mod_chk[mod_id].update(saved_mod_chk[mod_id])
+    st.session_state["module_checkins"] = mod_chk
+
+    st.session_state["checkin_series"] = (
+        dict(disk_session.get("checkin_series", {}))
+        if isinstance(disk_session.get("checkin_series"), dict)
+        else {}
+    )
     st.session_state["hud_initialized"] = True
 
 
@@ -193,6 +218,9 @@ def _serialize_hud_payload(
         "default_metric_idx": st.session_state.get("selected_metric_idx", 0),
         "default_guide_tab": st.session_state.get("guide_tab", "measure"),
         "manual_inputs": st.session_state["manual_inputs"],
+        "daily_vitals": st.session_state["daily_vitals"],
+        "module_checkins": st.session_state["module_checkins"],
+        "checkin_series": st.session_state["checkin_series"],
         "module_order": list(MODULE_ORDER),
         "modules": modules_json,
         "schedule": schedule,
@@ -248,6 +276,10 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
         st.session_state["use_manual_overrides"] = bool(action["use_manual_overrides"])
     if isinstance(action.get("manual_inputs"), dict):
         st.session_state["manual_inputs"] = action["manual_inputs"]
+    if isinstance(action.get("daily_vitals"), dict):
+        st.session_state["daily_vitals"] = action["daily_vitals"]
+    if isinstance(action.get("module_checkins"), dict):
+        st.session_state["module_checkins"] = action["module_checkins"]
 
     if act_type == "toggle_developer_mode":
         if not st.session_state["developer_mode"]:
@@ -280,7 +312,24 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
         st.toast(f"Generated {len(generated)} starter CSV/JSON files inside data/!", icon="📡")
         st.rerun()
 
-    elif act_type == "save_and_run":
+    elif act_type == "submit_daily_checkin":
+        active_mod = str(action.get("active_checkin_module") or st.session_state["selected_module"])
+        checked_mods = action.get("checked_modules")
+        if not isinstance(checked_mods, list):
+            checked_mods = [active_mod]
+        mod_vals = st.session_state["module_checkins"].get(active_mod, {})
+        now_iso = datetime.now(timezone.utc).isoformat()
+        updated_series = record_checkin_entry(
+            checkin_series=st.session_state["checkin_series"],
+            crew_id=st.session_state["crew_id"],
+            mission_day=st.session_state["mission_day"],
+            daily_vitals=st.session_state["daily_vitals"],
+            module_values=mod_vals,
+            checked_modules=[str(m) for m in checked_mods],
+            recorded_at_iso=now_iso,
+        )
+        st.session_state["checkin_series"] = updated_series
+
         active_ov = st.session_state["manual_inputs"] if st.session_state["use_manual_overrides"] else {}
         new_results, _ = evaluate_all_modules(
             manual_overrides=active_ov,
@@ -288,6 +337,7 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
             crew_id=st.session_state["crew_id"],
             mission_day=st.session_state["mission_day"],
             prefer_real_csv=st.session_state["prefer_real_csv"],
+            checkin_series=st.session_state["checkin_series"],
         )
         save_runtime_session(
             manual_overrides=st.session_state["manual_inputs"],
@@ -300,6 +350,40 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
             developer_mode=st.session_state["developer_mode"],
             prefer_real_csv=st.session_state["prefer_real_csv"],
             use_manual_overrides=st.session_state["use_manual_overrides"],
+            daily_vitals=st.session_state["daily_vitals"],
+            module_checkins=st.session_state["module_checkins"],
+            checkin_series=st.session_state["checkin_series"],
+        )
+        st.toast(
+            f"Logged Sol/Day {st.session_state['mission_day']} check-in, updated trends & reset due timer!",
+            icon="📝",
+        )
+        st.rerun()
+
+    elif act_type == "save_and_run":
+        active_ov = st.session_state["manual_inputs"] if st.session_state["use_manual_overrides"] else {}
+        new_results, _ = evaluate_all_modules(
+            manual_overrides=active_ov,
+            scenario=st.session_state["scenario"],
+            crew_id=st.session_state["crew_id"],
+            mission_day=st.session_state["mission_day"],
+            prefer_real_csv=st.session_state["prefer_real_csv"],
+            checkin_series=st.session_state["checkin_series"],
+        )
+        save_runtime_session(
+            manual_overrides=st.session_state["manual_inputs"],
+            crew_id=st.session_state["crew_id"],
+            mission_day=st.session_state["mission_day"],
+            scenario=st.session_state["scenario"],
+            results=new_results,
+            lang=st.session_state["lang"],
+            offline_clock=st.session_state.get("offline_clock"),
+            developer_mode=st.session_state["developer_mode"],
+            prefer_real_csv=st.session_state["prefer_real_csv"],
+            use_manual_overrides=st.session_state["use_manual_overrides"],
+            daily_vitals=st.session_state["daily_vitals"],
+            module_checkins=st.session_state["module_checkins"],
+            checkin_series=st.session_state["checkin_series"],
         )
         st.toast("Saved telemetry to data/runtime_session.json & executed all 5 agents!", icon="🚀")
         st.rerun()
@@ -358,6 +442,7 @@ def main() -> None:
         crew_id=st.session_state["crew_id"],
         mission_day=st.session_state["mission_day"],
         prefer_real_csv=st.session_state["prefer_real_csv"],
+        checkin_series=st.session_state["checkin_series"],
     )
     schedule = aggregate_mission_schedule(results=results, cross_context=cross_context)
     data_statuses = inspect_all_data_status()

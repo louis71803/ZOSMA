@@ -7,6 +7,7 @@ slide-over telemetry drawer controls, and instant organ-to-trend interactivity.
 from __future__ import annotations
 
 from ui.anatomy_svgs import HUD_ANATOMY_JS
+from ui.drawer_renderer import HUD_DRAWER_JS
 from ui.i18n import HUD_I18N_JS
 
 HUD_CONTROLLER_BODY_JS = r"""
@@ -53,6 +54,8 @@ HUD_CONTROLLER_BODY_JS = r"""
     guideTab: data.default_guide_tab || 'measure',       // 'measure' | 'meaning' | 'action'
     planTab: 'short',          // 'short' | 'long'
     drawerOpen: false,
+    drawerSection: 'checkin',  // 'checkin' | 'settings'
+    checkinModuleTab: data.default_module || 'cabin_environment',
     drawerTab: 'cabin_environment',
     crew_id: data.crew_id || 'C002',
     mission_day: data.mission_day || 124,
@@ -60,6 +63,9 @@ HUD_CONTROLLER_BODY_JS = r"""
     prefer_real_csv: data.prefer_real_csv !== false,
     use_manual_overrides: Boolean(data.use_manual_overrides),
     inputs: JSON.parse(JSON.stringify(data.manual_inputs || {})),
+    dailyVitals: JSON.parse(JSON.stringify(data.daily_vitals || {})),
+    moduleCheckins: JSON.parse(JSON.stringify(data.module_checkins || {})),
+    checkinSeries: JSON.parse(JSON.stringify(data.checkin_series || {})),
     clock: {
       spacecraft_epoch_ms: currentScMsOnLoad,
       host_epoch_ms: nowHost,
@@ -408,83 +414,6 @@ HUD_CONTROLLER_BODY_JS = r"""
     `;
   }
 
-  function buildDrawerFields() {
-    const tab = state.drawerTab;
-    const cur = state.inputs[tab] || {};
-
-    const schemas = {
-      cabin_environment: [
-        { key: 'ppco2_1h_mmHg', label: 'Cabin ppCO2 1h (mmHg)', type: 'range', min: 0.5, max: 5.0, step: 0.05 },
-        { key: 'proton_flux_10mev_pfu', label: 'GOES >=10MeV Proton Flux (pfu)', type: 'range', min: 0, max: 300, step: 1 },
-        { key: 'crew_leq8_dBA', label: 'Crew 8h Noise Exposure (dBA)', type: 'range', min: 50, max: 95, step: 0.5 },
-        { key: 'sleep_tst_h', label: 'Actiwatch Sleep Duration (h)', type: 'range', min: 3.0, max: 10.0, step: 0.1 },
-        { key: 'spe_alert', label: 'SPE Solar Radiation Storm Alert', type: 'checkbox' }
-      ],
-      cardiovascular: [
-        { key: 'rest_hr_bpm', label: 'Resting Heart Rate (bpm)', type: 'range', min: 40, max: 130, step: 1 },
-        { key: 'spo2_pct', label: 'Peripheral SpO2 (%)', type: 'range', min: 85, max: 100, step: 0.1 },
-        { key: 'pvc_burden_pct', label: 'Holter 24h PVC Burden (%)', type: 'range', min: 0, max: 15, step: 0.1 },
-        { key: 'ijv_flow', label: 'IJV Ultrasound Flow', type: 'select', options: ['forward', 'stagnant', 'reversed'] },
-        { key: 'ijv_thrombus', label: 'IJV Thrombus Detected', type: 'checkbox' }
-      ],
-      musculoskeletal: [
-        { key: 'csa_thigh_cm2', label: 'Thigh Muscle CSA (cm²)', type: 'range', min: 115, max: 165, step: 0.5 },
-        { key: 'velocity_loss_pct', label: 'E4D VBT Velocity Loss (%)', type: 'range', min: 0, max: 45, step: 0.5 },
-        { key: 'ctx', label: 'CTX Bone Resorption (ng/mL)', type: 'range', min: 0.20, max: 0.80, step: 0.01 },
-        { key: 'body_mass_kg', label: 'SLAMMD Body Mass (kg)', type: 'range', min: 55, max: 90, step: 0.2 }
-      ],
-      neuro_ocular: [
-        { key: 'delta_trt_um', label: 'Mini OCT ΔTRT (µm)', type: 'range', min: -10, max: 90, step: 1 },
-        { key: 'delta_v_onh_mm3', label: 'Optic Nerve Head ΔV_ONH (mm³)', type: 'range', min: 0.0, max: 0.50, step: 0.01 },
-        { key: 'onsd_mm', label: 'Ultrasound ONSD (mm)', type: 'range', min: 4.0, max: 7.5, step: 0.1 },
-        { key: 'sph_eq_shift_d', label: 'Hyperopic Shift (Diopters)', type: 'range', min: -0.5, max: 2.0, step: 0.25 },
-        { key: 'folds_foveal', label: 'Chorioretinal Foveal Folds', type: 'checkbox' }
-      ],
-      immune_metabolic: [
-        { key: 'temp_c', label: 'Oral Temperature (°C)', type: 'range', min: 35.5, max: 40.0, step: 0.1 },
-        { key: 'lymph', label: 'Lymphocyte Count (10⁹/L)', type: 'range', min: 0.4, max: 3.5, step: 0.05 },
-        { key: 'saliva_vzv', label: 'Saliva VZV DNA (copies/mL)', type: 'range', min: 0, max: 10000, step: 50 },
-        { key: 'hydration_ml', label: '24h Fluid Intake (mL)', type: 'range', min: 800, max: 4000, step: 50 }
-      ]
-    };
-
-    return (schemas[tab] || []).map(f => {
-      const val = cur[f.key];
-      const lbl = state.lang === 'zh' ? (DRAWER_ZH[f.key] || f.label) : f.label;
-      if (f.type === 'checkbox') {
-        return `
-          <label class="field-group" style="flex-direction:row;align-items:center;gap:9px;padding-top:14px;cursor:pointer;">
-            <input type="checkbox" data-input-key="${f.key}" data-input-type="checkbox" ${val ? 'checked' : ''} />
-            <span class="field-label" style="font-size:12px;color:#e2e8f0;">${esc(lbl)}</span>
-          </label>
-        `;
-      }
-      if (f.type === 'select') {
-        const opts = f.options.map(o => {
-          const optTxt = state.lang === 'zh' ? (FLOW_OPT_ZH[o] || o.toUpperCase()) : o.toUpperCase();
-          return `<option value="${o}" ${val === o ? 'selected' : ''}>${esc(optTxt)}</option>`;
-        }).join('');
-        return `
-          <div class="field-group">
-            <span class="field-label">${esc(lbl)}</span>
-            <select class="field-select" data-input-key="${f.key}" data-input-type="select">${opts}</select>
-          </div>
-        `;
-      }
-      return `
-        <div class="field-group">
-          <div class="field-label">
-            <span>${esc(lbl)}</span>
-            <strong style="color:#38bdf8;" id="lbl-${f.key}">${val}</strong>
-          </div>
-          <input class="field-range" type="range"
-                 min="${f.min}" max="${f.max}" step="${f.step}" value="${val}"
-                 data-input-key="${f.key}" data-input-type="number" />
-        </div>
-      `;
-    }).join('');
-  }
-
   function render() {
     const modulesMap = data.modules || {};
     const schedule = data.schedule || {};
@@ -680,11 +609,15 @@ HUD_CONTROLLER_BODY_JS = r"""
       const bodyHtml = it.texts.length === 1
         ? `<div class="tl-desc">${esc(it.texts[0])}</div>`
         : `<ol class="protocol-list" style="font-size:12px;color:#e2e8f0;">${it.texts.map(line => `<li>${esc(line)}</li>`).join('')}</ol>`;
+      const canQuickLog = Boolean(modulesMap[it.mod]);
       return `
         <div class="timeline-card" style="--tl-color:${col}">
           <div class="tl-hdr">
             <span class="tl-mod">${esc(modTitle)}</span>
-            <span class="tl-time" ${dueAttr}>${esc(it.tag)}</span>
+            <div style="display:flex;align-items:center;gap:6px;">
+              ${canQuickLog ? `<button type="button" class="tl-log-btn" data-quick-log-mod="${esc(it.mod)}">${esc(t('timeline_log_btn'))}</button>` : ''}
+              <span class="tl-time" ${dueAttr}>${esc(it.tag)}</span>
+            </div>
           </div>
           ${bodyHtml}
         </div>
@@ -770,6 +703,7 @@ HUD_CONTROLLER_BODY_JS = r"""
           </span>
         </div>
         <div class="reminder-actions">
+          <button class="rem-btn rem-btn-primary" id="open-due-checkin-btn">${esc(t('rem_log_btn'))}</button>
           <button class="rem-btn" id="ack-due-btn">${esc(t('rem_mark_done'))}</button>
           <button class="rem-btn" id="toggle-sound-btn">${esc(state.clock.sound_enabled ? t('rem_mute') : t('rem_unmute'))}</button>
         </div>
@@ -817,6 +751,10 @@ HUD_CONTROLLER_BODY_JS = r"""
                   `).join('')}
                 </div>
               ` : ''}
+
+              <button class="daily-log-btn" id="open-checkin-btn">
+                ${esc(t('daily_log_btn'))}
+              </button>
 
               <button class="drawer-toggle-btn" id="open-drawer-btn">
                 ${esc(t('drawer_btn'))} ${(state.developer_mode && state.use_manual_overrides) ? '(' + esc(t('manual_on')) + ')' : ''}
@@ -966,142 +904,13 @@ HUD_CONTROLLER_BODY_JS = r"""
         </div>
       </div>
 
-      <!-- SLIDE-OVER SETTINGS & MANUAL TELEMETRY DRAWER -->
-      <div class="drawer-backdrop ${state.drawerOpen ? 'open' : ''}" id="drawer-backdrop">
-        <div class="drawer-panel" id="drawer-panel">
-          <div class="drawer-hdr">
-            <span class="drawer-title">${esc(t('drawer_title'))}</span>
-            <button class="close-btn" id="close-drawer-btn">${esc(t('close_btn'))}</button>
-          </div>
-
-          <div class="lang-row">
-            <div style="display:flex;flex-direction:column;gap:2px;">
-              <span style="font-size:11.5px;font-weight:700;color:#e2e8f0;letter-spacing:0.6px;">${esc(t('lang_label'))}</span>
-              <span style="font-size:11px;color:#94a3b8;">${esc(t('lang_desc'))}</span>
-            </div>
-            <div class="lang-switch">
-              <button class="lang-btn ${state.lang === 'en' ? 'active' : ''}" data-lang="en">English</button>
-              <button class="lang-btn ${state.lang === 'zh' ? 'active' : ''}" data-lang="zh">繁體中文</button>
-            </div>
-          </div>
-
-          <div class="dev-toggle-row ${state.developer_mode ? 'active' : ''}">
-            <div style="display:flex;flex-direction:column;gap:2px;">
-              <span style="font-size:11.5px;font-weight:700;color:#fbbf24;letter-spacing:0.6px;">🛠 ${esc(t('dev_mode_label'))}</span>
-              <span style="font-size:11px;color:#94a3b8;">${esc(t('dev_mode_desc'))}</span>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" id="inp-dev-mode" ${state.developer_mode ? 'checked' : ''} />
-              <span class="toggle-track"><span class="toggle-thumb"></span></span>
-            </label>
-          </div>
-
-          <!-- OFFLINE SPACECRAFT RTC CALIBRATION & SIMULATION SPEED -->
-          <div class="clock-box">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-              <div style="display:flex;flex-direction:column;gap:2px;">
-                <span style="font-size:11.5px;font-weight:700;color:#38bdf8;letter-spacing:0.6px;">⏱ ${esc(t('clk_section_title'))}</span>
-                <span style="font-size:10.5px;color:#94a3b8;">${esc(t('clk_section_desc'))}</span>
-              </div>
-              <label style="font-size:11px;color:#cbd5e1;display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap;">
-                <input type="checkbox" id="inp-clock-sound" ${state.clock.sound_enabled ? 'checked' : ''} />
-                ${esc(t('clk_sound_lbl'))}
-              </label>
-            </div>
-            <div class="clock-grid">
-              <div class="field-group">
-                <span class="field-label">${esc(t('clk_date_lbl'))}</span>
-                <input class="field-input" type="date" id="inp-clk-date" value="${esc(formatScDate(scNow))}" />
-              </div>
-              <div class="field-group">
-                <span class="field-label">${esc(t('clk_time_lbl'))}</span>
-                <input class="field-input" type="time" step="1" id="inp-clk-time" value="${esc(formatScTime(scNow))}" />
-              </div>
-              <button class="rem-btn" style="padding:8px 12px;" id="apply-clock-btn">${esc(t('clk_apply_btn'))}</button>
-              <button class="rem-btn" style="padding:8px 12px;border-color:rgba(16,185,129,0.5);color:#6ee7b7;" id="sync-earth-now-btn">${esc(t('clk_now_btn'))}</button>
-            </div>
-            ${state.developer_mode ? `
-              <div class="clock-speed-row">
-                <div style="display:flex;align-items:center;gap:5px;">
-                  <span style="font-size:10.5px;color:#94a3b8;font-weight:600;">${esc(t('clk_speed_lbl'))}</span>
-                  ${[1, 60, 3600].map(sp => `
-                    <button class="view-pill-btn ${state.clock.time_scale === sp ? 'active' : ''}" data-clk-speed="${sp}">${sp}x</button>
-                  `).join('')}
-                </div>
-                <div style="display:flex;align-items:center;gap:5px;">
-                  <span style="font-size:10.5px;color:#94a3b8;font-weight:600;">${esc(t('clk_jump_lbl'))}</span>
-                  ${[1, 12, 24].map(hrs => `
-                    <button class="view-pill-btn" data-clk-jump="${hrs}">+${hrs}H</button>
-                  `).join('')}
-                </div>
-              </div>
-            ` : ''}
-          </div>
-
-          <div class="form-meta-grid">
-            <div class="field-group">
-              <span class="field-label">${esc(t('crew_id_lbl'))}</span>
-              <input class="field-input" id="inp-crew" value="${esc(state.crew_id)}" />
-            </div>
-            <div class="field-group">
-              <span class="field-label">${esc(t('mission_day_lbl'))}</span>
-              <input class="field-input" id="inp-day" type="number" min="1" max="1200" value="${esc(state.mission_day)}" />
-            </div>
-            ${state.developer_mode ? `
-              <div class="field-group" style="justify-content:center;gap:8px;">
-                <label style="font-size:11.5px;color:#cbd5e1;display:flex;align-items:center;gap:6px;cursor:pointer;">
-                  <input type="checkbox" id="inp-prefer-csv" ${state.prefer_real_csv ? 'checked' : ''} />
-                  ${esc(t('prefer_csv_lbl'))}
-                </label>
-                <label style="font-size:11.5px;color:#38bdf8;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;">
-                  <input type="checkbox" id="inp-use-manual" ${state.use_manual_overrides ? 'checked' : ''} />
-                  ${esc(t('enable_manual_lbl'))}
-                </label>
-              </div>
-            ` : ''}
-          </div>
-
-          ${state.developer_mode ? `
-            <div class="mod-tabs">
-              ${order.map(modId => {
-                const m = modulesMap[modId];
-                return `
-                  <button class="mod-tab-btn ${state.drawerTab === modId ? 'active' : ''}" data-drawer-tab="${modId}">
-                    ${esc(modShortName(modId, m ? m.short_name : modId))}
-                  </button>
-                `;
-              }).join('')}
-            </div>
-
-            <div class="sliders-grid">
-              ${buildDrawerFields()}
-            </div>
-          ` : ''}
-
-          <div class="drawer-footer">
-            ${state.developer_mode ? `<button class="secondary-btn" id="reset-overrides-btn">${esc(t('reset_btn'))}</button>` : ''}
-            <button class="run-btn" id="save-run-btn">${esc(t('save_run_btn'))}</button>
-          </div>
-        </div>
-      </div>
+      ${buildDrawerPanelHtml(modulesMap, order, scNow, dueModules)}
     `;
 
     bindEvents();
   }
 
   function bindEvents() {
-    // Language toggle inside Settings Drawer
-    root.querySelectorAll('[data-lang]').forEach(btn => {
-      btn.onclick = () => {
-        const nextLang = btn.getAttribute('data-lang');
-        if (nextLang && nextLang !== state.lang) {
-          state.lang = nextLang;
-          render();
-          sendPayload('switch_lang');
-        }
-      };
-    });
-
     // Scenario preset buttons -> reset module timers to new scenario cadence and evaluate
     root.querySelectorAll('[data-scen]').forEach(btn => {
       btn.onclick = () => {
@@ -1113,32 +922,35 @@ HUD_CONTROLLER_BODY_JS = r"""
       };
     });
 
-    // Mode Badge opens Settings Drawer
+    // Mode Badge opens Settings Drawer on Settings tab
     const modePillBtn = root.querySelector('#mode-pill-btn');
-    if (modePillBtn) modePillBtn.onclick = () => { state.drawerOpen = true; render(); };
+    if (modePillBtn) modePillBtn.onclick = () => { state.drawerSection = 'settings'; state.drawerOpen = true; render(); };
 
-    // Developer Mode toggle inside Settings Drawer
-    const devModeChk = root.querySelector('#inp-dev-mode');
-    if (devModeChk) {
-      devModeChk.onchange = () => {
-        state.developer_mode = devModeChk.checked;
-        if (!state.developer_mode) {
-          state.scenario = 'green';
-          state.prefer_real_csv = true;
-          state.use_manual_overrides = false;
-          state.clock.spacecraft_epoch_ms = getSpacecraftNowMs();
-          state.clock.host_epoch_ms = Date.now();
-          state.clock.time_scale = 1;
-          state.clock.module_due_ms = {};
-          state.chimedKeys = {};
-        }
+    // Top bar Daily Check-In button opens Drawer on Check-In tab
+    const openCheckinBtn = root.querySelector('#open-checkin-btn');
+    if (openCheckinBtn) {
+      openCheckinBtn.onclick = () => {
+        const due = getDueModules(data.modules || {}, getSpacecraftNowMs());
+        state.drawerSection = 'checkin';
+        if (due.length) state.checkinModuleTab = due[0].module_id;
+        else state.checkinModuleTab = state.selectedModule;
+        state.drawerOpen = true;
         render();
-        sendPayload('toggle_developer_mode');
       };
     }
 
-    // Reminder Banner: Mark Checked & Reset Timer / Toggle Mute
+    // Reminder Banner: Log Check-In Data / Mark Checked & Reset Timer / Toggle Mute
     function bindReminderBannerEvents() {
+      const dueLogBtn = root.querySelector('#open-due-checkin-btn');
+      if (dueLogBtn) {
+        dueLogBtn.onclick = () => {
+          const due = getDueModules(data.modules || {}, getSpacecraftNowMs());
+          state.drawerSection = 'checkin';
+          if (due.length) state.checkinModuleTab = due[0].module_id;
+          state.drawerOpen = true;
+          render();
+        };
+      }
       const ackBtn = root.querySelector('#ack-due-btn');
       if (ackBtn) {
         ackBtn.onclick = () => {
@@ -1168,76 +980,14 @@ HUD_CONTROLLER_BODY_JS = r"""
     }
     bindReminderBannerEvents();
 
-    // Drawer Offline Clock Controls
-    const soundChk = root.querySelector('#inp-clock-sound');
-    if (soundChk) {
-      soundChk.onchange = () => {
-        state.clock.sound_enabled = soundChk.checked;
-      };
-    }
-
-    const applyClkBtn = root.querySelector('#apply-clock-btn');
-    if (applyClkBtn) {
-      applyClkBtn.onclick = () => {
-        const dEl = root.querySelector('#inp-clk-date');
-        const tEl = root.querySelector('#inp-clk-time');
-        if (dEl && tEl && dEl.value && tEl.value) {
-          const tStr = tEl.value.length === 5 ? `${tEl.value}:00` : tEl.value;
-          const parsed = new Date(`${dEl.value}T${tStr}`).getTime();
-          if (!isNaN(parsed)) {
-            const oldNow = getSpacecraftNowMs();
-            const shift = parsed - oldNow;
-            state.clock.spacecraft_epoch_ms = parsed;
-            state.clock.host_epoch_ms = Date.now();
-            state.mission_day = computeMccMissionDay(parsed);
-            // Keep existing countdown intervals relative to the new calibrated clock
-            Object.keys(state.clock.module_due_ms).forEach(k => {
-              state.clock.module_due_ms[k] = Number(state.clock.module_due_ms[k]) + shift;
-            });
-            render();
-            sendPayload('save_clock');
-          }
-        }
-      };
-    }
-
-    const syncNowBtn = root.querySelector('#sync-earth-now-btn');
-    if (syncNowBtn) {
-      syncNowBtn.onclick = () => {
-        const nowMs = Date.now();
-        state.clock.spacecraft_epoch_ms = nowMs;
-        state.clock.host_epoch_ms = nowMs;
-        state.clock.time_scale = 1;
-        state.clock.module_due_ms = {};
-        state.chimedKeys = {};
-        state.mission_day = computeMccMissionDay(nowMs);
-        render();
-        sendPayload('sync_earth_now');
-      };
-    }
-
-    root.querySelectorAll('[data-clk-speed]').forEach(btn => {
+    // Right Timeline Card quick-log button
+    root.querySelectorAll('[data-quick-log-mod]').forEach(btn => {
       btn.onclick = () => {
-        const sp = Number(btn.getAttribute('data-clk-speed')) || 1;
-        const scNow = getSpacecraftNowMs();
-        state.clock.spacecraft_epoch_ms = scNow;
-        state.clock.host_epoch_ms = Date.now();
-        state.clock.time_scale = sp;
-        state.mission_day = computeMccMissionDay(scNow);
+        const modId = btn.getAttribute('data-quick-log-mod');
+        if (modId) state.checkinModuleTab = modId;
+        state.drawerSection = 'checkin';
+        state.drawerOpen = true;
         render();
-        sendPayload('save_clock');
-      };
-    });
-
-    root.querySelectorAll('[data-clk-jump]').forEach(btn => {
-      btn.onclick = () => {
-        const hrs = Number(btn.getAttribute('data-clk-jump')) || 1;
-        const nextMs = getSpacecraftNowMs() + hrs * 3600 * 1000;
-        state.clock.spacecraft_epoch_ms = nextMs;
-        state.clock.host_epoch_ms = Date.now();
-        state.mission_day = computeMccMissionDay(nextMs);
-        render();
-        sendPayload('save_clock');
       };
     });
 
@@ -1312,92 +1062,9 @@ HUD_CONTROLLER_BODY_JS = r"""
       };
     });
 
-    // Drawer open / close
+    // Settings Drawer open button
     const openBtn = root.querySelector('#open-drawer-btn');
-    if (openBtn) openBtn.onclick = () => { state.drawerOpen = true; render(); };
-
-    const closeBtn = root.querySelector('#close-drawer-btn');
-    if (closeBtn) closeBtn.onclick = () => { state.drawerOpen = false; render(); };
-
-    const backdrop = root.querySelector('#drawer-backdrop');
-    if (backdrop) {
-      backdrop.onclick = (e) => {
-        if (e.target === backdrop) {
-          state.drawerOpen = false;
-          render();
-        }
-      };
-    }
-
-    // Drawer module tabs
-    root.querySelectorAll('[data-drawer-tab]').forEach(btn => {
-      btn.onclick = () => {
-        state.drawerTab = btn.getAttribute('data-drawer-tab');
-        render();
-      };
-    });
-
-    // Drawer metadata inputs
-    const inpCrew = root.querySelector('#inp-crew');
-    if (inpCrew) inpCrew.onchange = () => { state.crew_id = inpCrew.value; };
-
-    const inpDay = root.querySelector('#inp-day');
-    if (inpDay) {
-      inpDay.onchange = () => {
-        const newDay = Math.max(1, Number(inpDay.value) || 124);
-        const scNow = getSpacecraftNowMs();
-        state.mission_day = newDay;
-        state.clock.anchor_midnight_ms = localMidnightMs(scNow);
-        state.clock.anchor_mission_day = newDay;
-      };
-    }
-
-    const inpPreferCsv = root.querySelector('#inp-prefer-csv');
-    if (inpPreferCsv) inpPreferCsv.onchange = () => { state.prefer_real_csv = inpPreferCsv.checked; };
-
-    const inpUseManual = root.querySelector('#inp-use-manual');
-    if (inpUseManual) inpUseManual.onchange = () => { state.use_manual_overrides = inpUseManual.checked; };
-
-    // Drawer live slider / select / checkbox inputs
-    root.querySelectorAll('[data-input-key]').forEach(inp => {
-      const key = inp.getAttribute('data-input-key');
-      const typ = inp.getAttribute('data-input-type');
-      inp.oninput = () => {
-        if (!state.inputs[state.drawerTab]) state.inputs[state.drawerTab] = {};
-        let v = inp.value;
-        if (typ === 'number') v = Number(inp.value);
-        if (typ === 'checkbox') v = inp.checked;
-        state.inputs[state.drawerTab][key] = v;
-        state.use_manual_overrides = true;
-        const chk = root.querySelector('#inp-use-manual');
-        if (chk) chk.checked = true;
-        const lbl = root.querySelector('#lbl-' + key);
-        if (lbl) lbl.textContent = v;
-      };
-    });
-
-    // Save & Run All 5 Agents (also resets due timers based on newly computed next_measurement_in_hours)
-    const saveRunBtn = root.querySelector('#save-run-btn');
-    if (saveRunBtn) {
-      saveRunBtn.onclick = () => {
-        state.drawerOpen = false;
-        state.clock.module_due_ms = {};
-        state.chimedKeys = {};
-        sendPayload('save_and_run');
-      };
-    }
-
-    // Reset manual overrides
-    const resetBtn = root.querySelector('#reset-overrides-btn');
-    if (resetBtn) {
-      resetBtn.onclick = () => {
-        state.use_manual_overrides = false;
-        state.drawerOpen = false;
-        state.clock.module_due_ms = {};
-        state.chimedKeys = {};
-        sendPayload('reset_overrides');
-      };
-    }
+    if (openBtn) openBtn.onclick = () => { state.drawerSection = 'settings'; state.drawerOpen = true; render(); };
 
     // Generate Demo CSVs
     const genCsvBtn = root.querySelector('#gen-csv-btn');
@@ -1406,6 +1073,8 @@ HUD_CONTROLLER_BODY_JS = r"""
         sendPayload('generate_demo_csvs');
       };
     }
+
+    bindDrawerEvents();
   }
 
   // Background 1-second offline clock ticker (updates DOM smoothly without full re-render)
@@ -1491,6 +1160,7 @@ def build_hud_js() -> str:
         "  }\n"
         f"{HUD_I18N_JS}\n"
         f"{HUD_ANATOMY_JS}\n"
+        f"{HUD_DRAWER_JS}\n"
         f"{HUD_CONTROLLER_BODY_JS}\n"
         "}\n"
     )
