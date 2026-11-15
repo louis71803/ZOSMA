@@ -19,8 +19,9 @@ Read startup files again only when:
 
 - **Daily notes:** `memory/YYYY-MM-DD.md` holds local raw logs (ignored by Git).
 - **User model:** `USER.md` holds the individual developer's assigned role among the 6 team members (ignored by Git).
+- **Dreaming & local runtime state:** `DREAMS.md` and `data/runtime_session.json` hold local runtime state (ignored by Git).
 - **Long-term:** `MEMORY.md` holds durable non-profile facts and decisions (main session only).
-- **Never commit `USER.md` or `memory/` to Git** to prevent merge conflicts across the 6 developers' machines.
+- **Never commit `USER.md`, `memory/`, `DREAMS.md`, or `data/runtime_session.json` to Git** to prevent merge conflicts across the 6 developers' machines.
 
 ---
 
@@ -29,38 +30,55 @@ Read startup files again only when:
 ### 1. Tech Stack & Environment (100% Pure Python in Conda)
 - **Language:** Python 3.10+ (Conda environment).
 - **Required Packages (`requirements.txt`):** `streamlit>=1.38.0`, `plotly>=5.24.0`, `pydantic>=2.9.0`, `pandas>=2.2.0`, `numpy>=1.26.0`, `scipy>=1.14.0`, `matplotlib>=3.9.0`, `pyyaml>=6.0.1`.
-- **UI & Visualization:** `Streamlit` (3-column Mission Control dashboard, manual input sliders, interactive 2D human body & cabin status map, 3-step crew guidance cards, and closed-loop daily/long-term scheduler) + `Plotly` (longitudinal trend charts with green/yellow/red threshold bands and trend projection lines).
+- **UI & Visualization:** `Streamlit` + bidirectional `st.components.v2` SpaceX HUD (`ui/styles.py`, `ui/i18n.py`, `ui/anatomy_svgs.py`, `ui/hud_controller.py`, `ui/hud_assets.py`) with 3-column Mission Control dashboard, offline MCC spacecraft RTC clock, manual input sliders, interactive holographic human body & cabin status map, 3-step crew guidance cards, and closed-loop daily/long-term scheduler + `Plotly` longitudinal trend charts.
 - **Data Validation:** `Pydantic` (strictly typed Input/Output schemas in `core/schema.py`).
 
-### 2. Separation of Concerns & Zero-Conflict File Ownership
-To guarantee **zero Git merge conflicts** and protect teammates who are domain researchers rather than experienced coders, responsibilities are strictly divided:
+### 2. Separation of Concerns, Zero-Conflict File Ownership & Subpackage Standard (Option A)
+To guarantee **zero Git merge conflicts** and protect teammates who are domain researchers rather than experienced coders, responsibilities and directory boundaries are strictly divided:
 
 - **Role 1 (Lead System Integrator & UI Architect — `main` branch):**
-  - **Owns:** `app.py`, `requirements.txt`, `core/schema.py`, `core/data_loader.py`, `core/scheduler.py`, and `data/shared_real/`.
+  - **Owns:** `app.py`, `requirements.txt`, `core/` (`schema.py`, `data_loader.py`, `scheduler.py`), `ui/` (`styles.py`, `i18n.py`, `anatomy_svgs.py`, `hud_controller.py`, `hud_assets.py`), `modules/__init__.py`, and `data/shared_real/`.
   - **Exclusive Responsibilities:**
-    1. **Frontend UI & Telemetry Input Forms:** Provides manual sliders/inputs in Streamlit for all 5 domains and passes them as clean Python `dict` payloads to each module's `evaluate()` function.
-    2. **Centralized Data Persistence (Storage):** Handles all saving/appending of new measurements to local storage (`data/runtime_session.json`). **Modules 2–6 MUST NOT write to shared databases directly.**
-    3. **Global Short-Term & Long-Term Schedule Aggregation & Cross-Module Context:** Collects `short_term_plan` and `long_term_plan` outputs from all 5 modules, propagates cross-module flags (`spe_alert`, `ppco2_mmHg`, `sleep_h`), resolves conflicts (e.g., halting heavy E4D resistance workouts if Cardiovascular or Immune triggers a `RED` fever/arrhythmia/clot alert), and renders the master timeline.
+    1. **Frontend UI & Telemetry Input Forms:** Provides manual sliders/inputs in the HUD for all 5 domains and passes them as clean Python `dict` payloads to each module's `evaluate()` function.
+    2. **Centralized Data Persistence (Storage):** Handles all saving/appending of new measurements and offline RTC state to local storage (`data/runtime_session.json`). **Modules 2–6 MUST NOT write to shared databases directly.**
+    3. **Global Short-Term & Long-Term Schedule Aggregation & Cross-Module Context:** Collects `short_term_plan` and `long_term_plan` outputs from all 5 modules, propagates cross-module flags (`spe_alert`, `ppco2_1h_mmHg`, `sleep_tst_h`), resolves conflicts (e.g., halting heavy E4D resistance workouts if Cardiovascular or Immune triggers a `RED` fever/arrhythmia/clot alert), and renders the master timeline.
 
 - **Roles 2–6 (5 Domain Evaluator Agents — `feat/*` branches):**
-  - **Role 2 (Musculoskeletal):** Owns `modules/musculoskeletal.py` and `data/musculoskeletal/`.
-  - **Role 3 (Cardiovascular & Aerobic):** Owns `modules/cardiovascular.py` and `data/cardiovascular/`.
-  - **Role 4 (Neuro-Ocular & Vestibular):** Owns `modules/neuro_ocular.py` and `data/neuro_ocular/`.
-  - **Role 5 (Immune, Endocrine & Metabolic):** Owns `modules/immune_metabolic.py` (or `modules/immune.py`) and `data/immune_metabolic/`.
-  - **Role 6 (Radiation, Acoustics & Cabin Env):** Owns `modules/cabin_environment.py` and `data/cabin_environment/`.
+  - **Role 2 (Musculoskeletal):** Owns `modules/musculoskeletal/` (or single-file `modules/musculoskeletal.py`) and `data/musculoskeletal/`.
+  - **Role 3 (Cardiovascular & Aerobic):** Owns `modules/cardiovascular/` (or single-file `modules/cardiovascular.py`) and `data/cardiovascular/`.
+  - **Role 4 (Neuro-Ocular & Vestibular):** Owns `modules/neuro_ocular/` (or single-file `modules/neuro_ocular.py`) and `data/neuro_ocular/`.
+  - **Role 5 (Immune, Endocrine & Metabolic):** Owns `modules/immune_metabolic/` (or single-file `modules/immune_metabolic.py` / `modules/immune.py`) and `data/immune_metabolic/`.
+  - **Role 6 (Radiation, Acoustics & Cabin Env):** Owns `modules/cabin_environment/` (or single-file `modules/cabin_environment.py`) and `data/cabin_environment/`.
   - **Exclusive Responsibilities:** Implement **stateless pure evaluation functions** that accept sensor/manual inputs + baselines, run the 3-layer decision model (+ Layer 0 QC Gatekeeper), and return standardized diagnostics, 3-step crew guidance, and module-specific short-term/long-term recommendations.
+
+#### MANDATORY MODULE SPLITTING & SUBPACKAGE RULE (Option A — `modules/<module_id>/`)
+Whenever any domain module (Roles 2–6) grows large or needs to be split into multiple `.py` files (such as helper functions, rules, data loaders, or guidance templates):
+1. **Never place extra helper `.py` files Loose in the root `modules/` directory** (e.g., do NOT create `modules/cardio_data.py` or mismatched folders like `modules/cabin_env/`).
+2. **Use a dedicated Python subpackage named after the canonical `module_id`:**
+   - `modules/musculoskeletal/`
+   - `modules/cardiovascular/`
+   - `modules/neuro_ocular/`
+   - `modules/immune_metabolic/`
+   - `modules/cabin_environment/`
+3. **Expose the standard public contract in `modules/<module_id>/__init__.py`:**
+   - Must export `evaluate`, `demo_baseline`, `demo_payload`, `export_demo_csvs`, and `to_schema` so `importlib.import_module(f"modules.{module_id}")` in `core/data_loader.py` works identically whether the module is a single file or a multi-file subpackage.
+4. **Path Resolution Inside Subpackages (`BASE_DIR` / `DATA_DIR`):**
+   - For a file inside `modules/<module_id>/*.py` (2 levels below project root), always resolve the project root with **three `.parent` calls**:
+     `BASE_DIR = Path(__file__).resolve().parent.parent.parent`
+     `DATA_DIR = BASE_DIR / "data" / "<module_id>"`
+     *(Whereas a single top-level file `modules/<module_id>.py` uses `Path(__file__).resolve().parent.parent`).*
 
 ### 3. Data Folder Checklist & Proactive Missing-CSV Handling
 Teammates may not have placed their CSV/JSON files into `data/` yet. **NO module is allowed to crash with `FileNotFoundError`.**
 - **`data/shared_real/`:** `OSD-569_inspiration4_cbc.csv` (or `osd569_cbc_transformed.csv`), `OSD-575_cmp.csv` (or `osd575_cmp.csv`), `OSD-575_cv_panel.csv`.
-- **`data/musculoskeletal/`:** `e4d_sets.csv`, `measurements_long.csv`, `preflight_baseline.json`.
-- **`data/cardiovascular/`:** `daily_vitals.csv`, `bike_test.csv`, `stand_test.csv`, `holter_24h.csv`, `ultrasound.csv`, `biomonitor_stream_day124.csv`, plus optional `real/` (PRCP & MIT-BIH).
+- **`data/musculoskeletal/`:** `e4d_sets.csv`, `measurements_long.csv`, `preflight_baseline.json`, plus reference files `iss_published_reference.csv`, `literature_reference.json`.
+- **`data/cardiovascular/`:** `daily_vitals.csv`, `bike_test.csv`, `stand_test.csv`, `holter_24h.csv`, `ultrasound.csv`, `biomonitor_stream_day124.csv`, `preflight_baseline.json`, plus optional `real/` (PRCP & MIT-BIH).
 - **`data/neuro_ocular/`:** `mini_oct_scans.csv`, `ultrasound_eye.csv`, `vog_vestibular.csv`, `preflight_baseline.json`.
 - **`data/immune_metabolic/`:** `daily_checkin.csv`, `cbc_monthly.csv`, `saliva_virus.csv`, `events.csv`, `preflight_baseline.json`.
-- **`data/cabin_environment/`:** `rad01_area_dose.csv`, `rad02_crew_dose_daily.csv`, `goes_integral_protons_6h.json`, `aco01_module_spl.csv`, `aco02_crew_dosimetry.csv`, `atm01_co2.csv`, `atm02_pressure_o2.csv`, `atm03_thermal.csv`, `atm04_voc.csv`, `iso01_sleep.csv`, `iso02_pvt.csv`, `iso03_mood.csv`.
+- **`data/cabin_environment/`:** `rad01_area_dose.csv`, `rad02_crew_dose_daily.csv`, `goes_integral_protons_6h.json`, `aco01_module_spl.csv`, `aco02_crew_dosimetry.csv`, `aco03_audiogram.csv`, `atm01_co2.csv`, `atm02_pressure_o2.csv`, `atm03_thermal.csv`, `atm04_voc.csv`, `atm05_water_chem.csv`, `atm06_microbial.csv`, `atm07_particulates.csv`, `iso01_sleep.csv`, `iso02_pvt.csv`, `iso03_mood.csv`, `iso04_light.csv`, `preflight_baseline.json`.
 
 **MANDATORY AGENT BEHAVIOR FOR DATA FILES:**
-1. Every module (`modules/*.py`) MUST implement `demo_baseline()`, `demo_payload(scenario="green"|"yellow"|"red"|"bad_data")`, and `export_demo_csvs()` (which auto-generates sample CSVs inside `data/<module_name>/` if the folder is empty).
+1. Every module (`modules/<module_id>` or `modules/<module_id>.py`) MUST implement `demo_baseline()`, `demo_payload(scenario="green"|"yellow"|"red"|"bad_data")`, and `export_demo_csvs()` (which auto-generates sample CSVs inside `data/<module_name>/` if the folder is empty).
 2. Whenever assisting a teammate (Roles 2–6), inspect their `data/<module_name>/` directory. If files are missing, proactively remind them of the exact folder path, filenames, and column headers, and offer to run `export_demo_csvs()` so they have ready-to-edit CSV templates.
 
 ### 4. Unified Data Contract (`core/schema.py` Input & Output Specification)
@@ -97,11 +115,11 @@ Every module MUST evaluate metrics through the **Layer 0 QC Gatekeeper + 3-Layer
 - `schedule_mutation`: Legacy compatibility dict `{ next_measurement_in_hours, prescription_adjustment, urgent_alert }`.
 
 ### 5. Domain Specifications for the 5 Modules
-- **Module A (`modules/musculoskeletal.py`):** E4D Bone Stimulus Index ($S_{bone}$), Isometric Peak Force (SRI $\Delta\text{Strength}\%$), VBT squat velocity loss ($30\%$ red limit), Ultrasound 2 thigh ($4\%/7\%$) & calf ($5\%/10\%$) CSA, SLAMMD body mass ($5\%/10\%$), Bio-Analyzer bone markers (NTX, CTX $+50\%$ red, P1NP), plus NASA OSD-575 Ca/ALP baseline validation[cite: 56, 57, 58].
-- **Module B (`modules/cardiovascular.py`):** M1–M11 indicators (Resting HR, PTT Blood Pressure, $SpO_2$, Resp Rate, Holter 24h PVC burden & MIT-BIH validation, LBNP/Stand test orthostatic tolerance & PRCP validation, CEVIS 150W HR drift, Ultrasound 2 GLS cardiac strain & IJV stasis/clot protocol, OSD-569 Dill & Costill plasma volume $\% \Delta PV$, OSD-575 serum K+/CRP/clotting)[cite: 40, 41, 42, 43, 44, 45, 46].
-- **Module C (`modules/neuro_ocular.py`):** Per-eye (OD/OS) SANS & Vestibular evaluation: Mini OCT QC (`quality_score` & `registered_to_baseline`), $\Delta\text{TRT}$ ($+20\text{ }\mu\text{m}$ Yellow / $+55\text{ }\mu\text{m}$ Red), $\Delta V_{\text{ONH}}$ ($0.10\text{–}0.15\text{ mm}^3$ `GREEN-WATCH`, $\ge 0.15$ Yellow, $\ge 0.30$ Red), $\Delta\text{RNFL}$ ($10\text{–}15\text{ }\mu\text{m}$ `GREEN-WATCH`, $>15$ Yellow), hyperopic shift ($\ge +0.75\text{ D}$ Yellow $\rightarrow$ Space Anticipation Glasses), foveal folds / Amsler scotoma (Red), combined ONSD ($\text{ONSD} > 6.0\text{ mm}$ AND $\Delta\text{ONSD} \ge +0.5\text{ mm}$ Red), gravity-transition-aware `vor_gain` / `ocr_deg` / `ms_score` / tandem walk, plus DS-0 saturating exponential generator[cite: 87, 88, 89, 97, 98].
-- **Module D (`modules/immune_metabolic.py`):** I1–I10 indicators (Oral Temp, 9 Symptoms & skin photo guide, HemoCue/Bio-Analyzer WBC & $<10\%$ neutrophil mis-sort quality gate validated on OSD-569 C003 L-92, Lymphocytes with $-25\%$ drop & post-SPE $-50\%$ rule, Neutrophils & NLR stress index, Saliva VZV/EBV DNA copies/mL, Sleep & Stress risk factors, HERA SPE cross-module trigger, CRP/IL-6, Vitamin D3 & hydration renal protection)[cite: 69, 70, 71, 72, 73, 74, 76].
-- **Module E (`modules/cabin_environment.py`):** 12 NASA-STD-3001 cards (`RAD-01..03`, `ACO-01..02`, `ATM-01..04`, `ISO-01..03`): RadLab DOSTEL area dose rate with South Atlantic Anomaly (SAA $50^\circ\text{S–}0^\circ, 90^\circ\text{W–}40^\circ\text{E}$) masking, personal cumulative dose ($480/600\text{ mSv}$), NOAA GOES-18 proton flux ($\ge 10\text{ MeV} \ge 10/100\text{ pfu}$), acoustics NC-50/NC-40 & LEQ8/24h dose, MCA/CDRA $ppCO_2$ ($2.5/3.0\text{ mmHg}$) & stuck-sensor ($\ge 24\text{h}$) rule, cabin total pressure & rapid depressurization fast-track, THC $T/RH$ envelope ($20\text{–}25^\circ\text{C}, 30\text{–}60\%$), AQM VOCs/ammonia SMAC ratios, and Actiwatch sleep / PVT-B alertness / Bedford workload[cite: 108, 112, 115, 116, 118, 119, 120, 122, 123, 125, 126, 127, 128].
+- **Module A (`modules/musculoskeletal/` or `modules/musculoskeletal.py`):** E4D Bone Stimulus Index ($S_{bone}$), Isometric Peak Force (SRI $\Delta\text{Strength}\%$), VBT squat velocity loss ($30\%$ red limit), Ultrasound 2 thigh ($4\%/7\%$) & calf ($5\%/10\%$) CSA, SLAMMD body mass ($5\%/10\%$), Bio-Analyzer bone markers (NTX, CTX $+50\%$ red, P1NP), plus NASA OSD-575 Ca/ALP baseline validation[cite: 56, 57, 58].
+- **Module B (`modules/cardiovascular/` or `modules/cardiovascular.py`):** M1–M11 indicators (Resting HR, PTT Blood Pressure, $SpO_2$, Resp Rate, Holter 24h PVC burden & MIT-BIH validation, LBNP/Stand test orthostatic tolerance & PRCP validation, CEVIS 150W HR drift, Ultrasound 2 GLS cardiac strain & IJV stasis/clot protocol, OSD-569 Dill & Costill plasma volume $\% \Delta PV$, OSD-575 serum K+/CRP/clotting)[cite: 40, 41, 42, 43, 44, 45, 46].
+- **Module C (`modules/neuro_ocular/` or `modules/neuro_ocular.py`):** Per-eye (OD/OS) SANS & Vestibular evaluation: Mini OCT QC (`quality_score` & `registered_to_baseline`), $\Delta\text{TRT}$ ($+20\text{ }\mu\text{m}$ Yellow / $+55\text{ }\mu\text{m}$ Red), $\Delta V_{\text{ONH}}$ ($0.10\text{–}0.15\text{ mm}^3$ `GREEN-WATCH`, $\ge 0.15$ Yellow, $\ge 0.30$ Red), $\Delta\text{RNFL}$ ($10\text{–}15\text{ }\mu\text{m}$ `GREEN-WATCH`, $>15$ Yellow), hyperopic shift ($\ge +0.75\text{ D}$ Yellow $\rightarrow$ Space Anticipation Glasses), foveal folds / Amsler scotoma (Red), combined ONSD ($\text{ONSD} > 6.0\text{ mm}$ AND $\Delta\text{ONSD} \ge +0.5\text{ mm}$ Red), gravity-transition-aware `vor_gain` / `ocr_deg` / `ms_score` / tandem walk, plus DS-0 saturating exponential generator[cite: 87, 88, 89, 97, 98].
+- **Module D (`modules/immune_metabolic/` or `modules/immune_metabolic.py`):** I1–I10 indicators (Oral Temp, 9 Symptoms & skin photo guide, HemoCue/Bio-Analyzer WBC & $<10\%$ neutrophil mis-sort quality gate validated on OSD-569 C003 L-92, Lymphocytes with $-25\%$ drop & post-SPE $-50\%$ rule, Neutrophils & NLR stress index, Saliva VZV/EBV DNA copies/mL, Sleep & Stress risk factors, HERA SPE cross-module trigger, CRP/IL-6, Vitamin D3 & hydration renal protection)[cite: 69, 70, 71, 72, 73, 74, 76].
+- **Module E (`modules/cabin_environment/` or `modules/cabin_environment.py`):** 17 NASA-STD-3001 cards (`RAD-01..03`, `ACO-01..03`, `ATM-01..07`, `ISO-01..04`): RadLab DOSTEL area dose rate with South Atlantic Anomaly (SAA $50^\circ\text{S–}0^\circ, 90^\circ\text{W–}40^\circ\text{E}$) masking, personal cumulative dose ($480/600\text{ mSv}$), NOAA GOES-18 proton flux ($\ge 10\text{ MeV} \ge 10/100\text{ pfu}$), acoustics NC-50/NC-40, LEQ8/24h dose & OOHA audiogram, MCA/CDRA $ppCO_2$ ($2.5/3.0\text{ mmHg}$) & stuck-sensor ($\ge 24\text{h}$) rule, cabin total pressure & rapid depressurization fast-track, THC $T/RH$ envelope ($20\text{–}25^\circ\text{C}, 30\text{–}60\%$), AQM VOCs/ammonia SMAC ratios, water TOC/iodine, microbial & particulate limits, and Actiwatch sleep / PVT-B alertness / Bedford workload / circadian lighting[cite: 108, 112, 115, 116, 118, 119, 120, 122, 123, 125, 126, 127, 128].
 
 ## Red Lines
 
