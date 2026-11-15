@@ -775,18 +775,14 @@ HUD_CSS = """
   border: 1px solid rgba(16, 185, 129, 0.35);
   background: rgba(16, 185, 129, 0.12);
   color: #34d399;
-  cursor: pointer;
-  transition: all 0.16s ease;
+  cursor: default;
+  user-select: none;
 }
 
 .mode-pill.dev {
   border-color: rgba(245, 158, 11, 0.5);
   background: rgba(245, 158, 11, 0.16);
   color: #fbbf24;
-}
-
-.mode-pill:hover {
-  filter: brightness(1.15);
 }
 
 /* ================= CENTER: DIAGNOSTICS, TREND & 3-STEP GUIDE ================= */

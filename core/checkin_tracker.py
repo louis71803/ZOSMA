@@ -977,6 +977,13 @@ METRIC_TRACKING_META: dict[str, dict[str, Any]] = {
         "lower_is_worse": False,
         "baseline_default": 2.0,
     },
+    "stress_vas": {
+        "payload_key": "stress_vas",
+        "yellow_threshold": 31.0,
+        "red_threshold": 38.0,
+        "lower_is_worse": False,
+        "baseline_default": 24.0,
+    },
 }
 
 
@@ -1033,7 +1040,7 @@ def record_checkin_entry(
         merged_vals["sleep_h"] = float(merged_vals["sleep_tst_h"])
     if "stress_score" in merged_vals and merged_vals["stress_score"] is not None:
         try:
-            merged_vals.setdefault("stress_vas", round(float(merged_vals["stress_score"]) * 10.0, 1))
+            merged_vals["stress_vas"] = round(float(merged_vals["stress_score"]) * 10.0, 1)
         except (TypeError, ValueError):
             pass
 
