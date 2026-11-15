@@ -9,13 +9,15 @@ from __future__ import annotations
 from ui.anatomy_svgs import HUD_ANATOMY_JS
 from ui.drawer_renderer import HUD_DRAWER_JS
 from ui.i18n import HUD_I18N_JS
+from ui.onboarding_bar import HUD_ONBOARDING_JS
 
 HUD_CONTROLLER_BODY_JS = r"""
   const STATUS_HEX = {
     GREEN: '#10b981',
     YELLOW: '#f59e0b',
     RED: '#ef4444',
-    QC: '#f97316'
+    QC: '#f97316',
+    STANDBY: '#38bdf8'
   };
 
   // Local instant UI state:
@@ -62,6 +64,9 @@ HUD_CONTROLLER_BODY_JS = r"""
     drawerScrollTop: Number(prevUi.drawerScrollTop || 0),
     crew_id: data.crew_id || 'C002',
     mission_day: data.mission_day || 124,
+    data_lifecycle_mode: data.data_lifecycle_mode || 'day1_standby',
+    onboarding_completed: Boolean(data.onboarding_completed),
+    guideBannerOpen: prevUi.guideBannerOpen !== undefined ? Boolean(prevUi.guideBannerOpen) : !Boolean(data.onboarding_completed),
     scenario: data.scenario || 'green',
     prefer_real_csv: data.prefer_real_csv !== false,
     use_manual_overrides: Boolean(data.use_manual_overrides),
@@ -99,6 +104,7 @@ HUD_CONTROLLER_BODY_JS = r"""
       checkinModuleTab: state.checkinModuleTab,
       drawerTab: state.drawerTab,
       drawerScrollTop: state.drawerScrollTop,
+      guideBannerOpen: state.guideBannerOpen,
       chimedKeys: state.chimedKeys
     };
   }
@@ -148,6 +154,10 @@ HUD_CONTROLLER_BODY_JS = r"""
   function ensureModuleDueTimers(modulesMap, scNow) {
     Object.keys(modulesMap).forEach(modId => {
       const m = modulesMap[modId];
+      if (m && m.standby) {
+        delete state.clock.module_due_ms[modId];
+        return;
+      }
       const nextH = Number((m && m.short_term_plan && m.short_term_plan.next_measurement_in_hours) ?? 24);
       const maxHorizonMs = Math.max(1, nextH) * 3600 * 1000;
       const existing = state.clock.module_due_ms[modId];
@@ -187,9 +197,10 @@ HUD_CONTROLLER_BODY_JS = r"""
   function getDueModules(modulesMap, scNow) {
     const due = [];
     Object.keys(modulesMap).forEach(modId => {
+      const m = modulesMap[modId];
+      if (m && m.standby) return;
       const dueAt = Number(state.clock.module_due_ms[modId] ?? (scNow + 3600000));
       if (dueAt <= scNow) {
-        const m = modulesMap[modId];
         due.push({
           module_id: modId,
           status: statusKey(m),
@@ -226,6 +237,7 @@ HUD_CONTROLLER_BODY_JS = r"""
   function statusKey(modObj) {
     if (!modObj) return 'GREEN';
     if (!modObj.quality_passed) return 'QC';
+    if (modObj.standby) return 'STANDBY';
     return modObj.status_light || 'GREEN';
   }
 
@@ -242,6 +254,7 @@ HUD_CONTROLLER_BODY_JS = r"""
       if (raw.includes('RESCAN')) return 'RESCAN';
       return 'QC FAIL';
     }
+    if (modObj.standby) return t('status_STANDBY');
     if (modObj.watch_flag) return t('status_WATCH');
     const st = modObj.status_light || 'GREEN';
     return t('status_' + st);
@@ -255,7 +268,9 @@ HUD_CONTROLLER_BODY_JS = r"""
       lang: state.lang,
       developer_mode: Boolean(state.developer_mode),
       crew_id: state.crew_id,
-      mission_day: Number(state.mission_day) || 124,
+      mission_day: Number(state.mission_day) || 1,
+      data_lifecycle_mode: state.data_lifecycle_mode,
+      onboarding_completed: Boolean(state.onboarding_completed),
       scenario: state.scenario,
       offline_clock: snapshotClockForSave(),
       prefer_real_csv: Boolean(state.prefer_real_csv),
@@ -807,11 +822,18 @@ HUD_CONTROLLER_BODY_JS = r"""
                 ${esc(t('daily_log_btn'))}
               </button>
 
+              <button class="guide-toggle-btn ${state.guideBannerOpen ? 'active' : ''}" id="toggle-guide-btn">
+                ${esc(t('guide_btn'))}
+              </button>
+
               <button class="drawer-toggle-btn" id="open-drawer-btn">
                 ${esc(t('drawer_btn'))} ${(state.developer_mode && state.use_manual_overrides) ? '(' + esc(t('manual_on')) + ')' : ''}
               </button>
             </div>
           </div>
+
+          <!-- STAGE 2: COLLAPSIBLE 3-STEP MISSION BRIEFING ONBOARDING BAR -->
+          ${buildOnboardingBannerHtml(modulesMap)}
 
           <!-- LIVE DUE / OVERDUE REMINDER BANNER -->
           <div id="reminder-slot">${dueBannerHtml}</div>
@@ -1137,6 +1159,7 @@ HUD_CONTROLLER_BODY_JS = r"""
     }
 
     bindDrawerEvents();
+    bindOnboardingAndCrewEvents();
   }
 
   // Background 1-second offline clock ticker (updates DOM smoothly without full re-render)
@@ -1227,6 +1250,7 @@ def build_hud_js() -> str:
         "  }\n"
         f"{HUD_I18N_JS}\n"
         f"{HUD_ANATOMY_JS}\n"
+        f"{HUD_ONBOARDING_JS}\n"
         f"{HUD_DRAWER_JS}\n"
         f"{HUD_CONTROLLER_BODY_JS}\n"
         "}\n"

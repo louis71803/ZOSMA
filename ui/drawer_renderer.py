@@ -211,6 +211,7 @@ HUD_DRAWER_BODY_JS = r"""
     ` : '';
 
     const checkinTabHtml = `
+      ${buildCrewLifecycleBoxHtml()}
       ${dueNoticeHtml}
       <div class="checkin-meta-bar">
         <span id="chk-crew-day-meta">🧑‍🚀 ${esc(t('crew_badge', { crew: state.crew_id, day: state.mission_day }))}</span>
@@ -263,6 +264,7 @@ HUD_DRAWER_BODY_JS = r"""
     `;
 
     const settingsTabHtml = `
+      ${buildCrewLifecycleBoxHtml()}
       <div class="lang-row">
         <div style="display:flex;flex-direction:column;gap:2px;">
           <span style="font-size:11.5px;font-weight:700;color:#e2e8f0;letter-spacing:0.6px;">${esc(t('lang_label'))}</span>

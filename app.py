@@ -20,6 +20,14 @@ from core.checkin_tracker import (
     default_module_checkins,
     record_checkin_entry,
 )
+from core.crew_store import (
+    list_crew_profiles,
+    load_crew_record,
+    reset_crew_to_day1_standby,
+    sanitize_crew_id,
+    save_crew_record,
+    switch_crew_to_day124_showcase,
+)
 from core.data_loader import (
     MODULE_DISPLAY_NAMES,
     MODULE_ORDER,
@@ -125,8 +133,12 @@ def _init_hud_session_state() -> None:
         return
 
     disk_session = load_runtime_session()
-    st.session_state["crew_id"] = str(disk_session.get("crew_id", "C002"))
-    st.session_state["mission_day"] = int(disk_session.get("mission_day", 124))
+    crew_id = sanitize_crew_id(disk_session.get("crew_id", "C002"))
+    st.session_state["crew_id"] = crew_id
+    crew_rec = load_crew_record(crew_id, default_mode="day1_standby")
+    st.session_state["data_lifecycle_mode"] = str(crew_rec.get("data_lifecycle_mode", "day1_standby"))
+    st.session_state["onboarding_completed"] = bool(crew_rec.get("onboarding_completed", False))
+    st.session_state["mission_day"] = int(crew_rec.get("mission_day", 1 if st.session_state["data_lifecycle_mode"] == "day1_standby" else 124))
     dev_mode = bool(disk_session.get("developer_mode", False))
     st.session_state["developer_mode"] = dev_mode
     scen = str(disk_session.get("scenario", "green"))
@@ -135,12 +147,14 @@ def _init_hud_session_state() -> None:
     st.session_state["scenario"] = scen if scen in {"green", "yellow", "red", "bad_data"} else "green"
     lang = str(disk_session.get("lang", "en"))
     st.session_state["lang"] = lang if lang in {"en", "zh"} else "en"
-    st.session_state["offline_clock"] = dict(disk_session.get("offline_clock", {}))
+    clk = dict(disk_session.get("offline_clock", {}))
+    clk["anchor_mission_day"] = int(crew_rec.get("anchor_mission_day", st.session_state["mission_day"]))
     if not dev_mode:
-        st.session_state["offline_clock"]["time_scale"] = 1
+        clk["time_scale"] = 1
+    st.session_state["offline_clock"] = clk
     st.session_state["prefer_real_csv"] = True if not dev_mode else bool(disk_session.get("prefer_real_csv", True))
     st.session_state["use_manual_overrides"] = bool(disk_session.get("use_manual_overrides", False))
-    st.session_state["selected_module"] = "neuro_ocular"
+    st.session_state["selected_module"] = "cabin_environment" if st.session_state["data_lifecycle_mode"] == "day1_standby" else "neuro_ocular"
     st.session_state["selected_metric_idx"] = 0
     st.session_state["guide_tab"] = "measure"
     st.session_state["last_action_ts"] = 0
@@ -154,25 +168,9 @@ def _init_hud_session_state() -> None:
         merged_inputs[mod_id] = base_dict
 
     st.session_state["manual_inputs"] = merged_inputs
-
-    daily_v = default_daily_vitals()
-    if isinstance(disk_session.get("daily_vitals"), dict):
-        daily_v.update(disk_session["daily_vitals"])
-    st.session_state["daily_vitals"] = daily_v
-
-    mod_chk = default_module_checkins()
-    saved_mod_chk = disk_session.get("module_checkins", {})
-    if isinstance(saved_mod_chk, dict):
-        for mod_id in MODULE_ORDER:
-            if isinstance(saved_mod_chk.get(mod_id), dict):
-                mod_chk[mod_id].update(saved_mod_chk[mod_id])
-    st.session_state["module_checkins"] = mod_chk
-
-    st.session_state["checkin_series"] = (
-        dict(disk_session.get("checkin_series", {}))
-        if isinstance(disk_session.get("checkin_series"), dict)
-        else {}
-    )
+    st.session_state["daily_vitals"] = dict(crew_rec.get("daily_vitals", default_daily_vitals()))
+    st.session_state["module_checkins"] = dict(crew_rec.get("module_checkins", default_module_checkins()))
+    st.session_state["checkin_series"] = dict(crew_rec.get("checkin_series", {}))
     st.session_state["hud_initialized"] = True
 
 
@@ -209,7 +207,10 @@ def _serialize_hud_payload(
         "lang": st.session_state["lang"],
         "developer_mode": bool(st.session_state.get("developer_mode", False)),
         "crew_id": st.session_state["crew_id"],
+        "crew_roster": list_crew_profiles(),
         "mission_day": st.session_state["mission_day"],
+        "data_lifecycle_mode": st.session_state.get("data_lifecycle_mode", "day1_standby"),
+        "onboarding_completed": bool(st.session_state.get("onboarding_completed", False)),
         "scenario": st.session_state["scenario"],
         "offline_clock": st.session_state.get("offline_clock", {}),
         "prefer_real_csv": st.session_state["prefer_real_csv"],
@@ -256,8 +257,54 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
         st.session_state["selected_metric_idx"] = max(0, int(action["selected_metric_idx"]))
     if action.get("guide_tab") in {"measure", "meaning", "action"}:
         st.session_state["guide_tab"] = str(action["guide_tab"])
+    if action.get("data_lifecycle_mode") in {"day1_standby", "day124_showcase"}:
+        st.session_state["data_lifecycle_mode"] = str(action["data_lifecycle_mode"])
+    if "onboarding_completed" in action:
+        st.session_state["onboarding_completed"] = bool(action["onboarding_completed"])
+
+    # Handle switching or creating a crew profile before applying current form overrides
+    if act_type in {"switch_crew", "create_crew"}:
+        target_crew = sanitize_crew_id(action.get("crew_id") or st.session_state["crew_id"])
+        st.session_state["crew_id"] = target_crew
+        if act_type == "create_crew":
+            role_lbl = str(action.get("role_label") or "").strip() or "Mission Specialist"
+            rec = reset_crew_to_day1_standby(target_crew)
+            rec = save_crew_record(
+                crew_id=target_crew,
+                role_en=role_lbl,
+                role_zh=role_lbl,
+            )
+        else:
+            rec = load_crew_record(target_crew, default_mode="day1_standby")
+
+        st.session_state["data_lifecycle_mode"] = str(rec.get("data_lifecycle_mode", "day1_standby"))
+        st.session_state["onboarding_completed"] = bool(rec.get("onboarding_completed", False))
+        st.session_state["mission_day"] = int(rec.get("mission_day", 1))
+        st.session_state["daily_vitals"] = dict(rec.get("daily_vitals", default_daily_vitals()))
+        st.session_state["module_checkins"] = dict(rec.get("module_checkins", default_module_checkins()))
+        st.session_state["checkin_series"] = dict(rec.get("checkin_series", {}))
+        if isinstance(st.session_state.get("offline_clock"), dict):
+            st.session_state["offline_clock"]["anchor_mission_day"] = int(rec.get("anchor_mission_day", st.session_state["mission_day"]))
+            st.session_state["offline_clock"]["module_due_ms"] = {}
+        save_runtime_session(
+            manual_overrides=st.session_state["manual_inputs"],
+            crew_id=st.session_state["crew_id"],
+            mission_day=st.session_state["mission_day"],
+            scenario=st.session_state["scenario"],
+            lang=st.session_state["lang"],
+            offline_clock=st.session_state.get("offline_clock"),
+            developer_mode=st.session_state["developer_mode"],
+            prefer_real_csv=st.session_state["prefer_real_csv"],
+            use_manual_overrides=st.session_state["use_manual_overrides"],
+            daily_vitals=st.session_state["daily_vitals"],
+            module_checkins=st.session_state["module_checkins"],
+            checkin_series=st.session_state["checkin_series"],
+        )
+        st.toast(f"Active Crew switched to {target_crew} (Sol/Day {st.session_state['mission_day']})!", icon="👨‍🚀")
+        st.rerun()
+
     if action.get("crew_id"):
-        st.session_state["crew_id"] = str(action["crew_id"])
+        st.session_state["crew_id"] = sanitize_crew_id(action["crew_id"])
     if action.get("mission_day") is not None:
         st.session_state["mission_day"] = max(1, int(action["mission_day"]))
     elif isinstance(st.session_state.get("offline_clock"), dict):
@@ -332,6 +379,18 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
             recorded_at_iso=now_iso,
         )
         st.session_state["checkin_series"] = updated_series
+        st.session_state["onboarding_completed"] = True
+
+        save_crew_record(
+            crew_id=st.session_state["crew_id"],
+            data_lifecycle_mode=st.session_state["data_lifecycle_mode"],
+            onboarding_completed=True,
+            mission_day=st.session_state["mission_day"],
+            anchor_mission_day=int(st.session_state.get("offline_clock", {}).get("anchor_mission_day", st.session_state["mission_day"])),
+            daily_vitals=st.session_state["daily_vitals"],
+            module_checkins=st.session_state["module_checkins"],
+            checkin_series=st.session_state["checkin_series"],
+        )
 
         active_ov = st.session_state["manual_inputs"] if st.session_state["use_manual_overrides"] else {}
         new_results, _ = evaluate_all_modules(
@@ -341,6 +400,7 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
             mission_day=st.session_state["mission_day"],
             prefer_real_csv=st.session_state["prefer_real_csv"],
             checkin_series=st.session_state["checkin_series"],
+            data_lifecycle_mode=st.session_state["data_lifecycle_mode"],
         )
         save_runtime_session(
             manual_overrides=st.session_state["manual_inputs"],
@@ -363,6 +423,48 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
         )
         st.rerun()
 
+    elif act_type == "switch_lifecycle_mode":
+        mode = str(action.get("data_lifecycle_mode", st.session_state["data_lifecycle_mode"]))
+        if mode == "day1_standby":
+            rec = reset_crew_to_day1_standby(st.session_state["crew_id"])
+            st.session_state["data_lifecycle_mode"] = "day1_standby"
+            st.session_state["onboarding_completed"] = False
+            st.session_state["mission_day"] = 1
+            st.session_state["daily_vitals"] = dict(rec["daily_vitals"])
+            st.session_state["module_checkins"] = dict(rec["module_checkins"])
+            st.session_state["checkin_series"] = dict(rec["checkin_series"])
+            st.toast(f"Reset {st.session_state['crew_id']} to Day-1 Cold Start (Standby)!", icon="🆕")
+        else:
+            rec = switch_crew_to_day124_showcase(st.session_state["crew_id"])
+            st.session_state["data_lifecycle_mode"] = "day124_showcase"
+            st.session_state["onboarding_completed"] = True
+            st.session_state["mission_day"] = 124
+            st.toast(f"Loaded Day-124 Full Dataset for {st.session_state['crew_id']}!", icon="⏩")
+
+        save_runtime_session(
+            manual_overrides=st.session_state["manual_inputs"],
+            crew_id=st.session_state["crew_id"],
+            mission_day=st.session_state["mission_day"],
+            scenario=st.session_state["scenario"],
+            lang=st.session_state["lang"],
+            offline_clock=st.session_state.get("offline_clock"),
+            developer_mode=st.session_state["developer_mode"],
+            prefer_real_csv=st.session_state["prefer_real_csv"],
+            use_manual_overrides=st.session_state["use_manual_overrides"],
+            daily_vitals=st.session_state["daily_vitals"],
+            module_checkins=st.session_state["module_checkins"],
+            checkin_series=st.session_state["checkin_series"],
+        )
+        st.rerun()
+
+    elif act_type == "dismiss_onboarding":
+        st.session_state["onboarding_completed"] = True
+        save_crew_record(
+            crew_id=st.session_state["crew_id"],
+            onboarding_completed=True,
+        )
+        st.rerun()
+
     elif act_type == "save_and_run":
         active_ov = st.session_state["manual_inputs"] if st.session_state["use_manual_overrides"] else {}
         new_results, _ = evaluate_all_modules(
@@ -371,6 +473,16 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
             crew_id=st.session_state["crew_id"],
             mission_day=st.session_state["mission_day"],
             prefer_real_csv=st.session_state["prefer_real_csv"],
+            checkin_series=st.session_state["checkin_series"],
+            data_lifecycle_mode=st.session_state["data_lifecycle_mode"],
+        )
+        save_crew_record(
+            crew_id=st.session_state["crew_id"],
+            data_lifecycle_mode=st.session_state["data_lifecycle_mode"],
+            onboarding_completed=st.session_state["onboarding_completed"],
+            mission_day=st.session_state["mission_day"],
+            daily_vitals=st.session_state["daily_vitals"],
+            module_checkins=st.session_state["module_checkins"],
             checkin_series=st.session_state["checkin_series"],
         )
         save_runtime_session(
@@ -452,6 +564,7 @@ def main() -> None:
         mission_day=st.session_state["mission_day"],
         prefer_real_csv=st.session_state["prefer_real_csv"],
         checkin_series=st.session_state["checkin_series"],
+        data_lifecycle_mode=st.session_state["data_lifecycle_mode"],
     )
     schedule = aggregate_mission_schedule(results=results, cross_context=cross_context)
     data_statuses = inspect_all_data_status()

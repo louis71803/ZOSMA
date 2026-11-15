@@ -1666,4 +1666,262 @@ HUD_CSS = """
   gap: 6px;
   width: 100%;
 }
+
+/* ================= STAGE 2: MISSION BRIEFING ONBOARDING & MULTI-CREW UI ================= */
+.guide-toggle-btn {
+  border: 1px solid rgba(56, 189, 248, 0.42);
+  background: rgba(15, 23, 42, 0.85);
+  color: #7dd3fc;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 7px 11px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.guide-toggle-btn:hover, .guide-toggle-btn.active {
+  background: rgba(56, 189, 248, 0.22);
+  color: #f0f9ff;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+}
+
+.onboarding-banner {
+  background: linear-gradient(135deg, rgba(8, 22, 48, 0.92), rgba(12, 19, 38, 0.95));
+  border: 1px solid rgba(56, 189, 248, 0.42);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45), inset 0 0 22px rgba(56, 189, 248, 0.07);
+}
+
+.onb-hdr {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  padding-bottom: 9px;
+}
+
+.onb-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+}
+
+.onb-icon {
+  font-size: 16px;
+}
+
+.onb-title {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #f8fafc;
+}
+
+.onb-mode-pill {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+}
+
+.onb-mode-pill.standby {
+  background: rgba(56, 189, 248, 0.16);
+  border: 1px solid rgba(56, 189, 248, 0.48);
+  color: #7dd3fc;
+}
+
+.onb-mode-pill.active {
+  background: rgba(16, 185, 129, 0.16);
+  border: 1px solid rgba(16, 185, 129, 0.48);
+  color: #6ee7b7;
+}
+
+.onb-hdr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.onb-quick124-btn {
+  border: 1px solid rgba(245, 158, 11, 0.55);
+  background: rgba(245, 158, 11, 0.16);
+  color: #fde68a;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 11px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.onb-quick124-btn:hover {
+  background: rgba(245, 158, 11, 0.28);
+}
+
+.onb-dismiss-btn {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.75);
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.onb-dismiss-btn:hover {
+  color: #f8fafc;
+}
+
+.onb-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 960px) {
+  .onb-steps-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.onb-step-card {
+  background: rgba(5, 11, 24, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 10px;
+  padding: 11px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.onb-step-card.highlight {
+  border-color: rgba(16, 185, 129, 0.48);
+  background: linear-gradient(180deg, rgba(6, 34, 29, 0.55), rgba(5, 11, 24, 0.8));
+}
+
+.onb-step-num {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #38bdf8;
+}
+
+.onb-step-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.onb-step-desc {
+  font-size: 11.5px;
+  line-height: 1.48;
+  color: #cbd5e1;
+}
+
+.onb-cta-btn {
+  margin-top: auto;
+  align-self: flex-start;
+  border: 1px solid rgba(16, 185, 129, 0.65);
+  background: linear-gradient(135deg, #059669, #10b981);
+  color: #022c22;
+  font-size: 11.5px;
+  font-weight: 800;
+  padding: 6px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.crew-lifecycle-box {
+  background: rgba(11, 19, 36, 0.78);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 11px;
+  padding: 11px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.crew-pills-wrap {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
+  gap: 6px;
+}
+
+.crew-select-pill {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(5, 10, 21, 0.78);
+  color: #cbd5e1;
+  border-radius: 8px;
+  padding: 6px 9px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.crew-select-pill strong {
+  font-size: 12px;
+  color: #f8fafc;
+}
+
+.crew-select-pill span {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.crew-select-pill.active {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.35);
+}
+
+.crew-select-pill.active strong {
+  color: #7dd3fc;
+}
+
+.add-crew-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.lifecycle-switch-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 7px;
+  border-top: 1px dashed rgba(148, 163, 184, 0.16);
+}
+
+.lifecycle-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* STANDBY LED & BADGE STYLES */
+.led-STANDBY {
+  background: #38bdf8;
+  box-shadow: 0 0 9px rgba(56, 189, 248, 0.75);
+}
+
+.badge-STANDBY {
+  background: rgba(56, 189, 248, 0.14);
+  color: #7dd3fc;
+  border: 1px solid rgba(56, 189, 248, 0.42);
+}
 """
