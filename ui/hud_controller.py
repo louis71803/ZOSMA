@@ -509,16 +509,35 @@ HUD_CONTROLLER_BODY_JS = r"""
       `;
     }).join('');
 
-    // 3-step Crew Guidance content
+    // 3-step Crew Guidance content:
+    // Prefer the currently selected organ/metric when it provides per-metric guidance,
+    // falling back to module-level selMod.guidance when unavailable.
     const g = selMod.guidance || {};
+    const hasFullMetricGuide = Boolean(activeMetric && (activeMetric.how_to_measure || activeMetric.measurement_guide || activeMetric.why_in_space || activeMetric.plain_explanation || (Array.isArray(activeMetric.action_steps) && activeMetric.action_steps.length)));
+    const mGuideMeasure = activeMetric && (activeMetric.how_to_measure || activeMetric.measurement_guide);
+    const mGuideMeaning = activeMetric && (activeMetric.why_in_space || activeMetric.plain_explanation);
+    const mGuideSteps = (activeMetric && Array.isArray(activeMetric.action_steps) && activeMetric.action_steps.length)
+      ? activeMetric.action_steps
+      : (hasFullMetricGuide && activeMetric && activeMetric.action ? [activeMetric.action] : null);
+
+    const activeGuideTitle = hasFullMetricGuide
+      ? `${activeMetric.indicator || metricLabel(activeMetric.metric_name)} · ${!activeMetric.quality_passed ? (activeMetric.raw_status || 'QC FAIL') : (activeMetric.status_light || 'GREEN')}`
+      : t('guide_sop');
+
     let guideContentHtml = '';
     if (state.guideTab === 'measure') {
-      guideContentHtml = `<div>${esc(zhText(g.how_to_measure))}</div>`;
+      guideContentHtml = `<div>${esc(zhText(mGuideMeasure || g.how_to_measure))}</div>`;
     } else if (state.guideTab === 'meaning') {
-      guideContentHtml = `<div>${esc(zhText(g.plain_explanation))}</div>`;
+      guideContentHtml = `<div>${esc(zhText(mGuideMeaning || g.plain_explanation))}</div>`;
     } else {
-      const steps = Array.isArray(g.action_protocol) ? g.action_protocol : [g.action_protocol || 'Nominal'];
+      const steps = mGuideSteps || (Array.isArray(g.action_protocol) ? g.action_protocol : [g.action_protocol || 'Nominal']);
       guideContentHtml = `<ol class="protocol-list">${steps.map(s => `<li>${esc(zhText(s))}</li>`).join('')}</ol>`;
+      if (state.selectedModule === 'cardiovascular' && selMod.correlation_alerts && selMod.correlation_alerts.length) {
+        guideContentHtml += `<div class="conflict-banner" style="margin-top:8px;">
+          <div class="conflict-rule">⚡ CROSS-INDICATOR CLINICAL LINK</div>
+          <div class="conflict-text">${selMod.correlation_alerts.map(c => esc(zhText(c))).join('<br>')}</div>
+        </div>`;
+      }
     }
 
     // Conflicts & cross-module signals
@@ -766,7 +785,7 @@ HUD_CONTROLLER_BODY_JS = r"""
                   <span style="font-size:11px;font-weight:700;letter-spacing:1px;color:#94a3b8;text-transform:uppercase;">
                     ${esc(t('guide_hdr'))}
                   </span>
-                  <span style="font-size:10.5px;color:#64748b;">${esc(t('guide_sop'))}</span>
+                  <span style="font-size:10.5px;color:#38bdf8;">${esc(activeGuideTitle)}</span>
                 </div>
                 <div class="guide-tabs">
                   <button class="guide-tab ${state.guideTab === 'measure' ? 'active' : ''}" data-guide-tab="measure">${esc(t('tab_measure'))}</button>
