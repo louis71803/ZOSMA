@@ -30,15 +30,15 @@ HUD_ANATOMY_JS = r"""
 
   function worstMetricStatus(modObj, candidateNames) {
     const list = (modObj && modObj.metrics) || [];
-    const rank = { GREEN: 0, YELLOW: 1, QC: 2, RED: 3 };
-    let best = 'GREEN';
+    const rank = { STANDBY: 0, GREEN: 1, YELLOW: 2, QC: 3, RED: 4 };
+    let best = 'STANDBY';
     let matched = false;
     candidateNames.forEach(name => {
       const m = list.find(it => it.metric_name === name);
       if (m) {
         matched = true;
-        const st = !m.quality_passed ? 'QC' : (m.status_light || 'GREEN');
-        if ((rank[st] || 0) > (rank[best] || 0)) best = st;
+        const st = !m.quality_passed ? 'QC' : (m.standby ? 'STANDBY' : (m.status_light || 'GREEN'));
+        if ((rank[st] || 0) >= (rank[best] || 0)) best = st;
       }
     });
     if (!matched && modObj) {
@@ -52,6 +52,10 @@ HUD_ANATOMY_JS = r"""
     for (let i = 0; i < candidateNames.length; i++) {
       const m = list.find(it => it.metric_name === candidateNames[i]);
       if (m) {
+        if (m.standby) {
+          const bStr = (m.baseline_val !== null && m.baseline_val !== undefined) ? `${m.baseline_val}${m.unit ? ' ' + m.unit : ''}` : '—';
+          return `${metricLabel(m.metric_name)}: — (${t('standby_base_lbl')} ${bStr}) [${t('status_STANDBY')}]`;
+        }
         return `${metricLabel(m.metric_name)}: ${m.current_val}${m.unit ? ' ' + m.unit : ''} [${m.status_light}]`;
       }
     }
@@ -61,7 +65,7 @@ HUD_ANATOMY_JS = r"""
   function organPalette(st, isSelectedMetric) {
     if (st === 'RED') {
       return {
-        fill: 'rgba(239, 68, 68, 0.48)',
+        fill: 'rgba(239, 68, 38, 0.48)',
         stroke: '#f87171',
         text: '#fca5a5',
         cls: 'organ-alert-RED'
@@ -81,6 +85,14 @@ HUD_ANATOMY_JS = r"""
         stroke: '#fb923c',
         text: '#fdba74',
         cls: 'organ-alert-YELLOW'
+      };
+    }
+    if (st === 'STANDBY') {
+      return {
+        fill: isSelectedMetric ? 'rgba(56, 189, 248, 0.28)' : 'rgba(56, 189, 248, 0.12)',
+        stroke: isSelectedMetric ? '#38bdf8' : 'rgba(125, 211, 252, 0.55)',
+        text: '#7dd3fc',
+        cls: ''
       };
     }
     // Nominal GREEN -> calm holographic cyan/emerald

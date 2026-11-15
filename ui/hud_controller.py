@@ -626,11 +626,13 @@ HUD_CONTROLLER_BODY_JS = r"""
       : (hasFullMetricGuide && activeMetric && activeMetric.action ? [activeMetric.action] : null);
 
     const activeGuideSt = activeMetric
-      ? (!activeMetric.quality_passed ? 'QC' : (activeMetric.status_light || 'GREEN'))
+      ? (!activeMetric.quality_passed ? 'QC' : (activeMetric.standby ? 'STANDBY' : (activeMetric.status_light || 'GREEN')))
       : 'GREEN';
     const activeGuideStText = activeGuideSt === 'QC'
       ? badgeLabel({ quality_passed: false, raw_status: activeMetric && activeMetric.raw_status })
-      : (t('status_' + activeGuideSt) !== ('status_' + activeGuideSt) ? t('status_' + activeGuideSt) : activeGuideSt);
+      : (activeGuideSt === 'STANDBY'
+          ? t('status_STANDBY')
+          : (t('status_' + activeGuideSt) !== ('status_' + activeGuideSt) ? t('status_' + activeGuideSt) : activeGuideSt));
     const activeGuideName = activeMetric
       ? (activeMetric.indicator ? zhText(activeMetric.indicator) : resolveMetricDisplayName(activeMetric))
       : '';
@@ -670,27 +672,33 @@ HUD_CONTROLLER_BODY_JS = r"""
     // Timeline cards (group consecutive actions from the same module & window into one clean card)
     const rawTimelineItems = state.planTab === 'short'
       ? (schedule.short_term_board || []).map(item => {
+          const mObj = modulesMap[item.module_id];
+          const isStb = Boolean(mObj && mObj.standby);
           const dueAt = state.clock.module_due_ms[item.module_id];
-          let tag = item.next_hours === 0 ? t('tag_immediate') : `T+${item.next_hours}H`;
-          if (dueAt !== undefined) {
+          let tag = isStb ? t('status_STANDBY') : (item.next_hours === 0 ? t('tag_immediate') : `T+${item.next_hours}H`);
+          if (!isStb && dueAt !== undefined) {
             const rem = dueAt - scNow;
             tag = rem <= 0 ? t('rtc_due_now') : t('rtc_due_in', { t: formatCountdown(rem) });
           }
           return {
             mod: item.module_id,
-            status: item.status_light,
+            status: isStb ? 'STANDBY' : item.status_light,
             tag: tag,
-            dueModId: dueAt !== undefined ? item.module_id : '',
+            dueModId: (!isStb && dueAt !== undefined) ? item.module_id : '',
             text: zhText(item.action)
           };
         })
-      : (schedule.long_term_board || []).map(item => ({
-          mod: item.module_id,
-          status: item.status_light,
-          tag: item.days_until_red !== null && item.days_until_red !== undefined ? t('tag_red_in', { d: item.days_until_red }) : t('tag_regimen'),
-          dueModId: '',
-          text: zhText(item.adjustment)
-        }));
+      : (schedule.long_term_board || []).map(item => {
+          const mObj = modulesMap[item.module_id];
+          const isStb = Boolean(mObj && mObj.standby);
+          return {
+            mod: item.module_id,
+            status: isStb ? 'STANDBY' : item.status_light,
+            tag: (!isStb && item.days_until_red !== null && item.days_until_red !== undefined) ? t('tag_red_in', { d: item.days_until_red }) : t('tag_regimen'),
+            dueModId: '',
+            text: zhText(item.adjustment)
+          };
+        });
 
     const groupedTimeline = [];
     const seenGroupMap = {};
