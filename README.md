@@ -276,7 +276,7 @@ This project utilized SI/AI tools during development as documented below (machin
 
 - **GitHub Repository (Public, No Login Required)**: https://github.com/louis71803/ZOSMA
 - **Standalone Windows Release (GitHub Releases)**: https://github.com/louis71803/ZOSMA/releases
-- **Demo Video / Presentation Slides**: https://drive.google.com/drive/folders/14he2CVS1C9U2UCFpom2J4MjDVIIoJ0IT?usp=sharing
+- **Demo Video / Presentation Slides**: https://drive.google.com/file/d/1MFVR_E6esi_FHMXXSPgYvL5FzCYAAbZg/view
 
 ---
 
