@@ -3,6 +3,10 @@
 Branch: feat/cardiovascular
 Primary entry point: modules/cardiovascular.py (used by app.py & core/data_loader.py).
 
+Helper modules (strictly Role 3-scoped):
+- modules/cardio_data.py: pre-flight baselines, synthetic datasets, CSV templates, OSDR loaders
+- modules/cardio_guidance.py: status-aware 3-step astronaut guidance templates (M1-M11)
+
 Implements:
 1. Layer 0 QC Gatekeeper (ecg_lead_quality, motion_artifact_g, impossible/missing values)
 2. 3-Layer Decision Model (Worst Result Wins):
@@ -34,13 +38,10 @@ Implements:
 
 from __future__ import annotations
 
-import json
 import math
-from pathlib import Path
 from typing import Any, Optional, Sequence
 
 import numpy as np
-import pandas as pd
 
 from core.schema import (
     CrewGuidance,
@@ -51,86 +52,37 @@ from core.schema import (
     ShortTermPlan,
     normalize_module_result,
 )
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BASE_DIR / "data" / "cardiovascular"
-SHARED_REAL_DIR = BASE_DIR / "data" / "shared_real"
-REAL_SUBDIR = DATA_DIR / "real"
+from modules.cardio_data import (
+    BASE_DIR,
+    DATA_DIR,
+    EXPECTED_CSV_SCHEMAS,
+    MITBIH_REFERENCE_RECORDS,
+    REAL_SUBDIR,
+    SHARED_REAL_DIR,
+    _filter_osdr_by_crew,
+    _normalize_osdr_value,
+    _parse_long_format_osdr,
+    _pick_col,
+    _sample_timepoint_order,
+    _select_osdr_row,
+    check_data_files,
+    demo_baseline,
+    demo_payload,
+    export_demo_csvs,
+    extract_history_from_payload as _extract_history_from_payload,
+    generate_longitudinal_series as _generate_longitudinal_series,
+    generate_synthetic_dataframes,
+    load_shared_osdr_overrides as _load_shared_osdr_overrides,
+    safe_bool as _safe_bool,
+    safe_float as _safe_float,
+)
+from modules.cardio_guidance import build_indicator_guidance as _build_indicator_guidance
 
 STATUS_RANK: dict[str, int] = {
     "GREEN": 0,
     "GREEN-WATCH": 0,
     "YELLOW": 1,
     "RED": 2,
-}
-
-EXPECTED_CSV_SCHEMAS: dict[str, list[str]] = {
-    "daily_vitals.csv": [
-        "crew_id",
-        "mission_day",
-        "rest_hr_bpm",
-        "sbp_mmHg",
-        "dbp_mmHg",
-        "spo2_pct",
-        "resp_rate_bpm",
-        "ecg_lead_quality",
-        "motion_artifact_g",
-        "ptt_calibrated_days_ago",
-    ],
-    "bike_test.csv": [
-        "crew_id",
-        "mission_day",
-        "steady_hr_150w_bpm",
-        "cevis_power_w",
-        "hr_drift_bpm",
-    ],
-    "stand_test.csv": [
-        "crew_id",
-        "mission_day",
-        "protocol_mode",
-        "stand_hr_rise_bpm",
-        "stand_sbp_drop_mmHg",
-        "dizzy",
-        "prcp_reference_ok",
-    ],
-    "holter_24h.csv": [
-        "crew_id",
-        "mission_day",
-        "pvc_burden_pct",
-        "afib_detected",
-        "mitbih_record_check",
-        "mitbih_pvc_rate_pct",
-    ],
-    "ultrasound.csv": [
-        "crew_id",
-        "mission_day",
-        "gls_pct",
-        "gls_change_pct",
-        "ijv_flow",
-        "ijv_compressible",
-        "ijv_thrombus",
-    ],
-    "biomonitor_stream_day124.csv": [
-        "crew_id",
-        "mission_day",
-        "timestamp_min",
-        "hr_bpm",
-        "sbp_mmHg",
-        "dbp_mmHg",
-        "spo2_pct",
-        "resp_rate_bpm",
-        "ecg_lead_quality",
-        "motion_artifact_g",
-    ],
-}
-
-# Reference MIT-BIH arrhythmia validation records (PhysioNet records 100, 106, 119, 208, 223)
-MITBIH_REFERENCE_RECORDS: dict[str, dict[str, Any]] = {
-    "100": {"rhythm": "Normal Sinus Rhythm", "expected_pvc_pct": 0.04, "afib": False},
-    "106": {"rhythm": "Frequent Ventricular Bigeminy / PVCs", "expected_pvc_pct": 22.8, "afib": False},
-    "119": {"rhythm": "Ventricular Bigeminy & Trigeminy", "expected_pvc_pct": 19.6, "afib": False},
-    "208": {"rhythm": "Frequent Uniform/Multiform PVCs", "expected_pvc_pct": 33.7, "afib": False},
-    "223": {"rhythm": "Ventricular Tachycardia / Bigeminy Runs", "expected_pvc_pct": 16.2, "afib": False},
 }
 
 
@@ -142,35 +94,6 @@ def _worst_status(statuses: Sequence[str]) -> str:
     if not statuses:
         return "GREEN"
     return max(statuses, key=lambda s: STATUS_RANK.get(str(s).upper(), 0))
-
-
-def _safe_float(val: Any, default: Optional[float] = None) -> Optional[float]:
-    if val is None:
-        return default
-    if isinstance(val, bool):
-        return float(val)
-    try:
-        num = float(val)
-        if math.isnan(num) or math.isinf(num):
-            return default
-        return num
-    except (TypeError, ValueError):
-        return default
-
-
-def _safe_bool(val: Any, default: bool = False) -> bool:
-    if val is None:
-        return default
-    if isinstance(val, bool):
-        return val
-    if isinstance(val, (int, float)):
-        return bool(val)
-    tok = str(val).strip().lower()
-    if tok in {"true", "1", "yes", "y"}:
-        return True
-    if tok in {"false", "0", "no", "n", ""}:
-        return False
-    return default
 
 
 def dill_costill_delta_pv_pct(
@@ -256,7 +179,6 @@ def _layer2_baseline_status(
     delta = current - baseline
     delta_pct = (delta / abs(baseline)) * 100.0
 
-    # Directional check
     if direction == "high":
         eff_delta = max(0.0, delta)
         eff_pct = max(0.0, delta_pct)
@@ -280,759 +202,6 @@ def _layer2_baseline_status(
         status = "YELLOW"
 
     return status, round(delta_pct, 2)
-
-
-# ---------------------------------------------------------------------------
-# Baseline & Simulated Longitudinal Data Generators (Days 1-124, Crew C002)
-# ---------------------------------------------------------------------------
-
-def demo_baseline() -> dict[str, Any]:
-    """Pre-flight personal cardiovascular baseline for Crew C002."""
-    return {
-        "crew_id": "C002",
-        "rest_hr_bpm": 62.0,
-        "rest_hr_sd": 4.0,
-        "sbp_mmHg": 116.0,
-        "sbp_sd": 6.0,
-        "dbp_mmHg": 74.0,
-        "dbp_sd": 5.0,
-        "spo2_pct": 98.4,
-        "spo2_sd": 0.6,
-        "resp_rate_bpm": 14.0,
-        "resp_rate_sd": 1.5,
-        "pvc_burden_pct": 0.25,
-        "stand_hr_rise_bpm": 11.0,
-        "stand_sbp_drop_mmHg": 4.0,
-        "steady_hr_150w_bpm": 134.0,
-        "steady_hr_150w_sd": 5.0,
-        "gls_pct": -20.0,
-        "gls_change_pct": 0.0,
-        "hb_g_dl": 14.4,
-        "hct_pct": 43.0,
-        "potassium_mmol_l": 4.2,
-        "sodium_mmol_l": 140.0,
-        "albumin_g_dl": 4.4,
-        "total_protein_g_dl": 7.1,
-        "fibrinogen_mg_dl": 285.0,
-        "pf4_ng_ml": 8.0,
-        "crp_mg_l": 0.9,
-    }
-
-
-def _generate_longitudinal_series(scenario: str = "green", mission_day: int = 124) -> dict[str, dict[str, list[Any]]]:
-    """Generate realistic multi-day synthetic trajectories (Days 1-124) for Crew C002."""
-    scen = (scenario or "green").strip().lower()
-    days = [1, 15, 30, 60, 90, 110, 117, int(mission_day)]
-
-    if scen == "red":
-        hr_vals = [62, 65, 70, 76, 84, 90, 94, 98]
-        sbp_vals = [116, 120, 124, 132, 140, 146, 151, 156]
-        dbp_vals = [74, 76, 79, 83, 88, 92, 95, 97]
-        spo2_vals = [98.4, 98.0, 97.4, 96.6, 95.1, 93.8, 92.6, 91.2]
-        resp_vals = [14.0, 15.0, 16.5, 18.0, 20.5, 22.5, 24.5, 26.5]
-        pvc_vals = [0.2, 0.4, 0.8, 1.5, 2.8, 4.1, 5.2, 6.4]
-        stand_hr_vals = [11, 14, 18, 22, 26, 29, 32, 35]
-        stand_sbp_vals = [4, 6, 9, 13, 17, 21, 24, 27]
-        cevis_vals = [134, 138, 143, 149, 156, 161, 165, 169]
-        gls_chg_vals = [0.0, -2.0, -4.5, -7.5, -10.5, -13.5, -16.0, -18.2]
-        hb_vals = [14.4, 15.0, 15.3, 15.6, 15.9, 16.2, 16.4, 16.6]
-        hct_vals = [43.0, 44.5, 45.4, 46.2, 47.0, 47.7, 48.3, 48.8]
-        k_vals = [4.2, 4.1, 3.9, 3.7, 3.5, 3.3, 3.15, 3.05]
-        crp_chg_vals = [0, 8, 18, 32, 48, 65, 82, 96]
-    elif scen == "yellow":
-        hr_vals = [62, 63, 66, 69, 73, 76, 79, 82]
-        sbp_vals = [116, 118, 121, 125, 130, 134, 137, 139]
-        dbp_vals = [74, 75, 77, 79, 82, 84, 86, 88]
-        spo2_vals = [98.4, 98.1, 97.8, 97.3, 96.8, 96.2, 95.8, 95.4]
-        resp_vals = [14.0, 14.5, 15.2, 16.2, 17.5, 18.4, 19.2, 20.2]
-        pvc_vals = [0.2, 0.3, 0.5, 0.9, 1.4, 1.8, 2.2, 2.6]
-        stand_hr_vals = [11, 13, 15, 17, 20, 22, 24, 25]
-        stand_sbp_vals = [4, 5, 7, 9, 11, 13, 15, 16]
-        cevis_vals = [134, 136, 139, 142, 146, 149, 151, 153]
-        gls_chg_vals = [0.0, -1.5, -3.0, -5.0, -7.2, -9.0, -10.4, -11.6]
-        hb_vals = [14.4, 14.8, 15.0, 15.2, 15.4, 15.6, 15.7, 15.9]
-        hct_vals = [43.0, 44.0, 44.6, 45.2, 45.8, 46.2, 46.6, 47.0]
-        k_vals = [4.2, 4.1, 4.0, 3.9, 3.75, 3.65, 3.55, 3.45]
-        crp_chg_vals = [0, 4, 9, 15, 22, 28, 34, 38]
-    else:
-        hr_vals = [62, 62, 63, 63, 64, 64, 64, 65]
-        sbp_vals = [116, 116, 117, 118, 118, 119, 118, 119]
-        dbp_vals = [74, 74, 75, 74, 75, 75, 74, 75]
-        spo2_vals = [98.4, 98.5, 98.3, 98.4, 98.2, 98.3, 98.2, 98.2]
-        resp_vals = [14.0, 14.0, 14.2, 14.5, 14.3, 14.6, 14.5, 14.5]
-        pvc_vals = [0.2, 0.2, 0.25, 0.25, 0.3, 0.3, 0.3, 0.3]
-        stand_hr_vals = [11, 11, 12, 12, 12, 13, 12, 12]
-        stand_sbp_vals = [4, 4, 5, 5, 5, 5, 5, 5]
-        cevis_vals = [134, 134, 135, 135, 136, 136, 136, 137]
-        gls_chg_vals = [0.0, -0.5, -1.0, -1.5, -2.0, -2.2, -2.4, -2.5]
-        hb_vals = [14.4, 14.6, 14.7, 14.7, 14.8, 14.8, 14.8, 14.9]
-        hct_vals = [43.0, 43.4, 43.6, 43.7, 43.8, 43.9, 43.9, 44.0]
-        k_vals = [4.2, 4.2, 4.15, 4.2, 4.15, 4.2, 4.18, 4.15]
-        crp_chg_vals = [0, 2, 3, 4, 4, 5, 4, 5]
-
-    return {
-        "days": days,
-        "rest_hr_bpm": {"days": days, "values": hr_vals},
-        "sbp_mmHg": {"days": days, "values": sbp_vals},
-        "dbp_mmHg": {"days": days, "values": dbp_vals},
-        "spo2_pct": {"days": days, "values": spo2_vals},
-        "resp_rate_bpm": {"days": days, "values": resp_vals},
-        "pvc_burden_pct": {"days": days, "values": pvc_vals},
-        "stand_hr_rise_bpm": {"days": days, "values": stand_hr_vals},
-        "stand_sbp_drop_mmHg": {"days": days, "values": stand_sbp_vals},
-        "steady_hr_150w_bpm": {"days": days, "values": cevis_vals},
-        "gls_change_pct": {"days": days, "values": gls_chg_vals},
-        "hb_g_dl": {"days": days, "values": hb_vals},
-        "hct_pct": {"days": days, "values": hct_vals},
-        "potassium_mmol_l": {"days": days, "values": k_vals},
-        "crp_change_pct": {"days": days, "values": crp_chg_vals},
-    }
-
-
-def demo_payload(scenario: str = "green") -> dict[str, Any]:
-    """Return Crew C002 mission day 124 telemetry payload for green/yellow/red/bad_data."""
-    scen = (scenario or "green").strip().lower()
-    series = _generate_longitudinal_series(scen, mission_day=124)
-
-    if scen == "bad_data":
-        return {
-            "crew_id": "C002",
-            "mission_day": 124,
-            "data_source": "SIMULATED",
-            "scenario": "bad_data",
-            "ecg_lead_quality": 0.24,
-            "motion_artifact_g": 0.85,
-            "ptt_calibrated_days_ago": 14,
-            "rest_hr_bpm": None,
-            "sbp_mmHg": 118.0,
-            "dbp_mmHg": 74.0,
-            "spo2_pct": 38.0,  # physiologically impossible sensor dropout
-            "resp_rate_bpm": 15.0,
-            "pvc_burden_pct": 0.3,
-            "afib_detected": False,
-            "mitbih_record_check": "100",
-            "stand_hr_rise_bpm": 12.0,
-            "stand_sbp_drop_mmHg": 5.0,
-            "dizzy": False,
-            "protocol_mode": "LBNP",
-            "prcp_reference_ok": True,
-            "steady_hr_150w_bpm": 136.0,
-            "gls_pct": -19.5,
-            "gls_change_pct": -2.5,
-            "ijv_flow": "forward",
-            "ijv_compressible": True,
-            "ijv_thrombus": False,
-            "hb_g_dl": 14.8,
-            "hct_pct": 44.0,
-            "potassium_mmol_l": 4.15,
-            "sodium_mmol_l": 140.0,
-            "albumin_g_dl": 4.3,
-            "total_protein_g_dl": 7.0,
-            "fibrinogen_mg_dl": 290.0,
-            "pf4_ng_ml": 8.5,
-            "crp_mg_l": 0.95,
-            "crp_change_pct": 5.0,
-            "_history_series": series,
-        }
-
-    if scen == "yellow":
-        return {
-            "crew_id": "C002",
-            "mission_day": 124,
-            "data_source": "SIMULATED",
-            "scenario": "yellow",
-            "ecg_lead_quality": 0.93,
-            "motion_artifact_g": 0.08,
-            "ptt_calibrated_days_ago": 4,
-            "rest_hr_bpm": 82.0,
-            "sbp_mmHg": 139.0,
-            "dbp_mmHg": 88.0,
-            "spo2_pct": 95.4,
-            "resp_rate_bpm": 20.2,
-            "pvc_burden_pct": 2.6,
-            "afib_detected": False,
-            "mitbih_record_check": "106",
-            "stand_hr_rise_bpm": 25.0,
-            "stand_sbp_drop_mmHg": 16.0,
-            "dizzy": False,
-            "protocol_mode": "LBNP",
-            "prcp_reference_ok": True,
-            "steady_hr_150w_bpm": 153.0,
-            "gls_pct": -17.7,
-            "gls_change_pct": -11.6,
-            "ijv_flow": "stagnant",
-            "ijv_compressible": True,
-            "ijv_thrombus": False,
-            "hb_g_dl": 15.9,
-            "hct_pct": 47.0,
-            "potassium_mmol_l": 3.45,
-            "sodium_mmol_l": 143.0,
-            "albumin_g_dl": 4.6,
-            "total_protein_g_dl": 7.5,
-            "fibrinogen_mg_dl": 360.0,
-            "pf4_ng_ml": 14.0,
-            "crp_mg_l": 1.24,
-            "crp_change_pct": 38.0,
-            "_history_series": series,
-        }
-
-    if scen == "red":
-        return {
-            "crew_id": "C002",
-            "mission_day": 124,
-            "data_source": "SIMULATED",
-            "scenario": "red",
-            "ecg_lead_quality": 0.95,
-            "motion_artifact_g": 0.06,
-            "ptt_calibrated_days_ago": 2,
-            "rest_hr_bpm": 98.0,
-            "sbp_mmHg": 156.0,
-            "dbp_mmHg": 97.0,
-            "spo2_pct": 91.2,
-            "resp_rate_bpm": 26.5,
-            "pvc_burden_pct": 6.4,
-            "afib_detected": True,
-            "mitbih_record_check": "208",
-            "stand_hr_rise_bpm": 35.0,
-            "stand_sbp_drop_mmHg": 27.0,
-            "dizzy": True,
-            "protocol_mode": "LBNP",
-            "prcp_reference_ok": True,
-            "steady_hr_150w_bpm": 169.0,
-            "gls_pct": -16.4,
-            "gls_change_pct": -18.2,
-            "ijv_flow": "reversed",
-            "ijv_compressible": False,
-            "ijv_thrombus": True,
-            "hb_g_dl": 16.6,
-            "hct_pct": 48.8,
-            "potassium_mmol_l": 3.05,
-            "sodium_mmol_l": 147.0,
-            "albumin_g_dl": 5.0,
-            "total_protein_g_dl": 8.1,
-            "fibrinogen_mg_dl": 460.0,
-            "pf4_ng_ml": 26.0,
-            "crp_mg_l": 1.76,
-            "crp_change_pct": 96.0,
-            "_history_series": series,
-        }
-
-    # Default: green (Day 124 nominal)
-    return {
-        "crew_id": "C002",
-        "mission_day": 124,
-        "data_source": "SIMULATED",
-        "scenario": "green",
-        "ecg_lead_quality": 0.97,
-        "motion_artifact_g": 0.04,
-        "ptt_calibrated_days_ago": 3,
-        "rest_hr_bpm": 65.0,
-        "sbp_mmHg": 119.0,
-        "dbp_mmHg": 75.0,
-        "spo2_pct": 98.2,
-        "resp_rate_bpm": 14.5,
-        "pvc_burden_pct": 0.3,
-        "afib_detected": False,
-        "mitbih_record_check": "100",
-        "stand_hr_rise_bpm": 12.0,
-        "stand_sbp_drop_mmHg": 5.0,
-        "dizzy": False,
-        "protocol_mode": "LBNP",
-        "prcp_reference_ok": True,
-        "steady_hr_150w_bpm": 137.0,
-        "gls_pct": -19.5,
-        "gls_change_pct": -2.5,
-        "ijv_flow": "forward",
-        "ijv_compressible": True,
-        "ijv_thrombus": False,
-        "hb_g_dl": 14.9,
-        "hct_pct": 44.0,
-        "potassium_mmol_l": 4.15,
-        "sodium_mmol_l": 140.0,
-        "albumin_g_dl": 4.4,
-        "total_protein_g_dl": 7.1,
-        "fibrinogen_mg_dl": 290.0,
-        "pf4_ng_ml": 8.2,
-        "crp_mg_l": 0.94,
-        "crp_change_pct": 5.0,
-        "_history_series": series,
-    }
-
-
-# ---------------------------------------------------------------------------
-# CSV / Real Dataset Loaders (Zero FileNotFoundError Guarantee)
-# ---------------------------------------------------------------------------
-
-def generate_synthetic_dataframes(scenario: str = "green", crew_id: str = "C002") -> dict[str, pd.DataFrame]:
-    """Build realistic in-memory DataFrames matching the documented cardiovascular CSV schemas."""
-    series = _generate_longitudinal_series(scenario=scenario, mission_day=124)
-    days = series["days"]
-
-    daily_df = pd.DataFrame(
-        {
-            "crew_id": [crew_id] * len(days),
-            "mission_day": days,
-            "rest_hr_bpm": series["rest_hr_bpm"]["values"],
-            "sbp_mmHg": series["sbp_mmHg"]["values"],
-            "dbp_mmHg": series["dbp_mmHg"]["values"],
-            "spo2_pct": series["spo2_pct"]["values"],
-            "resp_rate_bpm": series["resp_rate_bpm"]["values"],
-            "ecg_lead_quality": [0.96] * len(days),
-            "motion_artifact_g": [0.05] * len(days),
-            "ptt_calibrated_days_ago": [3] * len(days),
-        }
-    )
-
-    bike_df = pd.DataFrame(
-        {
-            "crew_id": [crew_id] * len(days),
-            "mission_day": days,
-            "steady_hr_150w_bpm": series["steady_hr_150w_bpm"]["values"],
-            "cevis_power_w": [150] * len(days),
-            "hr_drift_bpm": [round(v - 134.0, 1) for v in series["steady_hr_150w_bpm"]["values"]],
-        }
-    )
-
-    stand_df = pd.DataFrame(
-        {
-            "crew_id": [crew_id] * len(days),
-            "mission_day": days,
-            "protocol_mode": ["LBNP"] * len(days),
-            "stand_hr_rise_bpm": series["stand_hr_rise_bpm"]["values"],
-            "stand_sbp_drop_mmHg": series["stand_sbp_drop_mmHg"]["values"],
-            "dizzy": [False] * (len(days) - 1) + [scenario == "red"],
-            "prcp_reference_ok": [True] * len(days),
-        }
-    )
-
-    holter_df = pd.DataFrame(
-        {
-            "crew_id": [crew_id] * len(days),
-            "mission_day": days,
-            "pvc_burden_pct": series["pvc_burden_pct"]["values"],
-            "afib_detected": [False] * (len(days) - 1) + [scenario == "red"],
-            "mitbih_record_check": ["100"] * (len(days) - 1)
-            + [{"red": "208", "yellow": "106"}.get(scenario, "100")],
-            "mitbih_pvc_rate_pct": series["pvc_burden_pct"]["values"],
-        }
-    )
-
-    ijv_states = ["forward"] * (len(days) - 1) + [
-        {"red": "reversed", "yellow": "stagnant"}.get(scenario, "forward")
-    ]
-    ultrasound_df = pd.DataFrame(
-        {
-            "crew_id": [crew_id] * len(days),
-            "mission_day": days,
-            "gls_pct": [round(-20.0 * (1.0 + v / 100.0), 2) for v in series["gls_change_pct"]["values"]],
-            "gls_change_pct": series["gls_change_pct"]["values"],
-            "ijv_flow": ijv_states,
-            "ijv_compressible": [s != "reversed" for s in ijv_states],
-            "ijv_thrombus": [s == "reversed" for s in ijv_states],
-        }
-    )
-
-    # 15-minute high-resolution Day-124 Bio-Monitor stream
-    t_mins = list(range(0, 60, 5))
-    last_hr = series["rest_hr_bpm"]["values"][-1]
-    last_sbp = series["sbp_mmHg"]["values"][-1]
-    last_dbp = series["dbp_mmHg"]["values"][-1]
-    last_spo2 = series["spo2_pct"]["values"][-1]
-    last_resp = series["resp_rate_bpm"]["values"][-1]
-    stream_df = pd.DataFrame(
-        {
-            "crew_id": [crew_id] * len(t_mins),
-            "mission_day": [124] * len(t_mins),
-            "timestamp_min": t_mins,
-            "hr_bpm": [round(last_hr + ((i % 3) - 1) * 0.5, 1) for i in range(len(t_mins))],
-            "sbp_mmHg": [round(last_sbp + ((i % 2) - 0.5) * 1.0, 1) for i in range(len(t_mins))],
-            "dbp_mmHg": [round(last_dbp + ((i % 2) - 0.5) * 0.5, 1) for i in range(len(t_mins))],
-            "spo2_pct": [last_spo2] * len(t_mins),
-            "resp_rate_bpm": [last_resp] * len(t_mins),
-            "ecg_lead_quality": [0.97] * len(t_mins),
-            "motion_artifact_g": [0.04] * len(t_mins),
-        }
-    )
-
-    return {
-        "daily_vitals.csv": daily_df,
-        "bike_test.csv": bike_df,
-        "stand_test.csv": stand_df,
-        "holter_24h.csv": holter_df,
-        "ultrasound.csv": ultrasound_df,
-        "biomonitor_stream_day124.csv": stream_df,
-    }
-
-
-def export_demo_csvs(overwrite: bool = False) -> list[str]:
-    """Write starter CSV templates and preflight_baseline.json to data/cardiovascular/.
-
-    If files already exist and do not match the expected cardiovascular schemas
-    (e.g., generic placeholder files), replace them when `overwrite=True` or when empty.
-    """
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    written: list[str] = []
-    dfs = generate_synthetic_dataframes(scenario="green", crew_id="C002")
-
-    for filename, df in dfs.items():
-        path = DATA_DIR / filename
-        needs_write = overwrite or (not path.exists()) or path.stat().st_size == 0
-        if not needs_write and path.exists():
-            try:
-                existing_cols = set(pd.read_csv(path, nrows=1).columns)
-                expected_cols = set(EXPECTED_CSV_SCHEMAS.get(filename, []))
-                if not expected_cols.issubset(existing_cols):
-                    needs_write = True
-            except Exception:
-                needs_write = True
-        if needs_write:
-            df.to_csv(path, index=False)
-            written.append(str(path))
-
-    baseline_path = DATA_DIR / "preflight_baseline.json"
-    if overwrite or not baseline_path.exists():
-        with baseline_path.open("w", encoding="utf-8") as fh:
-            json.dump(demo_baseline(), fh, indent=2)
-        written.append(str(baseline_path))
-
-    return written
-
-
-def check_data_files() -> dict[str, Any]:
-    """Inspect data/cardiovascular/ and data/shared_real/ without raising errors."""
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    SHARED_REAL_DIR.mkdir(parents=True, exist_ok=True)
-
-    present_local = [f for f in EXPECTED_CSV_SCHEMAS if (DATA_DIR / f).exists()]
-    missing_local = [f for f in EXPECTED_CSV_SCHEMAS if f not in present_local]
-
-    shared_expected = ["OSD-569_inspiration4_cbc.csv", "OSD-575_cmp.csv", "OSD-575_cv_panel.csv"]
-    present_shared = [f for f in shared_expected if (SHARED_REAL_DIR / f).exists()]
-    missing_shared = [f for f in shared_expected if f not in present_shared]
-
-    real_files = sorted([p.name for p in REAL_SUBDIR.iterdir() if p.is_file()]) if REAL_SUBDIR.exists() else []
-    return {
-        "local_dir": str(DATA_DIR),
-        "present_local": present_local,
-        "missing_local": missing_local,
-        "shared_dir": str(SHARED_REAL_DIR),
-        "present_shared": present_shared,
-        "missing_shared": missing_shared,
-        "real_dir": str(REAL_SUBDIR),
-        "real_files": real_files,
-        "schemas": EXPECTED_CSV_SCHEMAS,
-    }
-
-
-def _pick_col(cols_lower: dict[str, str], exact_aliases: Sequence[str], fuzzy_substrings: Sequence[str] = ()) -> Optional[str]:
-    """Find matching DataFrame column name using exact aliases first, then fuzzy substrings."""
-    for alias in exact_aliases:
-        if alias in cols_lower:
-            return cols_lower[alias]
-    for sub in fuzzy_substrings:
-        for col_low, col_orig in cols_lower.items():
-            if sub in col_low:
-                return col_orig
-    return None
-
-
-def _sample_timepoint_order(sample_name: str) -> tuple[int, int]:
-    """Sort Inspiration4 `Sample Name` chronologically: L-92 < L-44 < L-3 < R+1 < R+45 < R+82 < R+194."""
-    import re
-    m = re.search(r"_([LR])([+-]?\d+)", str(sample_name), re.IGNORECASE)
-    if not m:
-        return (9, 0)
-    phase = m.group(1).upper()
-    day = int(m.group(2))
-    return (0, day) if phase == "L" else (1, abs(day))
-
-
-def _filter_osdr_by_crew(df: pd.DataFrame, crew_id: Optional[str] = None) -> pd.DataFrame:
-    """Filter an OSDR DataFrame to the requested crew_id (supports `Sample Name` prefix like `C002_...`)."""
-    if df.empty or not crew_id:
-        return df
-    cols_lower = {str(c).strip().lower(): str(c) for c in df.columns}
-    target = str(crew_id).strip().upper()
-    for id_col in ("crew_id", "subject_id", "subject", "id", "participant_id", "sample name", "sample_name"):
-        if id_col in cols_lower:
-            col_name = cols_lower[id_col]
-            series = df[col_name].astype(str).str.strip().str.upper()
-            if "sample" in id_col:
-                matched = df[series.str.startswith(target + "_") | (series == target)]
-            else:
-                matched = df[series == target]
-            if not matched.empty:
-                return matched
-    return df
-
-
-def _select_osdr_row(df: pd.DataFrame, crew_id: Optional[str] = None) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Return `(latest_row, preflight_baseline_means)` from an OSDR CSV for the matching crew_id."""
-    if df.empty:
-        return {}, {}
-    subset = _filter_osdr_by_crew(df, crew_id=crew_id).copy()
-    cols_lower = {str(c).strip().lower(): str(c) for c in subset.columns}
-    sample_col = cols_lower.get("sample name") or cols_lower.get("sample_name")
-    if sample_col:
-        subset["_tp_ord"] = subset[sample_col].map(_sample_timepoint_order)
-        subset = subset.sort_values("_tp_ord")
-        pre_df = subset[subset[sample_col].astype(str).str.contains("_L-", case=False, na=False)]
-    else:
-        pre_df = pd.DataFrame()
-
-    latest = {str(k).strip().lower(): v for k, v in subset.iloc[-1].to_dict().items() if k != "_tp_ord"}
-    pre_means: dict[str, Any] = {}
-    if not pre_df.empty:
-        for col in pre_df.columns:
-            if col == "_tp_ord":
-                continue
-            nums = pd.to_numeric(pre_df[col], errors="coerce").dropna()
-            if not nums.empty:
-                pre_means[str(col).strip().lower()] = float(nums.mean())
-    return latest, pre_means
-
-
-def _normalize_osdr_value(raw_val: Optional[float], col_name_lower: str, target_key: str) -> Optional[float]:
-    """Normalize NASA OSDR long-column values into cardiovascular module units."""
-    if raw_val is None:
-        return None
-    if target_key == "hb_g_dl":
-        # Inspiration4 OSD-569 header is `hemoglobin_value_percent` but stores values in g/dL (~11-17).
-        # If stored as g/L (e.g. > 50), convert g/L -> g/dL.
-        if ("gram_per_liter" in col_name_lower or "g_per_l" in col_name_lower) and raw_val > 50.0:
-            return round(raw_val / 10.0, 3)
-        return raw_val
-    if target_key == "hct_pct":
-        return raw_val * 100.0 if raw_val <= 1.0 else raw_val
-    if target_key == "crp_mg_l":
-        if "picogram_per_milliliter" in col_name_lower or "pg_per_ml" in col_name_lower or "pg_ml" in col_name_lower:
-            return round(raw_val / 1_000_000.0, 4)
-        if "nanogram_per_milliliter" in col_name_lower or "ng_per_ml" in col_name_lower or "ng_ml" in col_name_lower:
-            return round(raw_val / 1_000.0, 4)
-        if "microgram_per_milliliter" in col_name_lower or "ug_per_ml" in col_name_lower or "ug_ml" in col_name_lower:
-            return round(raw_val, 4)
-        return raw_val
-    if target_key == "fibrinogen_mg_dl":
-        if "nanogram_per_milliliter" in col_name_lower or "ng_per_ml" in col_name_lower or "ng_ml" in col_name_lower:
-            # Note: OSD-575 EvePanel assay reports diluted plasma ng/mL (~2,000-6,500) rather than clinical
-            # whole-plasma ~200-400 mg/dL (2,000,000-4,000,000 ng/mL); only convert clinical-scale values.
-            if raw_val >= 100_000.0:
-                return round(raw_val / 10_000.0, 2)
-            return round(raw_val, 2)
-        if "microgram_per_milliliter" in col_name_lower or "ug_per_ml" in col_name_lower or "ug_ml" in col_name_lower:
-            return round(raw_val / 10.0, 2)
-        if "milligram_per_milliliter" in col_name_lower or "mg_per_ml" in col_name_lower or "mg_ml" in col_name_lower:
-            return round(raw_val * 100.0, 2)
-        if "gram_per_liter" in col_name_lower or "g_per_l" in col_name_lower or "g_l" in col_name_lower:
-            return round(raw_val * 100.0, 2)
-        return raw_val
-    if target_key == "pf4_ng_ml":
-        if "picogram_per_milliliter" in col_name_lower or "pg_per_ml" in col_name_lower or "pg_ml" in col_name_lower:
-            return round(raw_val / 1_000.0, 3)
-        if "microgram_per_milliliter" in col_name_lower or "ug_per_ml" in col_name_lower or "ug_ml" in col_name_lower:
-            return round(raw_val * 1_000.0, 3)
-        return raw_val
-    return raw_val
-
-
-def _parse_long_format_osdr(df: pd.DataFrame, crew_id: Optional[str] = None) -> dict[str, Any]:
-    """Support raw OSDR long-format tables (ANALYTE/VALUE/UNITS or Analyte/Concentration/Unit)."""
-    updates: dict[str, Any] = {}
-    cols_lower = {str(c).strip().lower(): str(c) for c in df.columns}
-    analyte_col = _pick_col(cols_lower, ("analyte", "test_name", "biomarker"))
-    value_col = _pick_col(cols_lower, ("value", "concentration", "result"))
-    unit_col = _pick_col(cols_lower, ("units", "unit"))
-    if not analyte_col or not value_col:
-        return updates
-
-    subset = df
-    if crew_id:
-        id_col = _pick_col(cols_lower, ("crew_id", "subject_id", "id", "subject"))
-        if id_col:
-            matched = df[df[id_col].astype(str).str.strip().str.upper() == str(crew_id).strip().upper()]
-            if not matched.empty:
-                subset = matched
-
-    analyte_map = {
-        "hb_g_dl": ("hemoglobin", "hgb"),
-        "hct_pct": ("hematocrit", "hct"),
-        "potassium_mmol_l": ("potassium",),
-        "sodium_mmol_l": ("sodium",),
-        "albumin_g_dl": ("albumin",),
-        "total_protein_g_dl": ("total protein", "total_protein"),
-        "crp_mg_l": ("crp", "c-reactive protein"),
-        "fibrinogen_mg_dl": ("fibrinogen",),
-        "pf4_ng_ml": ("pf4", "platelet factor 4", "cxcl4"),
-    }
-    for _, r in subset.iterrows():
-        a_name = str(r.get(analyte_col, "")).strip().lower()
-        val = _safe_float(r.get(value_col))
-        if not a_name or val is None:
-            continue
-        unit_str = str(r.get(unit_col, "")).strip().lower() if unit_col else ""
-        unit_hint = unit_str.replace("/", "_per_").replace(" ", "_")
-        for target_key, patterns in analyte_map.items():
-            if any(p == a_name or p in a_name for p in patterns):
-                norm_val = _normalize_osdr_value(val, unit_hint, target_key)
-                if norm_val is not None:
-                    updates[target_key] = norm_val
-                break
-    return updates
-
-
-def _load_shared_osdr_overrides(crew_id: Optional[str] = None) -> tuple[dict[str, Any], bool]:
-    """Safely inspect data/shared_real/ for OSD-569 and OSD-575 CSVs. Never crashes.
-
-    Supports both simplified short columns (e.g. `hb_g_dl`, `potassium_mmol_l`, `crp_mg_l`)
-    and raw NASA OSDR long column names + units (e.g. `hemoglobin_value_percent`,
-    `potassium_value_millimol_per_liter`, `crp_concentration_picogram_per_milliliter`,
-    `fibrinogen_concentration_nanogram_per_milliliter`, `pf4_concentration_nanogram_per_milliliter`).
-    Also computes personal pre-flight (`L-*`) baseline overrides (`_osdr_baseline_overrides`)
-    when Inspiration4 `Sample Name` timepoints are present.
-    """
-    updates: dict[str, Any] = {}
-    base_overrides: dict[str, Any] = {}
-    found_real = False
-
-    osd569_candidates = [
-        SHARED_REAL_DIR / "OSD-569_inspiration4_cbc.csv",
-        SHARED_REAL_DIR / "osd569_cbc_transformed.csv",
-    ]
-    for path in osd569_candidates:
-        if path.exists():
-            try:
-                df = pd.read_csv(path)
-                if not df.empty:
-                    long_parsed = _parse_long_format_osdr(df, crew_id=crew_id)
-                    for k in ("hb_g_dl", "hct_pct"):
-                        if k in long_parsed:
-                            updates[k] = long_parsed[k]
-                            found_real = True
-
-                    row, pre_means = _select_osdr_row(df, crew_id=crew_id)
-                    cols_lower = {k: k for k in row}
-                    hb_col = _pick_col(cols_lower, ("hb_g_dl", "hgb", "hemoglobin", "hemoglobin_value_percent"), ("hemoglobin",))
-                    if hb_col:
-                        val = _normalize_osdr_value(_safe_float(row.get(hb_col)), hb_col, "hb_g_dl")
-                        if val is not None:
-                            updates["hb_g_dl"] = val
-                            found_real = True
-                        if hb_col in pre_means:
-                            pre_val = _normalize_osdr_value(_safe_float(pre_means.get(hb_col)), hb_col, "hb_g_dl")
-                            if pre_val is not None:
-                                base_overrides["hb_g_dl"] = round(pre_val, 2)
-
-                    hct_col = _pick_col(cols_lower, ("hct_pct", "hct", "hematocrit", "hematocrit_value_percent"), ("hematocrit",))
-                    if hct_col:
-                        val = _normalize_osdr_value(_safe_float(row.get(hct_col)), hct_col, "hct_pct")
-                        if val is not None:
-                            updates["hct_pct"] = val
-                            found_real = True
-                        if hct_col in pre_means:
-                            pre_val = _normalize_osdr_value(_safe_float(pre_means.get(hct_col)), hct_col, "hct_pct")
-                            if pre_val is not None:
-                                base_overrides["hct_pct"] = round(pre_val, 2)
-            except Exception:
-                pass
-            if found_real:
-                break
-
-    for fname in ("OSD-575_cmp.csv", "osd575_cmp.csv", "OSD-575_cv_panel.csv", "osd575_cv_panel.csv"):
-        path = SHARED_REAL_DIR / fname
-        if path.exists():
-            try:
-                df = pd.read_csv(path)
-                if not df.empty:
-                    long_parsed = _parse_long_format_osdr(df, crew_id=crew_id)
-                    if long_parsed:
-                        updates.update(long_parsed)
-                        found_real = True
-
-                    row, pre_means = _select_osdr_row(df, crew_id=crew_id)
-                    cols_lower = {k: k for k in row}
-                    mapping: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
-                        "potassium_mmol_l": (
-                            ("potassium_mmol_l", "potassium", "k", "k_mmol_l", "potassium_value_millimol_per_liter"),
-                            ("potassium",),
-                        ),
-                        "sodium_mmol_l": (
-                            ("sodium_mmol_l", "sodium", "na", "na_mmol_l", "sodium_value_millimol_per_liter"),
-                            ("sodium",),
-                        ),
-                        "albumin_g_dl": (
-                            ("albumin_g_dl", "albumin", "albumin_value_gram_per_deciliter"),
-                            ("albumin",),
-                        ),
-                        "total_protein_g_dl": (
-                            ("total_protein_g_dl", "total_protein", "total_protein_value_gram_per_deciliter"),
-                            ("total_protein",),
-                        ),
-                        "fibrinogen_mg_dl": (
-                            ("fibrinogen_mg_dl", "fibrinogen", "fibrinogen_concentration_nanogram_per_milliliter"),
-                            ("fibrinogen",),
-                        ),
-                        "pf4_ng_ml": (
-                            ("pf4_ng_ml", "pf4", "pf4_concentration_nanogram_per_milliliter"),
-                            ("pf4",),
-                        ),
-                        "crp_mg_l": (
-                            ("crp_mg_l", "crp", "crp_concentration_picogram_per_milliliter"),
-                            ("crp",),
-                        ),
-                    }
-                    for target, (aliases, fuzzy) in mapping.items():
-                        matched_col = _pick_col(cols_lower, aliases, fuzzy)
-                        if matched_col:
-                            norm_val = _normalize_osdr_value(_safe_float(row.get(matched_col)), matched_col, target)
-                            if norm_val is not None:
-                                updates[target] = norm_val
-                                found_real = True
-                            if matched_col in pre_means:
-                                pre_val = _normalize_osdr_value(_safe_float(pre_means.get(matched_col)), matched_col, target)
-                                if pre_val is not None:
-                                    base_overrides[target] = round(pre_val, 3)
-            except Exception:
-                pass
-
-    if base_overrides:
-        updates["_osdr_baseline_overrides"] = base_overrides
-    return updates, found_real
-
-
-def _extract_history_from_payload(payload: dict[str, Any], scenario: str, mission_day: int) -> dict[str, dict[str, list[Any]]]:
-    """Extract time-series history from CSV records in payload or fall back to synthetic history."""
-    fallback = _generate_longitudinal_series(scenario=scenario, mission_day=mission_day)
-    if isinstance(payload.get("_history_series"), dict):
-        fallback.update(payload["_history_series"])
-
-    csv_table_map = {
-        "csv_daily_vitals": ["rest_hr_bpm", "sbp_mmHg", "dbp_mmHg", "spo2_pct", "resp_rate_bpm"],
-        "csv_bike_test": ["steady_hr_150w_bpm"],
-        "csv_stand_test": ["stand_hr_rise_bpm", "stand_sbp_drop_mmHg"],
-        "csv_holter_24h": ["pvc_burden_pct"],
-        "csv_ultrasound": ["gls_change_pct"],
-    }
-    for key, cols in csv_table_map.items():
-        records = payload.get(key)
-        if isinstance(records, list) and len(records) >= 2:
-            days = []
-            for idx, r in enumerate(records, start=1):
-                if isinstance(r, dict):
-                    d = _safe_float(r.get("mission_day"), float(idx * 30))
-                    days.append(int(d) if d is not None else idx * 30)
-            for col in cols:
-                vals = []
-                valid_days = []
-                for d, r in zip(days, records):
-                    if isinstance(r, dict):
-                        v = _safe_float(r.get(col))
-                        if v is not None:
-                            valid_days.append(d)
-                            vals.append(v)
-                if len(vals) >= 2:
-                    fallback[col] = {"days": valid_days, "values": vals}
-
-    return fallback
 
 
 # ---------------------------------------------------------------------------
@@ -1166,500 +335,6 @@ def _build_bad_data_result(
     return out
 
 
-def _build_indicator_guidance(
-    metric_key: str,
-    status: str,
-    context: dict[str, Any],
-) -> dict[str, Any]:
-    """Return astronaut-friendly, status-aware 3-step guidance for M1-M11.
-
-    Designed for zero-medical-background crew:
-    - how_to_measure: clear step-by-step device & QC instructions
-    - why_in_space: plain-language physiological meaning in microgravity
-    - action_steps: numbered offline emergency/routine countermeasures
-    """
-    st = str(status).upper()
-    hr = float(context.get("rest_hr", 65.0))
-    base_hr = float(context.get("base_hr", 62.0))
-    sbp = float(context.get("sbp", 119.0))
-    dbp = float(context.get("dbp", 75.0))
-    ptt_age = int(context.get("ptt_age", 3))
-    spo2 = float(context.get("spo2", 98.2))
-    resp = float(context.get("resp", 14.5))
-    pvc = float(context.get("pvc", 0.3))
-    afib = bool(context.get("afib", False))
-    k_val = float(context.get("potassium", 4.15))
-    stand_hr = float(context.get("stand_hr", 12.0))
-    stand_sbp = float(context.get("stand_sbp", 5.0))
-    dizzy = bool(context.get("dizzy", False))
-    pv_delta = float(context.get("pv_delta", 0.0))
-    cevis_hr = float(context.get("cevis_hr", 137.0))
-    gls_chg = float(context.get("gls_change", 0.0))
-    ijv_flow = str(context.get("ijv_flow", "forward"))
-    ijv_thrombus = bool(context.get("ijv_thrombus", False))
-
-    if metric_key == "rest_hr_bpm":
-        if st == "RED":
-            return {
-                "how_to_measure": (
-                    "CRITICAL RE-CHECK: Float or sit completely still for 5 minutes wearing the Bio-Monitor shirt. "
-                    "Confirm ECG strap skin contact >= 0.50 and motion < 0.50 g, and check your oral temperature before repeating."
-                ),
-                "why_in_space": (
-                    f"Your resting heart is beating very fast ({hr:.0f} bpm vs your {base_hr:.0f} bpm Earth baseline). "
-                    "In space, this means your heart is working overtime because of severe fluid loss, infection/fever, low blood oxygen, or a clot."
-                ),
-                "action_steps": [
-                    "STOP all CEVIS cycling and heavy E4D resistance workouts right away.",
-                    "Record a 12-lead ECG and check your oral temperature + SpO2.",
-                    "Notify the Crew Medical Officer / Flight Surgeon and repeat vitals every 4 hours.",
-                ],
-            }
-        if st == "YELLOW":
-            return {
-                "how_to_measure": (
-                    "GUARDED CHECK: Rest quietly for 5 minutes in the Bio-Monitor shirt (no caffeine for 2 hours prior) "
-                    "and compare against your morning hydration and sleep log."
-                ),
-                "why_in_space": (
-                    f"Your resting heart rate drifted up to {hr:.0f} bpm (baseline {base_hr:.0f} bpm). "
-                    "Microgravity shrinks blood fluid volume, so your heart beats faster to keep blood flowing to your brain."
-                ),
-                "action_steps": [
-                    "Drink 500-750 mL of water with electrolyte tablets over the next hour.",
-                    "Prioritize at least 7.5 hours of sleep tonight and skip high-intensity sprints today.",
-                    "Repeat your resting Bio-Monitor check in 12 hours.",
-                ],
-            }
-        return {
-            "how_to_measure": (
-                "Sit or float relaxed for 5 minutes wearing the Bio-Monitor thoracic ECG shirt; "
-                "confirm signal quality >= 0.50 and avoid caffeine 2 hours before testing."
-            ),
-            "why_in_space": (
-                f"Your resting heart rate ({hr:.0f} bpm) is close to your pre-flight baseline ({base_hr:.0f} bpm). "
-                "That tells us your body fluid level and heart nervous-system control are well balanced."
-            ),
-            "action_steps": [
-                "Continue daily morning Bio-Monitor vitals logging.",
-                "Maintain 2.5 L/day fluid intake.",
-            ],
-        }
-
-    if metric_key == "sbp_mmHg":
-        cal_msg = " (Recalibration overdue: >7 days since last arm-cuff check.)" if ptt_age > 7 else ""
-        if st == "RED":
-            return {
-                "how_to_measure": (
-                    f"URGENT VERIFICATION: Do not rely on the Bio-Monitor wrist/chest estimate alone{cal_msg}. "
-                    "Measure your blood pressure manually with the upper-arm cuff at heart level on both arms."
-                ),
-                "why_in_space": (
-                    f"Blood pressure is dangerously outside safe limits ({sbp:.0f}/{dbp:.0f} mmHg). "
-                    "Too high puts extra pressure on head veins and vision (SANS); too low means blood is not reaching your brain."
-                ),
-                "action_steps": [
-                    "Pause heavy E4D lifting and intense exercise immediately.",
-                    "Check for headache, blurry vision, or dizziness and check cabin CO2 levels.",
-                    "Repeat manual arm-cuff BP every 2-4 hours and alert the Flight Surgeon.",
-                ],
-            }
-        if st == "YELLOW":
-            return {
-                "how_to_measure": (
-                    f"VERIFY WITH ARM CUFF: Run a manual brachial arm-cuff check at heart height to confirm the "
-                    f"Bio-Monitor Pulse Transit Time (PTT) reading{cal_msg}."
-                ),
-                "why_in_space": (
-                    f"Your blood pressure ({sbp:.0f}/{dbp:.0f} mmHg) is drifting toward NASA warning limits. "
-                    "Without gravity pulling blood down, shifts in salt, fluids, stress, or cabin CO2 can push pressure out of range."
-                ),
-                "action_steps": [
-                    "Recalibrate the Bio-Monitor with the arm cuff today.",
-                    "Check cabin ppCO2 (< 2.5 mmHg) and review your sodium/fluid intake.",
-                    "Re-measure resting blood pressure in 12-24 hours.",
-                ],
-            }
-        return {
-            "how_to_measure": (
-                "Continuous Bio-Monitor Pulse Transit Time (PTT) estimates beat-to-beat BP; "
-                "calibrate once a week with the manual upper-arm cuff held at heart level."
-            ),
-            "why_in_space": (
-                f"Your blood pressure ({sbp:.0f}/{dbp:.0f} mmHg) is steady inside NASA-STD-3001 bounds, "
-                "showing your blood vessels are adapting smoothly to weightlessness."
-            ),
-            "action_steps": [
-                "Continue weekly manual arm-cuff calibration.",
-                "No blood pressure adjustment needed.",
-            ],
-        }
-
-    if metric_key == "spo2_pct":
-        if st == "RED":
-            return {
-                "how_to_measure": (
-                    "EMERGENCY HYPOXIA CHECK: Warm your finger for 30 seconds, clip the optical SpO2 sensor securely, "
-                    "wait 20 seconds for a steady pulse wave, and immediately check cabin O2/CO2 and neck vein (M9) ultrasound."
-                ),
-                "why_in_space": (
-                    f"Blood oxygen dropped to a critical {spo2:.1f}% (<= 92%). "
-                    "Either cabin air is low in oxygen, or a blood clot (pulmonary embolism) is blocking blood from picking up oxygen in your lungs."
-                ),
-                "action_steps": [
-                    "Verify cabin oxygen (PIO2) and CO2 (ppCO2) readings immediately; put on supplemental O2 if low.",
-                    "If breathing rate is also >25/min, treat as possible lung clot: run bilateral neck IJV Ultrasound 2 scan now.",
-                    "Notify the Crew Medical Officer / Flight Surgeon immediately.",
-                ],
-            }
-        if st == "YELLOW":
-            return {
-                "how_to_measure": (
-                    "WARNING (<96%): Warm your fingertip, confirm snug optical sensor fit, wait 20 seconds for clean waveform lock, "
-                    "and cross-check your breathing rate (M4)."
-                ),
-                "why_in_space": (
-                    f"Oxygen saturation ({spo2:.1f}%) is slightly below normal (96-100%). "
-                    "This gives an early warning of stale cabin air, mild lung congestion, or an early blood clot."
-                ),
-                "action_steps": [
-                    "Check cabin O2 and CO2 monitors and improve local airflow.",
-                    "Repeat SpO2 + breathing rate in 4-6 hours.",
-                ],
-            }
-        return {
-            "how_to_measure": (
-                "Place the Bio-Monitor optical clip on a warm finger or wrist sensor pad and wait 20 seconds for a steady wave."
-            ),
-            "why_in_space": (
-                f"SpO2 is {spo2:.1f}%, proving your lungs are delivering plenty of oxygen from the cabin air into your bloodstream."
-            ),
-            "action_steps": ["Continue routine Bio-Monitor oxygen logging."],
-        }
-
-    if metric_key == "resp_rate_bpm":
-        if st == "RED":
-            return {
-                "how_to_measure": (
-                    "CRITICAL BREATHING CHECK: Float or sit calmly for 60 seconds so the Bio-Monitor chest band measures true resting breaths/min, "
-                    "then check SpO2 (M3) and cabin CO2 immediately."
-                ),
-                "why_in_space": (
-                    f"You are breathing very rapidly ({resp:.1f} breaths/min, limit <= 25). "
-                    "In a closed spacecraft, rapid breathing signals dangerously high CO2 buildup, low oxygen, infection, or a lung blood clot."
-                ),
-                "action_steps": [
-                    "Check cabin ppCO2 and O2 sensors right away; move to a well-ventilated module.",
-                    "Pair with M3 SpO2: if SpO2 < 95%, run immediate neck IJV Ultrasound 2 clot scan and notify CMO.",
-                ],
-            }
-        if st == "YELLOW":
-            return {
-                "how_to_measure": (
-                    "GUARDED (>20/min): Sit still for 60 seconds wearing the Bio-Monitor chest band and check cabin ppCO2."
-                ),
-                "why_in_space": (
-                    f"Breathing rate is mildly elevated ({resp:.1f} breaths/min). "
-                    "Pockets of trapped CO2 around sleeping quarters or early cardiopulmonary stress make you breathe faster."
-                ),
-                "action_steps": [
-                    "Check CDRA CO2 scrubber status and turn up cabin mixing fans.",
-                    "Re-check breathing rate and SpO2 in 12 hours.",
-                ],
-            }
-        return {
-            "how_to_measure": (
-                "The Bio-Monitor chest strap counts resting breaths automatically while you sit or float quietly for 60 seconds."
-            ),
-            "why_in_space": (
-                f"Resting breathing ({resp:.1f} breaths/min) is calm and steady, showing cabin air quality and lung function are normal."
-            ),
-            "action_steps": ["Continue standard daily Bio-Monitor tracking."],
-        }
-
-    if metric_key == "pvc_burden_pct":
-        if st == "RED":
-            return {
-                "how_to_measure": (
-                    "CRITICAL RHYTHM CHECK: Capture an immediate 12-lead ECG, keep the 5-lead Holter Monitor 2 running, "
-                    "and test blood Potassium (K+) using the Bio-Analyzer fingerstick cartridge."
-                ),
-                "why_in_space": (
-                    f"Extra heartbeats (PVCs) reached {pvc:.1f}%{' with Atrial Fibrillation' if afib else ''}, "
-                    f"and blood potassium is {k_val:.2f} mmol/L. Low potassium or heart stretching in space makes the heart muscle electrically unstable."
-                ),
-                "action_steps": [
-                    "STOP all CEVIS and E4D workouts immediately.",
-                    "If K+ < 3.5 mmol/L, take oral potassium (KCl) supplement per medical kit guide.",
-                    "Keep continuous ECG monitoring active and alert the Flight Surgeon immediately.",
-                ],
-            }
-        if st == "YELLOW":
-            return {
-                "how_to_measure": (
-                    "ELEVATED EXTRA BEATS: Continue wearing the 5-lead Holter Monitor 2 (MIT-BIH pattern check) "
-                    "and run a Bio-Analyzer fingerstick test for serum Potassium (M11)."
-                ),
-                "why_in_space": (
-                    f"PVC burden increased to {pvc:.1f}% (warning >= 1.5%). "
-                    f"Stress, dehydration, or low potassium (currently {k_val:.2f} mmol/L) commonly causes extra ventricular beats in orbit."
-                ),
-                "action_steps": [
-                    "Verify serum K+ >= 3.5 mmol/L and take electrolyte / potassium replacement if low.",
-                    "Skip maximal sprints; keep CEVIS cycling in easy Zone 2 until Holter clears.",
-                ],
-            }
-        return {
-            "how_to_measure": (
-                "Attach the 5-lead Holter Monitor 2 for 24 hours; onboard software checks beat shapes against MIT-BIH arrhythmia templates."
-            ),
-            "why_in_space": (
-                f"Extra heartbeats are minimal ({pvc:.2f}%, no AFib), showing your heart's electrical wiring and mineral balance are steady."
-            ),
-            "action_steps": ["Continue scheduled Holter surveillance and normal CEVIS workouts."],
-        }
-
-    if metric_key == "stand_hr_rise_bpm":
-        if st == "RED":
-            return {
-                "how_to_measure": (
-                    "PRESYNCOPE ALERT: Stop the LBNP suction or Stand Test immediately if you feel dizzy, lightheaded, or tunnel-visioned. "
-                    "Lie/float flat and record recovery HR and BP."
-                ),
-                "why_in_space": (
-                    f"Your heart jumped +{stand_hr:.0f} bpm and blood pressure dropped -{stand_sbp:.0f} mmHg{' with dizziness' if dizzy else ''}. "
-                    f"Because plasma blood volume shrank ({pv_delta:+.1f}% in M10), standing or gravity pulls blood away from your brain, risking fainting on landing."
-                ),
-                "action_steps": [
-                    "Rest flat/neutral until dizziness passes; do NOT stand abruptly.",
-                    "Execute NASA salt-water fluid loading (1 L isotonic electrolyte drink + salt tablets).",
-                    "Wear lower-body compression garments before any re-entry or planetary G-load and schedule daily LBNP.",
-                ],
-            }
-        if st == "YELLOW":
-            return {
-                "how_to_measure": (
-                    "ORTHOSTATIC WARNING: Seal your waist in the LBNP chamber (-20 to -40 mmHg) or run a 3-min stand test "
-                    "while logging HR rise and blood pressure drop."
-                ),
-                "why_in_space": (
-                    f"Heart rate jumped +{stand_hr:.0f} bpm and SBP fell -{stand_sbp:.0f} mmHg. "
-                    "Fluid loss in weightlessness reduces your blood volume and weakens blood-vessel reflex tightening."
-                ),
-                "action_steps": [
-                    "Drink 500-750 mL electrolyte solution and review M10 plasma volume (%DeltaPV).",
-                    "Add 30-min LBNP (-20 mmHg) sessions 3x/week to retrain blood vessels.",
-                ],
-            }
-        return {
-            "how_to_measure": (
-                "Seal waist in the LBNP negative-pressure chamber (-25/-40 mmHg) or perform a 3-min post-landing stand test while recording HR and BP."
-            ),
-            "why_in_space": (
-                f"A mild +{stand_hr:.0f} bpm HR rise with no dizziness shows your blood vessels still push blood to your brain when gravity pulls it down."
-            ),
-            "action_steps": ["Keep bi-weekly LBNP tolerance checks on schedule."],
-        }
-
-    if metric_key == "steady_hr_150w_bpm":
-        if st == "RED":
-            return {
-                "how_to_measure": (
-                    "DO NOT RUN MAXIMAL BIKE TEST: Pause the CEVIS 150W protocol. Check resting HR, Holter rhythm, "
-                    "heart ultrasound (GLS), and neck vein (IJV) scan first."
-                ),
-                "why_in_space": (
-                    f"Heart rate spiked to {cevis_hr:.0f} bpm at a fixed 150W workload. "
-                    "Your heart is pumping less blood per beat due to severe deconditioning or fluid loss, leaving little reserve for an emergency spacewalk or egress."
-                ),
-                "action_steps": [
-                    "Suspend HIIT and 150W fitness tests for 14 days.",
-                    "Rule out IJV clot, arrhythmia, and hypovolemia before resuming gentle Zone 1/2 cycling.",
-                ],
-            }
-        if st == "YELLOW":
-            return {
-                "how_to_measure": (
-                    "FITNESS DRIFT CHECK: Hydrate well beforehand, cycle on CEVIS at a steady 150W for 10 minutes, "
-                    "and average your ECG heart rate over the last 3 minutes."
-                ),
-                "why_in_space": (
-                    f"Heart rate drifted up to {cevis_hr:.0f} bpm at 150W (warning >= 150 bpm). "
-                    "Without daily gravity, aerobic stamina (VO2max) and stroke volume gradually fade."
-                ),
-                "action_steps": [
-                    "Check M10 plasma volume (%DeltaPV) and hydrate before workouts.",
-                    "Shift CEVIS to structured Zone 2 aerobic sessions (4x/week) and re-test in 7 days.",
-                ],
-            }
-        return {
-            "how_to_measure": (
-                "Pedal CEVIS at a steady 150 Watts for 10 minutes and average your ECG heart rate over the final 3 minutes."
-            ),
-            "why_in_space": (
-                f"Steady 150W heart rate ({cevis_hr:.0f} bpm) shows your heart pumps strongly per beat and your aerobic fitness is intact for EVA/landing."
-            ),
-            "action_steps": ["Continue current CEVIS Zone 2/4 aerobic schedule."],
-        }
-
-    if metric_key == "gls_change_pct":
-        if st == "RED":
-            return {
-                "how_to_measure": (
-                    "CRITICAL HEART STRAIN SCAN: Acquire clear Ultrasound 2 apical 4-, 3-, and 2-chamber heart views "
-                    "and pair with blood CRP/clotting markers (M11)."
-                ),
-                "why_in_space": (
-                    f"Heart muscle squeeze (GLS) dropped {gls_chg:+.1f}% (red limit <= -15%). "
-                    "This detects early weakening or stress on the heart wall before standard pumping numbers fall."
-                ),
-                "action_steps": [
-                    "Suspend all heavy E4D and HIIT exercise immediately.",
-                    "Save ultrasound cine loops for Flight Surgeon review and repeat echocardiogram in 24-48 hours.",
-                ],
-            }
-        if st == "YELLOW":
-            return {
-                "how_to_measure": (
-                    "STRAIN WARNING: Re-capture Ultrasound 2 apical 4-, 3-, and 2-chamber views ensuring crisp heart-wall borders for speckle tracking."
-                ),
-                "why_in_space": (
-                    f"GLS shifted {gls_chg:+.1f}% from pre-flight (warning <= -10%). "
-                    "Lower workload in weightlessness can cause mild heart-muscle thinning over long missions."
-                ),
-                "action_steps": [
-                    "Avoid maximal all-out sprints; maintain steady Zone 2 aerobic conditioning.",
-                    "Repeat Ultrasound 2 GLS scan in 7 days.",
-                ],
-            }
-        return {
-            "how_to_measure": (
-                "Use Ultrasound 2 from the chest apex to capture 4-, 3-, and 2-chamber cine loops for automated GLS tracking."
-            ),
-            "why_in_space": (
-                f"Heart squeeze strain ({gls_chg:+.1f}%) is healthy, meaning your heart muscle hasn't weakened in microgravity."
-            ),
-            "action_steps": ["Maintain monthly Ultrasound 2 heart check."],
-        }
-
-    if metric_key == "ijv_flow_status":
-        if st == "RED":
-            return {
-                "how_to_measure": (
-                    "EMERGENCY NECK CLOT SCAN: Glide the Ultrasound 2 linear probe gently over left and right neck veins. "
-                    "Document reversed Doppler flow or non-collapsing clot—do NOT press hard enough to dislodge a thrombus."
-                ),
-                "why_in_space": (
-                    f"Neck vein status is CRITICAL (flow='{ijv_flow}', thrombus={ijv_thrombus}). "
-                    "Weightlessness shifts ~2 L of blood into your head/neck, stalling vein drainage until a clot forms—which can travel to your lungs (fatal pulmonary embolism)."
-                ),
-                "action_steps": [
-                    "STOP heavy E4D straining and intense CEVIS workouts immediately.",
-                    "Initiate the onboard anticoagulation medication checklist per Flight Surgeon protocol.",
-                    "Run controlled -25 mmHg LBNP and check SpO2 (M3) + breathing rate (M4) every 4 hours for lung-clot signs.",
-                ],
-            }
-        if st == "YELLOW":
-            return {
-                "how_to_measure": (
-                    "STASIS CHECK: Scan both left and right neck IJV with Ultrasound 2 color Doppler and confirm the vein still collapses flat under light probe pressure."
-                ),
-                "why_in_space": (
-                    "Blood flow in your neck vein has stalled ('stagnant') because ~2 L of fluid shifted toward your head in zero-g. "
-                    "Stagnant flow is the warning stage right before a blood clot forms."
-                ),
-                "action_steps": [
-                    "Run 30 minutes of -20 mmHg LBNP daily to pull fluid back down toward your legs.",
-                    "Avoid head-down tilt and slightly elevate your upper body while sleeping; re-scan neck in 24-48 hours.",
-                ],
-            }
-        return {
-            "how_to_measure": (
-                "Place the Ultrasound 2 linear probe on the side of your neck: check that the vein collapses easily with gentle pressure and shows steady forward color Doppler flow."
-            ),
-            "why_in_space": (
-                "Even though weightlessness pushes fluid toward your head, forward and collapsible neck vein flow confirms there is no dangerous blood pooling or clot."
-            ),
-            "action_steps": ["Continue routine monthly bilateral neck IJV ultrasound screening."],
-        }
-
-    if metric_key == "plasma_volume_delta_pct":
-        if st == "RED":
-            return {
-                "how_to_measure": (
-                    "RUN BIO-ANALYZER CBC: Test fingerstick Hemoglobin (Hb) and Hematocrit (Hct) immediately to track fluid depletion via Dill & Costill (1974)."
-                ),
-                "why_in_space": (
-                    f"Plasma blood volume dropped {pv_delta:+.1f}% (red limit <= -20%). "
-                    "Your blood is overly concentrated, sharply raising fainting risk (M6) and clot viscosity (M9)."
-                ),
-                "action_steps": [
-                    "Drink 1 L of isotonic electrolyte fluid + salt tablets immediately.",
-                    "Pause strenuous exercise until repeat Hb/Hct confirms volume recovery.",
-                ],
-            }
-        if st == "YELLOW":
-            return {
-                "how_to_measure": (
-                    "CHECK BIO-ANALYZER Hb/Hct: Insert fingerstick CBC cartridge to calculate %DeltaPV change from pre-flight baseline."
-                ),
-                "why_in_space": (
-                    f"Plasma volume is down {pv_delta:+.1f}% (warning <= -12%). "
-                    "Microgravity makes your kidneys shed extra water, shrinking total circulating blood volume."
-                ),
-                "action_steps": [
-                    "Increase daily fluids by +750 mL with electrolytes and re-check orthostatic tolerance (M6).",
-                ],
-            }
-        return {
-            "how_to_measure": (
-                "Run a fingerstick Bio-Analyzer CBC cartridge for Hemoglobin (Hb) and Hematocrit (Hct); the system computes %DeltaPV automatically."
-            ),
-            "why_in_space": (
-                f"Plasma volume change ({pv_delta:+.1f}%) is mild and within normal spaceflight adaptation limits."
-            ),
-            "action_steps": ["Maintain 2.5 L/day hydration target."],
-        }
-
-    # M11: potassium_mmol_l / OSD-575 blood chemistry
-    if st == "RED":
-        return {
-            "how_to_measure": (
-                "URGENT CHEMISTRY PANEL: Run a fresh Bio-Analyzer lithium-heparin cartridge to confirm serum Potassium (K+), Fibrinogen, PF4, and CRP."
-            ),
-            "why_in_space": (
-                f"Blood chemistry is critical (K+ {k_val:.2f} mmol/L or elevated clotting/inflammation markers). "
-                "Low potassium triggers dangerous heart rhythms (M5), while high Fibrinogen/PF4 increases neck-vein clot risk (M9)."
-            ),
-            "action_steps": [
-                "STOP high-intensity workouts; take oral KCl if K+ < 3.5 mmol/L.",
-                "Run 12-lead ECG + bilateral neck IJV ultrasound; repeat chemistry panel in 12 hours.",
-            ],
-        }
-    if st == "YELLOW":
-        return {
-            "how_to_measure": (
-                "CHEMISTRY CHECK: Insert lithium-heparin cartridge into Bio-Analyzer and verify K+, CRP, and clotting markers."
-            ),
-            "why_in_space": (
-                f"Borderline blood chemistry (K+ {k_val:.2f} mmol/L or rising CRP/Fibrinogen) increases heart-rhythm irritability and inflammation."
-            ),
-            "action_steps": [
-                "Replenish potassium/electrolytes orally and hydrate well before exercise.",
-                "Repeat Bio-Analyzer chemistry check in 24-48 hours.",
-            ],
-        }
-    return {
-        "how_to_measure": (
-            "Insert a lithium-heparin capillary/venous cartridge into the onboard Bio-Analyzer chemistry reader."
-        ),
-        "why_in_space": (
-            f"Serum potassium ({k_val:.2f} mmol/L), electrolytes, and clotting proteins are balanced, protecting heart rhythm and vessel health."
-        ),
-        "action_steps": ["Continue routine monthly Bio-Analyzer blood chemistry checks."],
-    }
-
-
 def evaluate(
     payload: Optional[dict[str, Any]] = None,
     baseline: Optional[dict[str, Any]] = None,
@@ -1674,13 +349,11 @@ def evaluate(
     """
     base = {**demo_baseline(), **(baseline or {})}
 
-    # Determine starting scenario without crashing if files are absent
     raw_pay = dict(payload or {})
     scenario = str(raw_pay.get("scenario", "green")).strip().lower()
     if scenario not in {"green", "yellow", "red", "bad_data"}:
         scenario = "green"
 
-    # Merge synthetic fallback -> shared OSDR if available -> incoming payload -> manual_inputs
     crew_hint = str(
         (manual_inputs or {}).get("crew_id")
         or raw_pay.get("crew_id")
@@ -1708,8 +381,6 @@ def evaluate(
             if v is not None:
                 merged[k] = v
 
-    # When shared OSDR provides real blood values (or manual_inputs sets crp_mg_l without crp_change_pct),
-    # derive crp_change_pct against personal pre-flight baseline.
     if (
         "crp_mg_l" in osdr_updates
         and "crp_change_pct" not in raw_pay
@@ -1792,9 +463,6 @@ def evaluate(
         "history_days": hr_days,
         "history_values": hr_vals,
         "message": f"Resting HR {rest_hr:.1f} bpm (baseline {base['rest_hr_bpm']:.0f} bpm, slope {hr_slope:+.3f}/day).",
-        "action": "Evaluate hydration, sleep debt, infection, or sympathetic stress." if hr_status != "GREEN" else "Autonomic resting heart rate nominal.",
-        "how_to_measure": "Sit or float relaxed for 5 min wearing Bio-Monitor thoracic ECG garment; avoid caffeine 2h prior.",
-        "why_in_space": "Elevated resting HR signals plasma volume loss, stress, infection, or cardiovascular deconditioning.",
     })
 
     # ------------------------------------------------------------------
@@ -1830,9 +498,6 @@ def evaluate(
         "history_days": sbp_days,
         "history_values": sbp_vals,
         "message": f"BP {sbp:.0f}/{dbp:.0f} mmHg vs baseline {base['sbp_mmHg']:.0f}/{base['dbp_mmHg']:.0f}{cal_note}.",
-        "action": "Verify with manual arm cuff & evaluate fluid/sodium load." if bp_status != "GREEN" else "Vascular pressure within NASA-STD-3001 bounds.",
-        "how_to_measure": "Continuous Bio-Monitor Pulse Transit Time (PTT) calibrated weekly with brachial arm cuff at heart level.",
-        "why_in_space": "Tracks arterial baroreceptor adaptation and hypertension/hypotension risk across microgravity and PhysioNet PRCP profiles.",
     })
 
     # ------------------------------------------------------------------
@@ -1865,9 +530,6 @@ def evaluate(
         "history_days": spo2_days,
         "history_values": spo2_vals,
         "message": f"SpO2 {spo2:.1f}% (Yellow < 96%, Red <= 92%).",
-        "action": "Cross-check cabin pO2/CO2 and screen for pulmonary embolism if combined with tachypnea." if spo2_status != "GREEN" else "Arterial oxygenation optimal.",
-        "how_to_measure": "Ensure warm extremity and snug optical pulse oximeter placement; wait 20s for pleth waveform lock.",
-        "why_in_space": "Detects cabin hypoxia, respiratory infection, or pulmonary embolism originating from IJV/DVT clots.",
     })
 
     # ------------------------------------------------------------------
@@ -1900,9 +562,6 @@ def evaluate(
         "history_days": resp_days,
         "history_values": resp_vals,
         "message": f"Respiratory rate {resp:.1f} breaths/min (Yellow > 20, Red > 25).",
-        "action": "Check cabin ppCO2 and correlate with SpO2 & IJV status." if resp_status != "GREEN" else "Resting ventilation normal.",
-        "how_to_measure": "Bio-Monitor thoracic impedance band records resting chest excursion while seated/floating quietly.",
-        "why_in_space": "Tachypnea (>25/min) warns of CO2 buildup, hypoxia, metabolic acidosis, or pulmonary thromboembolism.",
     })
 
     # ------------------------------------------------------------------
@@ -1937,9 +596,6 @@ def evaluate(
         "history_days": pvc_days,
         "history_values": pvc_vals,
         "message": f"Holter PVC {pvc:.2f}%, AFib={'YES' if afib else 'NO'} (MIT-BIH ref {mitbih_rec}: {mitbih_info['rhythm']}).",
-        "action": "Check serum K+ (<3.5 mmol/L) immediately & halt max exertion." if pvc_status != "GREEN" else "Sinus rhythm clean.",
-        "how_to_measure": "Attach 5-lead Holter Monitor 2 for 24h ambulatory capture; run automated MIT-BIH QRS/PVC template validation.",
-        "why_in_space": "Cardiac remodeling, electrolyte shifts (hypokalemia), and stress can trigger PVCs or atrial fibrillation.",
     })
 
     # ------------------------------------------------------------------
@@ -1975,9 +631,6 @@ def evaluate(
         "history_days": stand_days,
         "history_values": stand_vals,
         "message": f"{proto_mode} HR rise +{stand_hr:.0f} bpm, SBP drop -{stand_sbp:.0f} mmHg, dizzy={dizzy} (PRCP ref={'OK' if prcp_ok else 'CHECK'}).",
-        "action": "Initiate NASA salt-water fluid loading & compression garment check." if stand_status != "GREEN" else "Orthostatic baroreflex intact.",
-        "how_to_measure": "Seal waist in LBNP (-25/-40 mmHg) or perform 3-min post-landing stand test while logging HR & SBP.",
-        "why_in_space": "Reduced plasma volume and blunted baroreflex cause fainting (presyncope) during planetary landing or EVA.",
     })
 
     # ------------------------------------------------------------------
@@ -2010,9 +663,6 @@ def evaluate(
         "history_days": cevis_days,
         "history_values": cevis_vals,
         "message": f"CEVIS 150W steady-state HR {cevis_hr:.0f} bpm (drift {cevis_hr - base['steady_hr_150w_bpm']:+.0f} bpm).",
-        "action": "Adjust CEVIS interval prescription & verify plasma volume." if cevis_status != "GREEN" else "VO2max / aerobic capacity preserved.",
-        "how_to_measure": "Cycle on CEVIS at constant 150W for 10 min; average ECG HR over final 3 minutes.",
-        "why_in_space": "Rising HR at fixed 150W workload directly measures aerobic deconditioning and reduced stroke volume.",
     })
 
     # ------------------------------------------------------------------
@@ -2044,9 +694,6 @@ def evaluate(
         "history_days": gls_days,
         "history_values": gls_vals,
         "message": f"Left-ventricular GLS relative change {gls_change:+.1f}% (Yellow <= -10%, Red <= -15%).",
-        "action": "Schedule Flight Surgeon echocardiogram review & suspend HIIT if Red." if gls_status != "GREEN" else "Myocardial contractility preserved.",
-        "how_to_measure": "Acquire apical 4-, 3-, and 2-chamber Ultrasound 2 cine loops for automated speckle-tracking GLS.",
-        "why_in_space": "Prolonged unloading causes mild cardiac atrophy; GLS detects subclinical systolic dysfunction early.",
     })
 
     # ------------------------------------------------------------------
@@ -2073,9 +720,6 @@ def evaluate(
         "decided_by": "rule",
         "data_source": data_source,
         "message": f"IJV Doppler='{ijv_flow}', compressible={ijv_comp}, thrombus={ijv_thrombus}.",
-        "action": "EMERGENCY: Start IJV thrombus anticoagulation & -25 mmHg LBNP; notify CMO/Flight Surgeon." if ijv_status == "RED" else ("Apply -20 mmHg LBNP 30 min/day for venous stasis." if ijv_status == "YELLOW" else "Normal cephalad venous return."),
-        "how_to_measure": "Place Ultrasound 2 linear transducer laterally over left/right neck; verify full vein collapse under gentle probe compression and forward color Doppler.",
-        "why_in_space": "Headward fluid shift stalls neck vein blood flow (stagnant/reversed), risking spaceflight venous thrombosis and pulmonary embolism.",
     })
 
     # ------------------------------------------------------------------
@@ -2085,7 +729,6 @@ def evaluate(
     hct = float(_safe_float(merged.get("hct_pct"), base["hct_pct"]))
     pv_delta_pct = dill_costill_delta_pv_pct(base["hb_g_dl"], base["hct_pct"], hb, hct)
     pv_l1 = "RED" if pv_delta_pct <= -20.0 else ("YELLOW" if pv_delta_pct <= -12.0 else "GREEN")
-    # Build PV history from Hb/Hct history
     hb_days, hb_vals = _hist("hb_g_dl", hb)
     _, hct_vals = _hist("hct_pct", hct)
     pv_vals = [dill_costill_delta_pv_pct(base["hb_g_dl"], base["hct_pct"], b_i, c_i) for b_i, c_i in zip(hb_vals, hct_vals)]
@@ -2112,9 +755,6 @@ def evaluate(
         "history_days": hb_days,
         "history_values": pv_vals,
         "message": f"%DeltaPV = {pv_delta_pct:+.1f}% (Hb {hb:.1f} g/dL, Hct {hct:.1f}% vs pre-flight {base['hb_g_dl']}/{base['hct_pct']}).",
-        "action": "Execute oral electrolyte fluid-loading protocol (1L isotonic saline eq.)." if pv_status != "GREEN" else "Intravascular volume stable.",
-        "how_to_measure": "Run finger-stick Bio-Analyzer CBC cartridge for Hemoglobin (Hb) and Hematocrit (Hct); compute Dill & Costill 1974 ratio.",
-        "why_in_space": "Microgravity diuresis contracts plasma volume by 10-20%, driving orthostatic intolerance and hemoconcentration.",
     })
 
     # ------------------------------------------------------------------
@@ -2134,15 +774,11 @@ def evaluate(
         crp_change = round(((crp_mg_l - base_crp) / base_crp) * 100.0, 1) if base_crp > 0 else 0.0
 
     k_l1 = "RED" if (potassium < 3.0 or potassium > 5.5) else ("YELLOW" if (potassium < 3.5 or potassium > 5.1) else "GREEN")
-    # For multiplex serum assays (e.g., OSD-575 EvePanel where PF4 baseline is in thousands of ng/mL
-    # and Fibrinogen is diluted assay ng/mL), compare relative % change vs personal pre-flight baseline;
-    # otherwise apply standard clinical plasma thresholds.
     base_pf4 = float(_safe_float(base.get("pf4_ng_ml"), 8.0) or 8.0)
     base_fib = float(_safe_float(base.get("fibrinogen_mg_dl"), 285.0) or 285.0)
     if base_pf4 > 100.0 or osdr_base_overrides:
         pf4_chg_pct = ((pf4 - base_pf4) / base_pf4) * 100.0 if base_pf4 > 0 else 0.0
         fib_chg_pct = ((fibrinogen - base_fib) / base_fib) * 100.0 if base_fib > 0 else 0.0
-        # Multiplex CV panel markers vary widely; flag YELLOW at +100% / RED at +250% unless K+ is abnormal
         crp_l1 = (
             "RED"
             if (crp_change >= 200.0 or pf4_chg_pct >= 250.0 or fib_chg_pct >= 200.0)
@@ -2178,9 +814,6 @@ def evaluate(
             f"K+ {potassium:.2f} mmol/L, Na+ {sodium:.0f}, Alb {albumin:.1f}, TP {total_protein:.1f}, "
             f"CRP {crp_change:+.0f}%, Fibrinogen {fibrinogen:.0f} mg/dL, PF4 {pf4:.1f} ng/mL."
         ),
-        "action": "Supplement oral K+ if <3.5 mmol/L & evaluate prothrombotic/inflammatory panel." if blood_status != "GREEN" else "Electrolytes and clotting panel normal.",
-        "how_to_measure": "Insert lithium-heparin venous/capillary cartridge into onboard Bio-Analyzer chemistry panel.",
-        "why_in_space": "Hypokalemia triggers dangerous PVCs; elevated CRP, Fibrinogen, and PF4 signal vascular inflammation and clot risk.",
     })
 
     # Enrich every M1-M11 indicator with status-aware, astronaut-friendly 3-step guidance
@@ -2427,7 +1060,6 @@ if __name__ == "__main__":
             for ca in res_dict["correlation_alerts"]:
                 print(f"  Correlation: {ca}")
 
-    # Verify manual override mode
     manual_res = to_schema(demo_payload("green"), manual_inputs={"ijv_flow": "reversed", "ijv_thrombus": True})
     assert manual_res.status_light == "RED" and manual_res.short_term_plan.urgent_alert is True
     print("\nManual override check PASSED (ijv_thrombus=True -> RED, urgent_alert=True).")
