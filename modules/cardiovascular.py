@@ -724,9 +724,174 @@ def check_data_files() -> dict[str, Any]:
     }
 
 
-def _load_shared_osdr_overrides() -> tuple[dict[str, Any], bool]:
-    """Safely inspect data/shared_real/ for OSD-569 and OSD-575 CSVs. Never crashes."""
+def _pick_col(cols_lower: dict[str, str], exact_aliases: Sequence[str], fuzzy_substrings: Sequence[str] = ()) -> Optional[str]:
+    """Find matching DataFrame column name using exact aliases first, then fuzzy substrings."""
+    for alias in exact_aliases:
+        if alias in cols_lower:
+            return cols_lower[alias]
+    for sub in fuzzy_substrings:
+        for col_low, col_orig in cols_lower.items():
+            if sub in col_low:
+                return col_orig
+    return None
+
+
+def _sample_timepoint_order(sample_name: str) -> tuple[int, int]:
+    """Sort Inspiration4 `Sample Name` chronologically: L-92 < L-44 < L-3 < R+1 < R+45 < R+82 < R+194."""
+    import re
+    m = re.search(r"_([LR])([+-]?\d+)", str(sample_name), re.IGNORECASE)
+    if not m:
+        return (9, 0)
+    phase = m.group(1).upper()
+    day = int(m.group(2))
+    return (0, day) if phase == "L" else (1, abs(day))
+
+
+def _filter_osdr_by_crew(df: pd.DataFrame, crew_id: Optional[str] = None) -> pd.DataFrame:
+    """Filter an OSDR DataFrame to the requested crew_id (supports `Sample Name` prefix like `C002_...`)."""
+    if df.empty or not crew_id:
+        return df
+    cols_lower = {str(c).strip().lower(): str(c) for c in df.columns}
+    target = str(crew_id).strip().upper()
+    for id_col in ("crew_id", "subject_id", "subject", "id", "participant_id", "sample name", "sample_name"):
+        if id_col in cols_lower:
+            col_name = cols_lower[id_col]
+            series = df[col_name].astype(str).str.strip().str.upper()
+            if "sample" in id_col:
+                matched = df[series.str.startswith(target + "_") | (series == target)]
+            else:
+                matched = df[series == target]
+            if not matched.empty:
+                return matched
+    return df
+
+
+def _select_osdr_row(df: pd.DataFrame, crew_id: Optional[str] = None) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Return `(latest_row, preflight_baseline_means)` from an OSDR CSV for the matching crew_id."""
+    if df.empty:
+        return {}, {}
+    subset = _filter_osdr_by_crew(df, crew_id=crew_id).copy()
+    cols_lower = {str(c).strip().lower(): str(c) for c in subset.columns}
+    sample_col = cols_lower.get("sample name") or cols_lower.get("sample_name")
+    if sample_col:
+        subset["_tp_ord"] = subset[sample_col].map(_sample_timepoint_order)
+        subset = subset.sort_values("_tp_ord")
+        pre_df = subset[subset[sample_col].astype(str).str.contains("_L-", case=False, na=False)]
+    else:
+        pre_df = pd.DataFrame()
+
+    latest = {str(k).strip().lower(): v for k, v in subset.iloc[-1].to_dict().items() if k != "_tp_ord"}
+    pre_means: dict[str, Any] = {}
+    if not pre_df.empty:
+        for col in pre_df.columns:
+            if col == "_tp_ord":
+                continue
+            nums = pd.to_numeric(pre_df[col], errors="coerce").dropna()
+            if not nums.empty:
+                pre_means[str(col).strip().lower()] = float(nums.mean())
+    return latest, pre_means
+
+
+def _normalize_osdr_value(raw_val: Optional[float], col_name_lower: str, target_key: str) -> Optional[float]:
+    """Normalize NASA OSDR long-column values into cardiovascular module units."""
+    if raw_val is None:
+        return None
+    if target_key == "hb_g_dl":
+        # Inspiration4 OSD-569 header is `hemoglobin_value_percent` but stores values in g/dL (~11-17).
+        # If stored as g/L (e.g. > 50), convert g/L -> g/dL.
+        if ("gram_per_liter" in col_name_lower or "g_per_l" in col_name_lower) and raw_val > 50.0:
+            return round(raw_val / 10.0, 3)
+        return raw_val
+    if target_key == "hct_pct":
+        return raw_val * 100.0 if raw_val <= 1.0 else raw_val
+    if target_key == "crp_mg_l":
+        if "picogram_per_milliliter" in col_name_lower or "pg_per_ml" in col_name_lower or "pg_ml" in col_name_lower:
+            return round(raw_val / 1_000_000.0, 4)
+        if "nanogram_per_milliliter" in col_name_lower or "ng_per_ml" in col_name_lower or "ng_ml" in col_name_lower:
+            return round(raw_val / 1_000.0, 4)
+        if "microgram_per_milliliter" in col_name_lower or "ug_per_ml" in col_name_lower or "ug_ml" in col_name_lower:
+            return round(raw_val, 4)
+        return raw_val
+    if target_key == "fibrinogen_mg_dl":
+        if "nanogram_per_milliliter" in col_name_lower or "ng_per_ml" in col_name_lower or "ng_ml" in col_name_lower:
+            # Note: OSD-575 EvePanel assay reports diluted plasma ng/mL (~2,000-6,500) rather than clinical
+            # whole-plasma ~200-400 mg/dL (2,000,000-4,000,000 ng/mL); only convert clinical-scale values.
+            if raw_val >= 100_000.0:
+                return round(raw_val / 10_000.0, 2)
+            return round(raw_val, 2)
+        if "microgram_per_milliliter" in col_name_lower or "ug_per_ml" in col_name_lower or "ug_ml" in col_name_lower:
+            return round(raw_val / 10.0, 2)
+        if "milligram_per_milliliter" in col_name_lower or "mg_per_ml" in col_name_lower or "mg_ml" in col_name_lower:
+            return round(raw_val * 100.0, 2)
+        if "gram_per_liter" in col_name_lower or "g_per_l" in col_name_lower or "g_l" in col_name_lower:
+            return round(raw_val * 100.0, 2)
+        return raw_val
+    if target_key == "pf4_ng_ml":
+        if "picogram_per_milliliter" in col_name_lower or "pg_per_ml" in col_name_lower or "pg_ml" in col_name_lower:
+            return round(raw_val / 1_000.0, 3)
+        if "microgram_per_milliliter" in col_name_lower or "ug_per_ml" in col_name_lower or "ug_ml" in col_name_lower:
+            return round(raw_val * 1_000.0, 3)
+        return raw_val
+    return raw_val
+
+
+def _parse_long_format_osdr(df: pd.DataFrame, crew_id: Optional[str] = None) -> dict[str, Any]:
+    """Support raw OSDR long-format tables (ANALYTE/VALUE/UNITS or Analyte/Concentration/Unit)."""
     updates: dict[str, Any] = {}
+    cols_lower = {str(c).strip().lower(): str(c) for c in df.columns}
+    analyte_col = _pick_col(cols_lower, ("analyte", "test_name", "biomarker"))
+    value_col = _pick_col(cols_lower, ("value", "concentration", "result"))
+    unit_col = _pick_col(cols_lower, ("units", "unit"))
+    if not analyte_col or not value_col:
+        return updates
+
+    subset = df
+    if crew_id:
+        id_col = _pick_col(cols_lower, ("crew_id", "subject_id", "id", "subject"))
+        if id_col:
+            matched = df[df[id_col].astype(str).str.strip().str.upper() == str(crew_id).strip().upper()]
+            if not matched.empty:
+                subset = matched
+
+    analyte_map = {
+        "hb_g_dl": ("hemoglobin", "hgb"),
+        "hct_pct": ("hematocrit", "hct"),
+        "potassium_mmol_l": ("potassium",),
+        "sodium_mmol_l": ("sodium",),
+        "albumin_g_dl": ("albumin",),
+        "total_protein_g_dl": ("total protein", "total_protein"),
+        "crp_mg_l": ("crp", "c-reactive protein"),
+        "fibrinogen_mg_dl": ("fibrinogen",),
+        "pf4_ng_ml": ("pf4", "platelet factor 4", "cxcl4"),
+    }
+    for _, r in subset.iterrows():
+        a_name = str(r.get(analyte_col, "")).strip().lower()
+        val = _safe_float(r.get(value_col))
+        if not a_name or val is None:
+            continue
+        unit_str = str(r.get(unit_col, "")).strip().lower() if unit_col else ""
+        unit_hint = unit_str.replace("/", "_per_").replace(" ", "_")
+        for target_key, patterns in analyte_map.items():
+            if any(p == a_name or p in a_name for p in patterns):
+                norm_val = _normalize_osdr_value(val, unit_hint, target_key)
+                if norm_val is not None:
+                    updates[target_key] = norm_val
+                break
+    return updates
+
+
+def _load_shared_osdr_overrides(crew_id: Optional[str] = None) -> tuple[dict[str, Any], bool]:
+    """Safely inspect data/shared_real/ for OSD-569 and OSD-575 CSVs. Never crashes.
+
+    Supports both simplified short columns (e.g. `hb_g_dl`, `potassium_mmol_l`, `crp_mg_l`)
+    and raw NASA OSDR long column names + units (e.g. `hemoglobin_value_percent`,
+    `potassium_value_millimol_per_liter`, `crp_concentration_picogram_per_milliliter`,
+    `fibrinogen_concentration_nanogram_per_milliliter`, `pf4_concentration_nanogram_per_milliliter`).
+    Also computes personal pre-flight (`L-*`) baseline overrides (`_osdr_baseline_overrides`)
+    when Inspiration4 `Sample Name` timepoints are present.
+    """
+    updates: dict[str, Any] = {}
+    base_overrides: dict[str, Any] = {}
     found_real = False
 
     osd569_candidates = [
@@ -738,46 +903,99 @@ def _load_shared_osdr_overrides() -> tuple[dict[str, Any], bool]:
             try:
                 df = pd.read_csv(path)
                 if not df.empty:
-                    row = df.iloc[-1].to_dict()
-                    for k in ("hb_g_dl", "hgb", "hemoglobin"):
-                        if k in row and _safe_float(row[k]) is not None:
-                            updates["hb_g_dl"] = _safe_float(row[k])
+                    long_parsed = _parse_long_format_osdr(df, crew_id=crew_id)
+                    for k in ("hb_g_dl", "hct_pct"):
+                        if k in long_parsed:
+                            updates[k] = long_parsed[k]
                             found_real = True
-                    for k in ("hct_pct", "hct", "hematocrit"):
-                        if k in row and _safe_float(row[k]) is not None:
-                            val = _safe_float(row[k])
-                            if val is not None:
-                                updates["hct_pct"] = val * 100.0 if val <= 1.0 else val
-                                found_real = True
+
+                    row, pre_means = _select_osdr_row(df, crew_id=crew_id)
+                    cols_lower = {k: k for k in row}
+                    hb_col = _pick_col(cols_lower, ("hb_g_dl", "hgb", "hemoglobin", "hemoglobin_value_percent"), ("hemoglobin",))
+                    if hb_col:
+                        val = _normalize_osdr_value(_safe_float(row.get(hb_col)), hb_col, "hb_g_dl")
+                        if val is not None:
+                            updates["hb_g_dl"] = val
+                            found_real = True
+                        if hb_col in pre_means:
+                            pre_val = _normalize_osdr_value(_safe_float(pre_means.get(hb_col)), hb_col, "hb_g_dl")
+                            if pre_val is not None:
+                                base_overrides["hb_g_dl"] = round(pre_val, 2)
+
+                    hct_col = _pick_col(cols_lower, ("hct_pct", "hct", "hematocrit", "hematocrit_value_percent"), ("hematocrit",))
+                    if hct_col:
+                        val = _normalize_osdr_value(_safe_float(row.get(hct_col)), hct_col, "hct_pct")
+                        if val is not None:
+                            updates["hct_pct"] = val
+                            found_real = True
+                        if hct_col in pre_means:
+                            pre_val = _normalize_osdr_value(_safe_float(pre_means.get(hct_col)), hct_col, "hct_pct")
+                            if pre_val is not None:
+                                base_overrides["hct_pct"] = round(pre_val, 2)
             except Exception:
                 pass
-            break
+            if found_real:
+                break
 
-    for fname in ("OSD-575_cmp.csv", "osd575_cmp.csv", "OSD-575_cv_panel.csv"):
+    for fname in ("OSD-575_cmp.csv", "osd575_cmp.csv", "OSD-575_cv_panel.csv", "osd575_cv_panel.csv"):
         path = SHARED_REAL_DIR / fname
         if path.exists():
             try:
                 df = pd.read_csv(path)
                 if not df.empty:
-                    row = {str(k).lower(): v for k, v in df.iloc[-1].to_dict().items()}
-                    mapping = {
-                        "potassium_mmol_l": ("potassium_mmol_l", "potassium", "k", "k_mmol_l"),
-                        "sodium_mmol_l": ("sodium_mmol_l", "sodium", "na", "na_mmol_l"),
-                        "albumin_g_dl": ("albumin_g_dl", "albumin"),
-                        "total_protein_g_dl": ("total_protein_g_dl", "total_protein"),
-                        "fibrinogen_mg_dl": ("fibrinogen_mg_dl", "fibrinogen"),
-                        "pf4_ng_ml": ("pf4_ng_ml", "pf4"),
-                        "crp_mg_l": ("crp_mg_l", "crp"),
+                    long_parsed = _parse_long_format_osdr(df, crew_id=crew_id)
+                    if long_parsed:
+                        updates.update(long_parsed)
+                        found_real = True
+
+                    row, pre_means = _select_osdr_row(df, crew_id=crew_id)
+                    cols_lower = {k: k for k in row}
+                    mapping: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
+                        "potassium_mmol_l": (
+                            ("potassium_mmol_l", "potassium", "k", "k_mmol_l", "potassium_value_millimol_per_liter"),
+                            ("potassium",),
+                        ),
+                        "sodium_mmol_l": (
+                            ("sodium_mmol_l", "sodium", "na", "na_mmol_l", "sodium_value_millimol_per_liter"),
+                            ("sodium",),
+                        ),
+                        "albumin_g_dl": (
+                            ("albumin_g_dl", "albumin", "albumin_value_gram_per_deciliter"),
+                            ("albumin",),
+                        ),
+                        "total_protein_g_dl": (
+                            ("total_protein_g_dl", "total_protein", "total_protein_value_gram_per_deciliter"),
+                            ("total_protein",),
+                        ),
+                        "fibrinogen_mg_dl": (
+                            ("fibrinogen_mg_dl", "fibrinogen", "fibrinogen_concentration_nanogram_per_milliliter"),
+                            ("fibrinogen",),
+                        ),
+                        "pf4_ng_ml": (
+                            ("pf4_ng_ml", "pf4", "pf4_concentration_nanogram_per_milliliter"),
+                            ("pf4",),
+                        ),
+                        "crp_mg_l": (
+                            ("crp_mg_l", "crp", "crp_concentration_picogram_per_milliliter"),
+                            ("crp",),
+                        ),
                     }
-                    for target, aliases in mapping.items():
-                        for alias in aliases:
-                            if alias in row and _safe_float(row[alias]) is not None:
-                                updates[target] = _safe_float(row[alias])
+                    for target, (aliases, fuzzy) in mapping.items():
+                        matched_col = _pick_col(cols_lower, aliases, fuzzy)
+                        if matched_col:
+                            norm_val = _normalize_osdr_value(_safe_float(row.get(matched_col)), matched_col, target)
+                            if norm_val is not None:
+                                updates[target] = norm_val
                                 found_real = True
-                                break
+                            if matched_col in pre_means:
+                                pre_val = _normalize_osdr_value(_safe_float(pre_means.get(matched_col)), matched_col, target)
+                                if pre_val is not None:
+                                    base_overrides[target] = round(pre_val, 3)
             except Exception:
                 pass
 
+    if base_overrides:
+        updates["_osdr_baseline_overrides"] = base_overrides
     return updates, found_real
 
 
@@ -969,8 +1187,26 @@ def evaluate(
         scenario = "green"
 
     # Merge synthetic fallback -> shared OSDR if available -> incoming payload -> manual_inputs
+    crew_hint = str(
+        (manual_inputs or {}).get("crew_id")
+        or raw_pay.get("crew_id")
+        or base.get("crew_id")
+        or "C002"
+    )
+    use_shared_osdr = (
+        str(raw_pay.get("data_source", "")).strip().upper() != "SIMULATED"
+        and scenario == "green"
+    )
     merged: dict[str, Any] = demo_payload(scenario)
-    osdr_updates, has_osdr_real = _load_shared_osdr_overrides()
+    if use_shared_osdr:
+        osdr_updates, has_osdr_real = _load_shared_osdr_overrides(crew_id=crew_hint)
+    else:
+        osdr_updates, has_osdr_real = {}, False
+
+    osdr_base_overrides = osdr_updates.pop("_osdr_baseline_overrides", {})
+    if isinstance(osdr_base_overrides, dict) and osdr_base_overrides and not baseline:
+        base.update(osdr_base_overrides)
+
     merged.update(osdr_updates)
     merged.update({k: v for k, v in raw_pay.items() if v is not None or k in {"rest_hr_bpm", "spo2_pct"}})
     if manual_inputs:
@@ -978,13 +1214,27 @@ def evaluate(
             if v is not None:
                 merged[k] = v
 
+    # When shared OSDR provides real blood values (or manual_inputs sets crp_mg_l without crp_change_pct),
+    # derive crp_change_pct against personal pre-flight baseline.
+    if (
+        "crp_mg_l" in osdr_updates
+        and "crp_change_pct" not in raw_pay
+        and "crp_change_pct" not in (manual_inputs or {})
+    ):
+        base_crp = float(_safe_float(base.get("crp_mg_l"), 0.9) or 0.9)
+        cur_crp = float(_safe_float(merged.get("crp_mg_l"), base_crp) or base_crp)
+        if base_crp > 0:
+            merged["crp_change_pct"] = round(((cur_crp - base_crp) / base_crp) * 100.0, 1)
+
     crew_id = str(merged.get("crew_id", base.get("crew_id", "C002")))
     mission_day = int(_safe_float(merged.get("mission_day"), 124) or 124)
 
     has_csv_records = any(k.startswith("csv_") for k in merged)
-    if merged.get("data_source"):
+    if has_osdr_real and str(raw_pay.get("data_source", "")).upper() != "MANUAL":
+        data_source = "REAL"
+    elif merged.get("data_source"):
         data_source = str(merged["data_source"]).upper()
-    elif has_csv_records or has_osdr_real:
+    elif has_csv_records:
         data_source = "REAL"
     else:
         data_source = "SIMULATED"
@@ -1382,10 +1632,30 @@ def evaluate(
     total_protein = float(_safe_float(merged.get("total_protein_g_dl"), base["total_protein_g_dl"]))
     fibrinogen = float(_safe_float(merged.get("fibrinogen_mg_dl"), base["fibrinogen_mg_dl"]))
     pf4 = float(_safe_float(merged.get("pf4_ng_ml"), base["pf4_ng_ml"]))
-    crp_change = float(_safe_float(merged.get("crp_change_pct"), 0.0))
+    crp_mg_l = float(_safe_float(merged.get("crp_mg_l"), base["crp_mg_l"]))
+    base_crp = float(_safe_float(base.get("crp_mg_l"), 0.9) or 0.9)
+    if merged.get("crp_change_pct") is not None:
+        crp_change = float(_safe_float(merged.get("crp_change_pct"), 0.0))
+    else:
+        crp_change = round(((crp_mg_l - base_crp) / base_crp) * 100.0, 1) if base_crp > 0 else 0.0
 
     k_l1 = "RED" if (potassium < 3.0 or potassium > 5.5) else ("YELLOW" if (potassium < 3.5 or potassium > 5.1) else "GREEN")
-    crp_l1 = "RED" if (crp_change >= 75.0 or fibrinogen >= 450.0 or pf4 >= 25.0) else ("YELLOW" if (crp_change >= 30.0 or fibrinogen >= 380.0) else "GREEN")
+    # For multiplex serum assays (e.g., OSD-575 EvePanel where PF4 baseline is in thousands of ng/mL
+    # and Fibrinogen is diluted assay ng/mL), compare relative % change vs personal pre-flight baseline;
+    # otherwise apply standard clinical plasma thresholds.
+    base_pf4 = float(_safe_float(base.get("pf4_ng_ml"), 8.0) or 8.0)
+    base_fib = float(_safe_float(base.get("fibrinogen_mg_dl"), 285.0) or 285.0)
+    if base_pf4 > 100.0 or osdr_base_overrides:
+        pf4_chg_pct = ((pf4 - base_pf4) / base_pf4) * 100.0 if base_pf4 > 0 else 0.0
+        fib_chg_pct = ((fibrinogen - base_fib) / base_fib) * 100.0 if base_fib > 0 else 0.0
+        # Multiplex CV panel markers vary widely; flag YELLOW at +100% / RED at +250% unless K+ is abnormal
+        crp_l1 = (
+            "RED"
+            if (crp_change >= 200.0 or pf4_chg_pct >= 250.0 or fib_chg_pct >= 200.0)
+            else ("YELLOW" if (crp_change >= 50.0 or pf4_chg_pct >= 100.0 or fib_chg_pct >= 100.0) else "GREEN")
+        )
+    else:
+        crp_l1 = "RED" if (crp_change >= 75.0 or fibrinogen >= 450.0 or pf4 >= 25.0) else ("YELLOW" if (crp_change >= 30.0 or fibrinogen >= 380.0) else "GREEN")
     blood_l1 = _worst_status([k_l1, crp_l1])
     k_days, k_vals = _hist("potassium_mmol_l", potassium)
     k_slope, k_days_red, k_trend_warn = _linear_trend_projection(k_days, k_vals, red_threshold=3.0, lower_is_worse=True)
