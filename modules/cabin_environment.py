@@ -318,8 +318,21 @@ def evaluate(
     # Flatten primary indicator from each of the 17 cards (plus extra key indicators) into unified list
     unified_indicators: list[dict[str, Any]] = []
     for c in ordered_cards:
+        # Propagate the card's 3-step guidance text down to each indicator so the UI can bind to it
+        card_how_to = c.get("guidance", {}).get("how_to_measure", "")
+        card_plain = c.get("guidance", {}).get("plain_explanation", "")
+        card_steps = c.get("guidance", {}).get("action_protocol", [])
         for ind in c["indicators"]:
-            unified_indicators.append(ind)
+            ind_copy = dict(ind)
+            if card_how_to:
+                ind_copy["how_to_measure"] = card_how_to
+            if card_plain:
+                ind_copy["plain_explanation"] = card_plain
+            if card_steps:
+                ind_copy["action_steps"] = card_steps
+            elif ind_copy.get("action"):
+                ind_copy["action_steps"] = [ind_copy["action"]]
+            unified_indicators.append(ind_copy)
 
     # Aggregate short_term_plan (Conclusion & actions for current status) and long_term_plan (Routine protection & countermeasures)
     short_actions: list[str] = []

@@ -235,6 +235,10 @@ def _make_indicator(
         "lower_is_worse": lower_is_worse,
         "history_days": history_days or [],
         "history_values": history_values or [],
+        # Expose action properties directly for UI metrics binding
+        "how_to_measure": "See top-level module guidance or card protocol.",
+        "plain_explanation": f"{indicator} measured via {rule_id}. {message}",
+        "action_steps": [action] if action else [],
     }
 
 
