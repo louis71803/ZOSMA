@@ -91,6 +91,7 @@ HUD_I18N_JS = r"""
       leg_forecast: '+30d Forecast',
       guide_hdr: 'ZERO-MEDICAL-BACKGROUND 3-STEP CREW PROTOCOL',
       guide_sop: 'OFFLINE AUTONOMOUS SOP',
+      cross_link_title: 'CROSS-INDICATOR CLINICAL LINK',
       tab_measure: '1. HOW TO MEASURE',
       tab_meaning: '2. WHAT IT MEANS',
       tab_action: '3. ACTION PROTOCOL',
@@ -227,6 +228,7 @@ HUD_I18N_JS = r"""
       leg_forecast: '+30天預測',
       guide_hdr: '無醫療背景太空人 · 三步驟操作指引',
       guide_sop: '離線自主標準作業程序',
+      cross_link_title: '跨指標臨床關聯警示',
       tab_measure: '1. 如何測量',
       tab_meaning: '2. 生理意義',
       tab_action: '3. 處置步驟',
@@ -518,6 +520,134 @@ HUD_I18N_JS = r"""
     'Stop fatigued set today and switch to recovery training; recheck E4D, isometric strength, and body mass in 72h, Ultrasound CSA >= 7 days, bone markers >= 14 days.': '今日立即停止疲勞組並改為恢復訓練；72 小時後複檢 E4D、等長肌力與體質量（超音波 ≥ 7 天、骨代謝指標 ≥ 14 天）。',
     'Starting from the next workout, increase E4D load by approximately +5% or add sets; recheck E4D, isometric strength, and body mass in 24h, Ultrasound CSA >= 7 days, bone markers >= 14 days.': '下次訓練起提高 E4D 負荷約 +5% 或增加組數；24 小時後複檢 E4D、等長肌力與體質量（超音波 ≥ 7 天、骨代謝指標 ≥ 14 天）。',
 
+    // Role 3: M0-M11 indicator titles & per-metric 3-step guidance (GREEN / YELLOW / RED / BAD_DATA)
+    'M0: Layer 0 Bio-Monitor QC Gatekeeper': 'M0：Layer 0 感測器品質閘門',
+    'M1: Resting Heart Rate (Bio-Monitor)': 'M1：靜息心率 (Bio-Monitor)',
+    'M2: Blood Pressure (PTT + Cuff & PRCP)': 'M2：血壓 PTT 與袖帶校正',
+    'M3: Oxygen Saturation SpO2 (Bio-Monitor)': 'M3：血氧飽和度 SpO2',
+    'M4: Breathing Rate (Bio-Monitor)': 'M4：靜息呼吸頻率',
+    'M5: Heart Rhythm & PVC Burden (Holter + MIT-BIH)': 'M5：心律與 PVC 早搏負荷 (Holter)',
+    'M6: Orthostatic Tolerance (LBNP/Stand + PRCP)': 'M6：直立耐受性 (LBNP / 站立測試)',
+    'M7: Aerobic Fitness 150W Bike HR Drift (CEVIS)': 'M7：CEVIS 150W 有氧心率飄移',
+    'M8: Myocardial Strain GLS (Ultrasound 2)': 'M8：心肌應變 GLS (Ultrasound 2)',
+    'M9: IJV Neck Vein Flow & Clot (Ultrasound 2)': 'M9：頸內靜脈血流與血栓 (Ultrasound 2)',
+    'M10: Plasma Volume %DeltaPV (Dill & Costill / OSD-569)': 'M10：血漿容量變化 %ΔPV (OSD-569)',
+    'M11: Serum Blood Chemistry (K+, CRP, Clotting / OSD-575)': 'M11：血清生化鉀/CRP/凝血 (OSD-575)',
+
+    // M1-M11 how_to_measure
+    'Wet Bio-Monitor thoracic electrodes with sterile wipe, fasten strap snugly at xiphoid level, and sit still for 60 seconds.': '以無菌濕巾潤濕 Bio-Monitor 胸部電極，將胸帶貼緊劍突高度並靜坐 60 秒。',
+    'Sit or float relaxed for 5 minutes wearing the Bio-Monitor thoracic ECG shirt; confirm signal quality >= 0.50 and avoid caffeine 2 hours before testing.': '穿著 Bio-Monitor 心電感測衣靜坐或飄浮放鬆 5 分鐘；確認訊號品質 ≥ 0.50，且測前 2 小時勿攝取咖啡因。',
+    'Continuous Bio-Monitor Pulse Transit Time (PTT) estimates beat-to-beat BP; calibrate once a week with the manual upper-arm cuff held at heart level.': '由 Bio-Monitor 脈搏波傳導時間 (PTT) 連續估算血壓；每週使用手動上臂袖帶於與心臟同高位置校正一次。',
+    'Place the Bio-Monitor optical clip on a warm finger or wrist sensor pad and wait 20 seconds for a steady wave.': '將 Bio-Monitor 光學血氧夾置於溫暖的手指或腕部感測墊，等待 20 秒取得穩定波形。',
+    'The Bio-Monitor chest strap counts resting breaths automatically while you sit or float quietly for 60 seconds.': '靜坐或飄浮安靜休息 60 秒時，Bio-Monitor 胸帶會自動計算靜息呼吸次數。',
+    'Attach the 5-lead Holter Monitor 2 for 24 hours; onboard software checks beat shapes against MIT-BIH arrhythmia templates.': '配戴 5 導程 Holter Monitor 2 連續記錄 24 小時；隨艦軟體將自動比對 MIT-BIH 心律不整樣板。',
+    'Seal waist in the LBNP negative-pressure chamber (-25/-40 mmHg) or perform a 3-min post-landing stand test while recording HR and BP.': '腰部密封進入 LBNP 下半身負壓艙 (-25/-40 mmHg)，或於著陸後執行 3 分鐘站立測試並同步記錄心率與血壓。',
+    'Pedal CEVIS at a steady 150 Watts for 10 minutes and average your ECG heart rate over the final 3 minutes.': '在 CEVIS 飛輪以固定 150 瓦踩踏 10 分鐘，取最後 3 分鐘的心電心率平均值。',
+    'Use Ultrasound 2 from the chest apex to capture 4-, 3-, and 2-chamber cine loops for automated GLS tracking.': '使用 Ultrasound 2 自心尖位置擷取心室 4 腔、3 腔與 2 腔動態影像，由系統自動計算 GLS 心肌應變。',
+    'Place the Ultrasound 2 linear probe on the side of your neck: check that the vein collapses easily with gentle pressure and shows steady forward color Doppler flow.': '將 Ultrasound 2 線性探頭輕置於頸部外側：確認輕壓探頭時靜脈能完全壓扁，且彩色都卜勒呈穩定順向血流。',
+    'Run a fingerstick Bio-Analyzer CBC cartridge for Hemoglobin (Hb) and Hematocrit (Hct); the system computes %DeltaPV automatically.': '以指尖採血執行 Bio-Analyzer CBC 卡匣測得血紅素 (Hb) 與血比容 (Hct)，系統將自動計算 %ΔPV。',
+    'Insert a lithium-heparin capillary/venous cartridge into the onboard Bio-Analyzer chemistry reader.': '將肝素鋰微血管／靜脈採血卡匣插入隨艦 Bio-Analyzer 生化判讀儀。',
+    'GUARDED CHECK: Rest quietly for 5 minutes in the Bio-Monitor shirt (no caffeine for 2 hours prior) and compare against your morning hydration and sleep log.': '警戒複檢：穿著 Bio-Monitor 感測衣安靜休息 5 分鐘（2 小時內勿喝咖啡），並對照今早飲水與睡眠紀錄。',
+    'VERIFY WITH ARM CUFF: Run a manual brachial arm-cuff check at heart height to confirm the Bio-Monitor Pulse Transit Time (PTT) reading.': '袖帶複核：在與心臟同高位置以手動上臂血壓計量測一次，驗證 Bio-Monitor PTT 血壓讀數。',
+    'WARNING (<96%): Warm your fingertip, confirm snug optical sensor fit, wait 20 seconds for clean waveform lock, and cross-check your breathing rate (M4).': '血氧偏低 (<96%)：先溫熱指尖、確認光學夾具貼合並等待 20 秒鎖定波形，同時比對呼吸頻率 (M4)。',
+    'GUARDED (>20/min): Sit still for 60 seconds wearing the Bio-Monitor chest band and check cabin ppCO2.': '呼吸偏快 (>20次/分)：穿著 Bio-Monitor 胸帶靜坐 60 秒重測，並立即檢視艙內 ppCO2。',
+    'ELEVATED EXTRA BEATS: Continue wearing the 5-lead Holter Monitor 2 (MIT-BIH pattern check) and run a Bio-Analyzer fingerstick test for serum Potassium (M11).': '心室早搏增加：繼續配戴 5 導程 Holter（MIT-BIH 型態分析），並立即以 Bio-Analyzer 指尖採血確認血鉀濃度 (M11)。',
+    'ORTHOSTATIC WARNING: Seal your waist in the LBNP chamber (-20 to -40 mmHg) or run a 3-min stand test while logging HR rise and blood pressure drop.': '直立耐受預警：進入 LBNP 負壓艙 (-20 至 -40 mmHg) 或執行 3 分鐘站立測試，同步記錄心率升幅與血壓降幅。',
+    'FITNESS DRIFT CHECK: Hydrate well beforehand, cycle on CEVIS at a steady 150W for 10 minutes, and average your ECG heart rate over the last 3 minutes.': '體能飄移檢核：測前充分補水後，於 CEVIS 以固定 150W 踩踏 10 分鐘，取最後 3 分鐘平均心率。',
+    'STRAIN WARNING: Re-capture Ultrasound 2 apical 4-, 3-, and 2-chamber views ensuring crisp heart-wall borders for speckle tracking.': '心肌應變預警：重新擷取清晰的 Ultrasound 2 心尖 4/3/2 腔影像，確保心壁邊緣清楚以利應變追蹤。',
+    'STASIS CHECK: Scan both left and right neck IJV with Ultrasound 2 color Doppler and confirm the vein still collapses flat under light probe pressure.': '血流滯留檢查：以 Ultrasound 2 彩色都卜勒掃描左右兩側頸內靜脈，確認輕壓下血管仍可完全扁塌。',
+    'CHECK BIO-ANALYZER Hb/Hct: Insert fingerstick CBC cartridge to calculate %DeltaPV change from pre-flight baseline.': '檢核 Hb/Hct：插入 Bio-Analyzer 指尖採血 CBC 卡匣，計算相較發射前基準之血漿容量變化 %ΔPV。',
+    'CHEMISTRY CHECK: Insert lithium-heparin cartridge into Bio-Analyzer and verify K+, CRP, and clotting markers.': '生化檢核：插入肝素鋰生化卡匣至 Bio-Analyzer，確認血鉀 K+、CRP 與凝血指標。',
+    'CRITICAL RE-CHECK: Float or sit completely still for 5 minutes wearing the Bio-Monitor shirt. Confirm ECG strap skin contact >= 0.50 and motion < 0.50 g, and check your oral temperature before repeating.': '危急複檢：穿著 Bio-Monitor 感測衣完全靜止 5 分鐘，確認心電接觸品質 ≥ 0.50、動作干擾 < 0.50 g，並先量測口腔體溫再重測。',
+    'URGENT VERIFICATION: Do not rely on the Bio-Monitor wrist/chest estimate alone. Measure your blood pressure manually with the upper-arm cuff at heart level on both arms.': '緊急人工複核：勿僅依賴穿戴式估算值，請立即在心臟同高位置以手動袖帶分別量測雙臂血壓。',
+    'EMERGENCY HYPOXIA CHECK: Warm your finger for 30 seconds, clip the optical SpO2 sensor securely, wait 20 seconds for a steady pulse wave, and immediately check cabin O2/CO2 and neck vein (M9) ultrasound.': '緊急低血氧處置：溫熱手指 30 秒並夾緊 SpO2 感測器取得穩定脈搏波，立即核對艙內 O2/CO2 並掃描頸內靜脈 (M9)。',
+    'CRITICAL BREATHING CHECK: Float or sit calmly for 60 seconds so the Bio-Monitor chest band measures true resting breaths/min, then check SpO2 (M3) and cabin CO2 immediately.': '危急呼吸檢核：保持靜止 60 秒取得真實靜息呼吸頻率，並立即聯動檢視血氧 SpO2 (M3) 與艙內 CO2。',
+    'CRITICAL RHYTHM CHECK: Capture an immediate 12-lead ECG, keep the 5-lead Holter Monitor 2 running, and test blood Potassium (K+) using the Bio-Analyzer fingerstick cartridge.': '危急心律檢核：立即擷取 12 導程心電圖、保持 5 導程 Holter 持續記錄，並以 Bio-Analyzer 立即測血鉀 K+。',
+    'PRESYNCOPE ALERT: Stop the LBNP suction or Stand Test immediately if you feel dizzy, lightheaded, or tunnel-visioned. Lie/float flat and record recovery HR and BP.': '昏厥前兆警報：若感到頭暈、眼花或視野變窄，立即停止 LBNP 負壓或站立測試，平躺/平浮並記錄恢復期心率與血壓。',
+    'DO NOT RUN MAXIMAL BIKE TEST: Pause the CEVIS 150W protocol. Check resting HR, Holter rhythm, heart ultrasound (GLS), and neck vein (IJV) scan first.': '禁止執行高負荷飛輪測試：立即暫停 CEVIS 150W 測試，優先檢查靜息心率、Holter 心律、心臟超音波 (GLS) 與頸靜脈 (IJV)。',
+    'CRITICAL HEART STRAIN SCAN: Acquire clear Ultrasound 2 apical 4-, 3-, and 2-chamber heart views and pair with blood CRP/clotting markers (M11).': '危急心肌應變掃描：擷取清晰的 Ultrasound 2 心尖 4/3/2 腔切面，並對照血液 CRP 與凝血指標 (M11)。',
+    'EMERGENCY NECK CLOT SCAN: Glide the Ultrasound 2 linear probe gently over left and right neck veins. Document reversed Doppler flow or non-collapsing clot—do NOT press hard enough to dislodge a thrombus.': '緊急頸部血栓掃描：將 Ultrasound 2 線性探頭輕滑過左右頸部靜脈，記錄都卜勒逆流或無法壓扁之血栓影像——切勿用力按壓以免血栓脫落。',
+    'RUN BIO-ANALYZER CBC: Test fingerstick Hemoglobin (Hb) and Hematocrit (Hct) immediately to track fluid depletion via Dill & Costill (1974).': '立即執行 Bio-Analyzer CBC：以指尖採血量測 Hb 與 Hct，依 Dill & Costill (1974) 公式計算體液流失率。',
+    'URGENT CHEMISTRY PANEL: Run a fresh Bio-Analyzer lithium-heparin cartridge to confirm serum Potassium (K+), Fibrinogen, PF4, and CRP.': '緊急血液生化檢驗：使用全新肝素鋰卡匣上機確認血鉀 K+、纖維蛋白原 (Fibrinogen)、PF4 與 CRP。',
+
+    // M1-M11 why_in_space
+    'Microgravity shifts chest shape and reduces skin moisture; dry electrodes or motion cause false PVC/SpO2 alarms.': '微重力會改變胸廓形狀並使皮膚較乾燥；電極乾燥或晃動容易造成心室早搏與血氧假警報。',
+    "Extra heartbeats are minimal (0.30%, no AFib), showing your heart's electrical wiring and mineral balance are steady.": '心室早搏極少 (0.30%，無心房顫動)，代表心臟電生理傳導與礦物質平衡十分穩定。',
+    'Even though weightlessness pushes fluid toward your head, forward and collapsible neck vein flow confirms there is no dangerous blood pooling or clot.': '雖然失重會將體液推向頭部，但頸內靜脈維持順向血流且可輕易壓扁，證實目前無危險血液鬱積或血栓。',
+    'Plasma volume change (-5.0%) is mild and within normal spaceflight adaptation limits.': '血漿容量變化 (-5.0%) 屬輕微範圍，符合正常的太空飛行生理適應。',
+    'Serum potassium (4.15 mmol/L), electrolytes, and clotting proteins are balanced, protecting heart rhythm and vessel health.': '血清鉀 (4.15 mmol/L)、電解質與凝血蛋白均在平衡範圍，有助維持心律穩定與血管健康。',
+    'Plasma volume is down -15.8% (warning <= -12%). Microgravity makes your kidneys shed extra water, shrinking total circulating blood volume.': '血漿容量下降 -15.8%（預警 ≤ -12%）。微重力會促使腎臟排出較多水分，使總循環血量縮減。',
+    'Borderline blood chemistry (K+ 3.45 mmol/L or rising CRP/Fibrinogen) increases heart-rhythm irritability and inflammation.': '血液生化逼近臨界（K+ 3.45 mmol/L 或 CRP/纖維蛋白原上升），會增加心肌電位不穩與血管發炎風險。',
+    "Neck vein status is CRITICAL (flow='reversed', thrombus=True). Weightlessness shifts ~2 L of blood into your head/neck, stalling vein drainage until a clot forms—which can travel to your lungs (fatal pulmonary embolism).": '頸靜脈狀態危急（血流逆流、疑似血栓）。失重使約 2 公升血液湧入頭頸部，靜脈回流停滯容易形成血栓，進而有飄移至肺部造成致命肺栓塞之風險。',
+    'Plasma blood volume dropped -22.1% (red limit <= -20%). Your blood is overly concentrated, sharply raising fainting risk (M6) and clot viscosity (M9).': '血漿容量驟降 -22.1%（紅線 ≤ -20%）。血液過度濃縮會大幅提高直立暈厥 (M6) 與血栓黏稠度風險 (M9)。',
+    'Blood chemistry is critical (K+ 3.05 mmol/L or elevated clotting/inflammation markers). Low potassium triggers dangerous heart rhythms (M5), while high Fibrinogen/PF4 increases neck-vein clot risk (M9).': '血液生化達危急警戒（K+ 3.05 mmol/L 或凝血/發炎指標過高）。低血鉀會誘發危險心律不整 (M5)，高纖維蛋白原/PF4 則升高頸靜脈血栓風險 (M9)。',
+
+    // M1-M11 action_steps
+    'Continue daily morning Bio-Monitor vitals logging.': '持續每日晨間 Bio-Monitor 基礎生命徵象記錄。',
+    'Maintain 2.5 L/day fluid intake.': '維持每日 2.5 公升足量飲水。',
+    'Continue weekly manual arm-cuff calibration.': '維持每週一次手動上臂血壓袖帶校正。',
+    'No blood pressure adjustment needed.': '血壓正常，無需額外處置調整。',
+    'Continue routine Bio-Monitor oxygen logging.': '維持常規 Bio-Monitor 血氧監測記錄。',
+    'Continue standard daily Bio-Monitor tracking.': '維持標準每日 Bio-Monitor 呼吸追蹤。',
+    'Continue scheduled Holter surveillance and normal CEVIS workouts.': '維持排程 Holter 監測與正常 CEVIS 飛輪訓練。',
+    'Keep bi-weekly LBNP tolerance checks on schedule.': '依原訂排程每兩週執行一次 LBNP 負壓耐受測試。',
+    'Continue current CEVIS Zone 2/4 aerobic schedule.': '維持現行 CEVIS 第 2/4 區間有氧體能訓練課表。',
+    'Maintain monthly Ultrasound 2 heart check.': '維持每月一次 Ultrasound 2 心臟超音波檢查。',
+    'Continue routine monthly bilateral neck IJV ultrasound screening.': '維持每月例行雙側頸內靜脈超音波篩檢。',
+    'Maintain 2.5 L/day hydration target.': '維持每日 2.5 公升補水目標。',
+    'Continue routine monthly Bio-Analyzer blood chemistry checks.': '維持每月例行 Bio-Analyzer 血液生化追蹤。',
+    'Drink 500-750 mL of water with electrolyte tablets over the next hour.': '於未來 1 小時內分次飲用 500–750 mL 含電解質錠之飲水。',
+    'Prioritize at least 7.5 hours of sleep tonight and skip high-intensity sprints today.': '今晚確保至少 7.5 小時睡眠，今日暫停高強度衝刺訓練。',
+    'Repeat your resting Bio-Monitor check in 12 hours.': '12 小時後複檢一次靜息 Bio-Monitor 量測。',
+    'Recalibrate the Bio-Monitor with the arm cuff today.': '今日使用上臂血壓袖帶重新校正 Bio-Monitor。',
+    'Check cabin ppCO2 (< 2.5 mmHg) and review your sodium/fluid intake.': '檢查艙內 ppCO2（需 < 2.5 mmHg）並檢視鈉與水分攝取量。',
+    'Re-measure resting blood pressure in 12-24 hours.': '12–24 小時後複測靜息血壓。',
+    'Check cabin O2 and CO2 monitors and improve local airflow.': '檢查艙內 O2 與 CO2 監測讀數，並加強所在艙段空氣對流。',
+    'Repeat SpO2 + breathing rate in 4-6 hours.': '4–6 小時後複測血氧 SpO2 與呼吸頻率。',
+    'Check CDRA CO2 scrubber status and turn up cabin mixing fans.': '檢查 CDRA 二氧化碳吸附器狀態並調高艙內循環風扇風速。',
+    'Re-check breathing rate and SpO2 in 12 hours.': '12 小時後複測呼吸頻率與血氧。',
+    'Verify serum K+ >= 3.5 mmol/L and take electrolyte / potassium replacement if low.': '確認血清鉀 K+ ≥ 3.5 mmol/L；若偏低立即補充電解質與口服鉀。',
+    'Skip maximal sprints; keep CEVIS cycling in easy Zone 2 until Holter clears.': '暫停最大衝刺課表；維持輕鬆第 2 區間飛輪直到 Holter 恢復正常。',
+    'Drink 500-750 mL electrolyte solution and review M10 plasma volume (%DeltaPV).': '飲用 500–750 mL 電解質液並同步檢視 M10 血漿容量 (%ΔPV)。',
+    'Add 30-min LBNP (-20 mmHg) sessions 3x/week to retrain blood vessels.': '每週加入 3 次 30 分鐘 LBNP (-20 mmHg) 訓練以強化血管收縮反射。',
+    'Check M10 plasma volume (%DeltaPV) and hydrate before workouts.': '檢視 M10 血漿容量 (%ΔPV) 並於運動前確實補水。',
+    'Shift CEVIS to structured Zone 2 aerobic sessions (4x/week) and re-test in 7 days.': '將 CEVIS 轉為第 2 區間穩態有氧訓練（每週 4 次）並於 7 天後複測。',
+    'Avoid maximal all-out sprints; maintain steady Zone 2 aerobic conditioning.': '避免全力衝刺；維持穩定的第 2 區間有氧體能訓練。',
+    'Repeat Ultrasound 2 GLS scan in 7 days.': '7 天後複檢 Ultrasound 2 心肌應變 GLS 掃描。',
+    'Run 30 minutes of -20 mmHg LBNP daily to pull fluid back down toward your legs.': '每日執行 30 分鐘 -20 mmHg LBNP 將體液導向下半身。',
+    'Avoid head-down tilt and slightly elevate your upper body while sleeping; re-scan neck in 24-48 hours.': '避免頭低腳高姿勢，睡眠時微墊高上半身；24–48 小時後複掃頸部靜脈。',
+    'Increase daily fluids by +750 mL with electrolytes and re-check orthostatic tolerance (M6).': '每日額外增加 +750 mL 含電解質飲水，並複檢直立耐受性 (M6)。',
+    'Replenish potassium/electrolytes orally and hydrate well before exercise.': '口服補充鉀離子與電解質，運動前務必充分補水。',
+    'Repeat Bio-Analyzer chemistry check in 24-48 hours.': '24–48 小時後複檢 Bio-Analyzer 生化指標。',
+    'STOP all CEVIS cycling and heavy E4D resistance workouts right away.': '立即停止所有 CEVIS 飛輪與高負荷 E4D 抗阻訓練。',
+    'Record a 12-lead ECG and check your oral temperature + SpO2.': '立即記錄 12 導程心電圖，並量測口腔體溫與血氧 SpO2。',
+    'Notify the Crew Medical Officer / Flight Surgeon and repeat vitals every 4 hours.': '通報隨艦醫療官／航太醫師，並每 4 小時追蹤一次生命徵象。',
+    'Pause heavy E4D lifting and intense exercise immediately.': '立即暫停大重量 E4D 訓練與劇烈運動。',
+    'Check for headache, blurry vision, or dizziness and check cabin CO2 levels.': '確認是否有頭痛、視力模糊或頭暈症狀，並核對艙內 CO2 濃度。',
+    'Repeat manual arm-cuff BP every 2-4 hours and alert the Flight Surgeon.': '每 2–4 小時以手動袖帶複測血壓並通知航太醫師。',
+    'Verify cabin oxygen (PIO2) and CO2 (ppCO2) readings immediately; put on supplemental O2 if low.': '立即核對艙內氧分壓 (PIO2) 與二氧化碳 (ppCO2)；若氧氣偏低立即使用備援供氧。',
+    'If breathing rate is also >25/min, treat as possible lung clot: run bilateral neck IJV Ultrasound 2 scan now.': '若呼吸頻率同時 >25次/分，視為疑似肺栓塞警訊：立即執行雙側頸內靜脈超音波掃描。',
+    'Notify the Crew Medical Officer / Flight Surgeon immediately.': '立即通報隨艦醫療官與地面航太醫師。',
+    'Check cabin ppCO2 and O2 sensors right away; move to a well-ventilated module.': '立即檢查艙內 ppCO2 與氧氣感測器，必要時移往通風良好艙段。',
+    'Pair with M3 SpO2: if SpO2 < 95%, run immediate neck IJV Ultrasound 2 clot scan and notify CMO.': '配合 M3 血氧判斷：若 SpO2 < 95%，立即掃描頸靜脈血栓並通報醫療官。',
+    'STOP all CEVIS and E4D workouts immediately.': '立即全面停止所有 CEVIS 與 E4D 訓練。',
+    'If K+ < 3.5 mmol/L, take oral potassium (KCl) supplement per medical kit guide.': '若 K+ < 3.5 mmol/L，依醫療手冊指引服用口服氯化鉀 (KCl) 補充劑。',
+    'Keep continuous ECG monitoring active and alert the Flight Surgeon immediately.': '保持連續心電圖監測並立即通報航太醫師。',
+    'Rest flat/neutral until dizziness passes; do NOT stand abruptly.': '保持平躺／中性飄浮休息直到頭暈消退；切勿突然起身。',
+    'Execute NASA salt-water fluid loading (1 L isotonic electrolyte drink + salt tablets).': '執行 NASA 鹽水體液負荷處方（1 公升等張電解質飲＋鹽錠）。',
+    'Wear lower-body compression garments before any re-entry or planetary G-load and schedule daily LBNP.': '於再入大氣層或承受重力負荷前穿戴下肢加壓褲，並排定每日 LBNP 訓練。',
+    'Suspend HIIT and 150W fitness tests for 14 days.': '暫停高強度間歇訓練與 150W 體能測試 14 天。',
+    'Rule out IJV clot, arrhythmia, and hypovolemia before resuming gentle Zone 1/2 cycling.': '確認排除頸靜脈血栓、心律不整與低血容後，方可恢復輕度第 1/2 區間踩踏。',
+    'Suspend all heavy E4D and HIIT exercise immediately.': '立即暫停所有大重量 E4D 與高強度間歇運動。',
+    'Save ultrasound cine loops for Flight Surgeon review and repeat echocardiogram in 24-48 hours.': '儲存心臟超音波動態影像供航太醫師判讀，並於 24–48 小時後複檢心超。',
+    'STOP heavy E4D straining and intense CEVIS workouts immediately.': '立即停止 E4D 閉氣用力訓練與高強度 CEVIS 飛輪。',
+    'Initiate the onboard anticoagulation medication checklist per Flight Surgeon protocol.': '依航太醫師標準程序啟動隨艦抗凝血藥物治療檢核表。',
+    'Run controlled -25 mmHg LBNP and check SpO2 (M3) + breathing rate (M4) every 4 hours for lung-clot signs.': '執行受控 -25 mmHg LBNP，並每 4 小時追蹤血氧 (M3) 與呼吸 (M4) 以排除肺栓塞徵兆。',
+    'Drink 1 L of isotonic electrolyte fluid + salt tablets immediately.': '立即飲用 1 公升等張電解質液並補充鹽錠。',
+    'Pause strenuous exercise until repeat Hb/Hct confirms volume recovery.': '暫停劇烈運動，直到複測 Hb/Hct 證實血漿容量已恢復。',
+    'STOP high-intensity workouts; take oral KCl if K+ < 3.5 mmol/L.': '停止高強度運動；若 K+ < 3.5 mmol/L 立即口服補充氯化鉀。',
+    'Run 12-lead ECG + bilateral neck IJV ultrasound; repeat chemistry panel in 12 hours.': '執行 12 導程心電圖與雙側頸內靜脈超音波；12 小時後複測血液生化。',
+
     // Role 6: 17-Card Cabin Environment corpus
     'Execute Layer-0 QC checks across DOSTEL/GOES radiation, Type-1 SLM/dosimeter/OOHA acoustics, MCA/CDRA/THC/AQM/TOCA/microbial habitat loops, and Actiwatch/PVT-B/Bedford behavioral assays.': '依序執行 Layer 0 品質檢核：DOSTEL/GOES 輻射偵測、Type-1 聲壓計/個人噪音計/OOHA 聽力測驗、MCA/CDRA/THC/AQM/TOCA 氣水微生物環控迴路，以及 Actiwatch 睡眠、PVT-B 警覺度與 Bedford 工作負荷量測。',
     'Integrates 17 closed-habitat, radiation, acoustic, and circadian-isolation cards across 3 NASA RIDGE hazards to provide autonomous offline decision support (all Red actions end with a human decision).': '整合 17 張封閉艙段環控、太空輻射、聲學噪音與生理節律監測卡（涵蓋 NASA 輻射/孤立/封閉環境三大危害），提供離線自主醫療決策支援（所有紅燈處置均保留人工最終確認）。',
@@ -626,6 +756,31 @@ HUD_I18N_JS = r"""
     out = out.replace(/^ARRHYTHMIA-ELECTROLYTE CORRELATION \(M5\+M11\): Elevated PVC burden \(([\d.]+)%\) paired with hypokalemia \(K\+=([\d.]+) mmol\/L\) [—-] administer oral KCl and repeat ECG\.$/, '心律不整-電解質關聯警示 (M5+M11)：心室早搏負荷偏高 ($1%) 併發低血鉀 (K+=$2 mmol/L) — 給予口服氯化鉀 (KCl) 並複測心電圖。');
     out = out.replace(/^RHYTHM-ELECTROLYTE CHECK \(M5->M11\): Elevated PVC burden \(([\d.]+)%\) [—-] verify serum K\+ >= 3\.5 mmol\/L before exercise\.$/, '心律-電解質檢核 (M5→M11)：心室早搏負荷偏高 ($1%) — 運動前請先確認血清鉀 K+ ≥ 3.5 mmol/L。');
     out = out.replace(/^ORTHOSTATIC-HYPOVOLEMIA CORRELATION \(M6\+M10\): Orthostatic intolerance paired with ([+-]?[\d.]+)% plasma volume loss [—-] initiate oral salt\+fluid loading\.$/, '直立不耐-低血容關聯警示 (M6+M10)：直立耐受不良併發血漿容量流失 ($1%) — 立即啟動口服鹽水與液體補充。');
+
+    // Role 3 M1-M11 dynamic why_in_space patterns
+    out = out.replace(/^Your resting heart rate \(([\d.]+) bpm\) is close to your pre-flight baseline \(([\d.]+) bpm\)\. That tells us your body fluid level and heart nervous-system control are well balanced\.$/, '您的靜息心率 ($1 bpm) 接近發射前個人基準 ($2 bpm)，顯示體液容積與心臟自主神經調控維持良好平衡。');
+    out = out.replace(/^Your resting heart rate drifted up to ([\d.]+) bpm \(baseline ([\d.]+) bpm\)\. Microgravity shrinks blood fluid volume, so your heart beats faster to keep blood flowing to your brain\.$/, '靜息心率上升至 $1 bpm（基準 $2 bpm）。微重力會縮減血液容積，使心臟必須加快跳動以維持腦部供血。');
+    out = out.replace(/^Your resting heart is beating very fast \(([\d.]+) bpm vs your ([\d.]+) bpm Earth baseline\)\. In space, this means your heart is working overtime because of severe fluid loss, infection\/fever, low blood oxygen, or a clot\.$/, '靜息心率過快（$1 bpm，地球基準 $2 bpm），代表心臟因嚴重脫水、發燒感染、低血氧或血栓風險而過度代償負荷。');
+    out = out.replace(/^Your blood pressure \(([\d.]+\/[\d.]+) mmHg\) is steady inside NASA-STD-3001 bounds, showing your blood vessels are adapting smoothly to weightlessness\.$/, '血壓 ($1 mmHg) 穩定落於 NASA-STD-3001 安全範圍內，顯示血管正平順適應失重環境。');
+    out = out.replace(/^Your blood pressure \(([\d.]+\/[\d.]+) mmHg\) is drifting toward NASA warning limits\. Without gravity pulling blood down, shifts in salt, fluids, stress, or cabin CO2 can push pressure out of range\.$/, '血壓 ($1 mmHg) 正趨近 NASA 預警上限。失重環境下，鹽分、體液轉移、壓力或艙內 CO2 升高皆可能推高血壓。');
+    out = out.replace(/^Blood pressure is dangerously outside safe limits \(([\d.]+\/[\d.]+) mmHg\)\. Too high puts extra pressure on head veins and vision \(SANS\); too low means blood is not reaching your brain\.$/, '血壓 ($1 mmHg) 已超出安全紅線：過高會加劇頭部靜脈鬱積與視神經水腫 (SANS)；過低則導致腦部灌流不足。');
+    out = out.replace(/^SpO2 is ([\d.]+)%, proving your lungs are delivering plenty of oxygen from the cabin air into your bloodstream\.$/, '血氧飽和度為 $1%，證實肺部正穩定將艙內氧氣輸送至血液循環。');
+    out = out.replace(/^Oxygen saturation \(([\d.]+)%\) is slightly below normal \(96-100%\)\. This gives an early warning of stale cabin air, mild lung congestion, or an early blood clot\.$/, '血氧飽和度 ($1%) 略低於正常值 (96–100%)，可能為艙內空氣滯留、輕微肺鬱血或早期血栓之預警。');
+    out = out.replace(/^Blood oxygen dropped to a critical ([\d.]+)% \(<= 92%\)\. Either cabin air is low in oxygen, or a blood clot \(pulmonary embolism\) is blocking blood from picking up oxygen in your lungs\.$/, '血氧驟降至危急值 $1% (≤92%)：可能為艙內缺氧，或血栓阻塞肺部血流（肺栓塞）導致無法換氣。');
+    out = out.replace(/^Resting breathing \(([\d.]+) breaths\/min\) is calm and steady, showing cabin air quality and lung function are normal\.$/, '靜息呼吸頻率 ($1 次/分) 平穩正常，顯示艙內空氣品質與肺功能良好。');
+    out = out.replace(/^Breathing rate is mildly elevated \(([\d.]+) breaths\/min\)\. Pockets of trapped CO2 around sleeping quarters or early cardiopulmonary stress make you breathe faster\.$/, '呼吸頻率輕度偏快 ($1 次/分)，睡眠區局部 CO2 累積或早期心肺負荷皆會加快呼吸。');
+    out = out.replace(/^You are breathing very rapidly \(([\d.]+) breaths\/min, limit <= 25\)\. In a closed spacecraft, rapid breathing signals dangerously high CO2 buildup, low oxygen, infection, or a lung blood clot\.$/, '呼吸急促 ($1 次/分，上限 ≤25)：在封閉太空艙內代表危險 CO2 累積、缺氧、感染或疑似肺栓塞。');
+    out = out.replace(/^PVC burden increased to ([\d.]+)% \(warning >= 1\.5%\)\. Stress, dehydration, or low potassium \(currently ([\d.]+) mmol\/L\) commonly causes extra ventricular beats in orbit\.$/, '心室早搏負荷升至 $1%（預警 ≥1.5%）。壓力、脫水或低血鉀（目前 $2 mmol/L）常在軌道上誘發早搏。');
+    out = out.replace(/^Extra heartbeats \(PVCs\) reached ([\d.]+)%([^,]*), and blood potassium is ([\d.]+) mmol\/L\. Low potassium or heart stretching in space makes the heart muscle electrically unstable\.$/, (_, pvc, af, k) => `心室早搏達 ${pvc}%${af.includes('Atrial') ? '（合併心房顫動）' : ''}，血鉀為 ${k} mmol/L；低血鉀或心房牽張會造成心肌電位極度不穩。`);
+    out = out.replace(/^A mild \+([\d.]+) bpm HR rise with no dizziness shows your blood vessels still push blood to your brain when gravity pulls it down\.$/, '心率僅溫和上升 +$1 bpm 且無頭暈，顯示重力牽引下血管仍能有效將血液送往腦部。');
+    out = out.replace(/^Heart rate jumped \+([\d.]+) bpm and SBP fell ([+-]?[\d.]+) mmHg\. Fluid loss in weightlessness reduces your blood volume and weakens blood-vessel reflex tightening\.$/, '心率躍升 +$1 bpm 且收縮壓下降 $2 mmHg：失重體液流失降低了血容量並減弱血管收縮反射。');
+    out = out.replace(/^Your heart jumped \+([\d.]+) bpm and blood pressure dropped ([+-]?[\d.]+) mmHg with dizziness\. Because plasma blood volume shrank \(([+-]?[\d.]+)% in M10\), standing or gravity pulls blood away from your brain, risking fainting on landing\.$/, '心率躍升 +$1 bpm、血壓驟降 $2 mmHg 並伴隨頭暈：因血漿容量縮減 ($3%)，著陸重力將導致腦部缺血暈厥高風險。');
+    out = out.replace(/^Steady 150W heart rate \(([\d.]+) bpm\) shows your heart pumps strongly per beat and your aerobic fitness is intact for EVA\/landing\.$/, '150W 穩定負荷心率 ($1 bpm) 顯示每跳輸出量強健，有氧體能足以應付艙外活動與著陸。');
+    out = out.replace(/^Heart rate drifted up to ([\d.]+) bpm at 150W \(warning >= 150 bpm\)\. Without daily gravity, aerobic stamina \(VO2max\) and stroke volume gradually fade\.$/, '150W 負荷下心率飄移至 $1 bpm（預警 ≥150 bpm），反映長期失重下心輸出量與最大攝氧量逐漸衰退。');
+    out = out.replace(/^Heart rate spiked to ([\d.]+) bpm at a fixed 150W workload\. Your heart is pumping less blood per beat due to severe deconditioning or fluid loss, leaving little reserve for an emergency spacewalk or egress\.$/, '150W 固定負荷下心率飆升至 $1 bpm：嚴重體能退化或體液流失使每跳輸出量下降，緊急出艙/撤離儲備不足。');
+    out = out.replace(/^Heart squeeze strain \(([+-]?[\d.]+)%\) is healthy, meaning your heart muscle hasn't weakened in microgravity\.$/, '心肌縱向應變 ($1%) 維持健康，代表心肌收縮力未因微重力而減弱。');
+    out = out.replace(/^GLS shifted ([+-]?[\d.]+)% from pre-flight \(warning <= -10%\)\. Lower workload in weightlessness can cause mild heart-muscle thinning over long missions\.$/, '心肌應變 GLS 較發射前偏移 $1%（預警 ≤-10%），反映長期失重低負荷可能導致輕度心肌萎縮。');
+    out = out.replace(/^Heart muscle squeeze \(GLS\) dropped ([+-]?[\d.]+)% \(red limit <= -15%\)\. This detects early weakening or stress on the heart wall before standard pumping numbers fall\.$/, '心肌應變 GLS 惡化至 $1%（紅線 ≤-15%），顯示心壁收縮功能已出現明顯壓力或衰退。');
     out = out.replace(/^S_bone=([\d.]+), VBT=([\d.]+)%, (?:Strength=([^,]+), )?Thigh=([^,]+), Calf=([^,]+), CTX=([^,]+), (?:Est|Modeled) Hip Loss=([^\s.]+%?\/mo)\.(?:\s*\[URGENT ESCALATION\])?$/, (_, a, b, str, c, d, e, f) => {
       const strPart = str ? `｜肌力 ${str}` : '';
       return `骨骼刺激 S_bone=${a}｜速度衰減 ${b}%${strPart}｜大腿 ${c}｜小腿 ${d}｜骨吸收 CTX ${e}｜推估髖骨流失 ${f}`;

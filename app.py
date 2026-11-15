@@ -135,6 +135,8 @@ def _init_hud_session_state() -> None:
     st.session_state["prefer_real_csv"] = True if not dev_mode else bool(disk_session.get("prefer_real_csv", True))
     st.session_state["use_manual_overrides"] = bool(disk_session.get("use_manual_overrides", False))
     st.session_state["selected_module"] = "neuro_ocular"
+    st.session_state["selected_metric_idx"] = 0
+    st.session_state["guide_tab"] = "measure"
     st.session_state["last_action_ts"] = 0
 
     merged_inputs: dict[str, dict[str, Any]] = {}
@@ -188,6 +190,8 @@ def _serialize_hud_payload(
         "prefer_real_csv": st.session_state["prefer_real_csv"],
         "use_manual_overrides": st.session_state["use_manual_overrides"],
         "default_module": st.session_state["selected_module"],
+        "default_metric_idx": st.session_state.get("selected_metric_idx", 0),
+        "default_guide_tab": st.session_state.get("guide_tab", "measure"),
         "manual_inputs": st.session_state["manual_inputs"],
         "module_order": list(MODULE_ORDER),
         "modules": modules_json,
@@ -220,6 +224,10 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
         st.session_state["offline_clock"] = dict(action["offline_clock"])
     if action.get("selected_module") in MODULE_ORDER:
         st.session_state["selected_module"] = action["selected_module"]
+    if action.get("selected_metric_idx") is not None:
+        st.session_state["selected_metric_idx"] = max(0, int(action["selected_metric_idx"]))
+    if action.get("guide_tab") in {"measure", "meaning", "action"}:
+        st.session_state["guide_tab"] = str(action["guide_tab"])
     if action.get("crew_id"):
         st.session_state["crew_id"] = str(action["crew_id"])
     if action.get("mission_day") is not None:

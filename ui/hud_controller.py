@@ -49,8 +49,8 @@ HUD_CONTROLLER_BODY_JS = r"""
     viewMode: 'anatomy',       // 'anatomy' | 'overview'
     musculoSide: 'front',      // 'front' | 'back'
     neuroView: 'eye_zoom',     // 'eye_zoom' | 'cns_full'
-    selectedMetricIdx: 0,
-    guideTab: 'measure',       // 'measure' | 'meaning' | 'action'
+    selectedMetricIdx: Number(data.default_metric_idx || 0),
+    guideTab: data.default_guide_tab || 'measure',       // 'measure' | 'meaning' | 'action'
     planTab: 'short',          // 'short' | 'long'
     drawerOpen: false,
     drawerTab: 'cabin_environment',
@@ -220,6 +220,8 @@ HUD_CONTROLLER_BODY_JS = r"""
       use_manual_overrides: Boolean(state.use_manual_overrides),
       manual_inputs: state.inputs,
       selected_module: state.selectedModule,
+      selected_metric_idx: state.selectedMetricIdx,
+      guide_tab: state.guideTab,
       ...extra
     });
   }
@@ -546,7 +548,10 @@ HUD_CONTROLLER_BODY_JS = r"""
       `;
     }).join('');
 
-    // 3-step Crew Guidance content (Item 9: resolve guidance.groups by activeMetric)
+    // 3-step Crew Guidance content:
+    // 1) Support Role 2's grouped guidance (`guidance.groups` keyed by metric)
+    // 2) Support Role 3's per-metric guidance (`how_to_measure` / `why_in_space` / `action_steps`)
+    // 3) Fallback to module-level `selMod.guidance`
     const rawGuidance = selMod.guidance || {};
     let g = rawGuidance;
     if (rawGuidance.groups && activeMetric) {
@@ -555,14 +560,45 @@ HUD_CONTROLLER_BODY_JS = r"""
         g = rawGuidance.groups[grpKey];
       }
     }
+
+    const hasFullMetricGuide = Boolean(
+      activeMetric &&
+      (activeMetric.how_to_measure ||
+        activeMetric.measurement_guide ||
+        activeMetric.why_in_space ||
+        activeMetric.plain_explanation ||
+        (Array.isArray(activeMetric.action_steps) && activeMetric.action_steps.length))
+    );
+    const mGuideMeasure = activeMetric && (activeMetric.how_to_measure || activeMetric.measurement_guide);
+    const mGuideMeaning = activeMetric && (activeMetric.why_in_space || activeMetric.plain_explanation);
+    const mGuideSteps = (activeMetric && Array.isArray(activeMetric.action_steps) && activeMetric.action_steps.length)
+      ? activeMetric.action_steps
+      : (hasFullMetricGuide && activeMetric && activeMetric.action ? [activeMetric.action] : null);
+
+    const activeGuideSt = activeMetric
+      ? (!activeMetric.quality_passed ? (activeMetric.raw_status || 'QC FAIL') : (activeMetric.status_light || 'GREEN'))
+      : 'GREEN';
+    const activeGuideName = activeMetric
+      ? (activeMetric.indicator ? zhText(activeMetric.indicator) : resolveMetricDisplayName(activeMetric))
+      : '';
+    const activeGuideTitle = hasFullMetricGuide
+      ? `${activeGuideName} · ${t('status_' + activeGuideSt) !== ('status_' + activeGuideSt) ? t('status_' + activeGuideSt) : activeGuideSt}`
+      : t('guide_sop');
+
     let guideContentHtml = '';
     if (state.guideTab === 'measure') {
-      guideContentHtml = `<div style="white-space:pre-line;">${esc(zhText(g.how_to_measure))}</div>`;
+      guideContentHtml = `<div style="white-space:pre-line;">${esc(zhText(mGuideMeasure || g.how_to_measure))}</div>`;
     } else if (state.guideTab === 'meaning') {
-      guideContentHtml = `<div style="white-space:pre-line;">${esc(zhText(g.plain_explanation))}</div>`;
+      guideContentHtml = `<div style="white-space:pre-line;">${esc(zhText(mGuideMeaning || g.plain_explanation))}</div>`;
     } else {
-      const steps = Array.isArray(g.action_protocol) ? g.action_protocol : [g.action_protocol || 'Nominal'];
+      const steps = mGuideSteps || (Array.isArray(g.action_protocol) ? g.action_protocol : [g.action_protocol || 'Nominal']);
       guideContentHtml = `<ol class="protocol-list">${steps.map(s => `<li>${esc(zhText(s))}</li>`).join('')}</ol>`;
+      if (state.selectedModule === 'cardiovascular' && selMod.correlation_alerts && selMod.correlation_alerts.length) {
+        guideContentHtml += `<div class="conflict-banner" style="margin-top:8px;">
+          <div class="conflict-rule">⚡ ${esc(t('cross_link_title'))}</div>
+          <div class="conflict-text">${selMod.correlation_alerts.map(c => esc(zhText(c))).join('<br>')}</div>
+        </div>`;
+      }
     }
 
     // Conflicts & cross-module signals
@@ -835,7 +871,7 @@ HUD_CONTROLLER_BODY_JS = r"""
                   <span style="font-size:11px;font-weight:700;letter-spacing:1px;color:#94a3b8;text-transform:uppercase;">
                     ${esc(t('guide_hdr'))}
                   </span>
-                  <span style="font-size:10.5px;color:#64748b;">${esc(t('guide_sop'))}</span>
+                  <span style="font-size:10.5px;color:#38bdf8;">${esc(activeGuideTitle)}</span>
                 </div>
                 <div class="guide-tabs">
                   <button class="guide-tab ${state.guideTab === 'measure' ? 'active' : ''}" data-guide-tab="measure">${esc(t('tab_measure'))}</button>
