@@ -708,7 +708,134 @@ HUD_I18N_JS = r"""
     'STOP high-intensity workouts; take oral KCl if K+ < 3.5 mmol/L.': '停止高強度運動；若 K+ < 3.5 mmol/L 立即口服補充氯化鉀。',
     'Run 12-lead ECG + bilateral neck IJV ultrasound; repeat chemistry panel in 12 hours.': '執行 12 導程心電圖與雙側頸內靜脈超音波；12 小時後複測血液生化。',
 
-    // Role 6: 17-Card Cabin Environment corpus
+    // Role 6: 17-Card Per-Indicator How-to-Measure, Plain Explanation & Action Steps
+    'Record 1-h mean absorbed dose rate from IV-TEPC/DOSTEL/HERA; mask SAA passes (50°S–0°, 90°W–40°E) and reject single-sensor >1000x spikes.': '記錄 IV-TEPC / DOSTEL / HERA 每小時平均吸收劑量率；自動遮蔽南大西洋異常區 (SAA: 50°S–0°, 90°W–40°E) 並剔除單一感測器 >1000 倍偽影突波。',
+    'Read 1-h mean absorbed dose rate from IV-TEPC / DOSTEL / HERA; exclude SAA passes (50°S–0°, 90°W–40°E) and unconfirmed >1000x spikes.': '讀取 IV-TEPC / DOSTEL / HERA 每小時平均吸收劑量率；排除南大西洋異常區 (SAA: 50°S–0°, 90°W–40°E) 與未獲雙偵測器確認之 >1000 倍突波。',
+    'Tracks real-time ionizing radiation inside the cabin to trigger storm-shelter protection during solar particle events.': '即時追蹤艙內游離輻射強度，以便在太陽粒子風暴 (SPE) 期間及時觸發風暴掩體避難保護。',
+    'Area dosimeters track real-time hull-penetrating galactic cosmic rays and solar particle enhancements inside each module.': '區域輻射劑量計負責即時監測穿透各艙段外殼之銀河宇宙射線 (GCR) 與太陽粒子暴增。',
+    'Continue hourly area dose-rate logging with automatic SAA pass masking.': '持續每小時記錄區域輻射劑量率，並自動執行南大西洋異常區 (SAA) 軌道遮蔽。',
+    'Move to the most shielded area; in Orion, line cabin walls with stowage.': '立即移動至遮蔽最完善區域；若於獵戶座艙，請以儲物包鋪設艙壁強化屏蔽。',
+    'Relocate prolonged work tasks to higher-shielding module locations.': '將長時間作業移往具較高輻射屏蔽厚度之艙段執行。',
+    'Terminate EVA immediately and notify flight surgeon (human decision).': '立即終止艙外活動 (EVA) 並通報航太醫師進行人工決策。',
+    'Verify DOSTEL/IV-TEPC detector health and await next non-SAA 1-h mean.': '檢查 DOSTEL / IV-TEPC 偵測器健康狀態，並等待下一個非南大西洋異常區 (non-SAA) 1 小時均值。',
+    'Verify non-SAA orbital position and cross-check RAD-03 proton flux.': '確認軌道非處於南大西洋異常區 (SAA) 並交叉比對 RAD-03 太陽質子通量。',
+
+    'Sum daily (module absorbed dose rate * occupancy hours) * 2.26 equivalent factor; require 24 ± 0.5 h location coverage.': '每日加總（各艙段吸收劑量率 × 停留時數）× 2.26 等效品質因子；要求每日艙段停留紀錄完整涵蓋 24 ± 0.5 小時。',
+    'Compute daily dose = sum(module dose rate * hours in module) * 2.26 (DOSTEL 647/286) and add to career total.': '計算每日等效劑量 = Σ(艙段劑量率 × 停留時數) × 2.26 (DOSTEL 647/286) 並累加至個人生涯總劑量。',
+    "Cumulative effective radiation dose governs lifetime cancer and degenerative tissue risk against NASA's 600 mSv career limit.": '累積有效輻射劑量直接決定終生致癌與組織退化風險，受 NASA 600 mSv 生涯上限嚴格管制。',
+    'Tracks personal cumulative effective radiation against the 600 mSv NASA career limit (Red action gate at 480 mSv / 80%).': '追蹤個人累積有效輻射劑量是否逼近 NASA 600 mSv 生涯上限（紅燈行動門檻為 480 mSv / 80%）。',
+    'Complete 24-h module location log and sync Crew Passive/Active Dosimeter.': '補齊 24 小時艙段停留紀錄並同步乘員主/被動個人輻射劑量計。',
+    'Increase sleep/work hours in high-shielding modules and review remaining EVA dose budget.': '增加於高屏蔽艙段內之睡眠與工作時數，並重新審查剩餘 EVA 輻射劑量預算。',
+    'Restrict unshielded module/EVA exposure immediately; flight surgeon & mission management review required (human decision).': '立即限制低遮蔽艙段停留與艙外活動；須由航太醫師與任務管理層進行人工審查。',
+    'Reconcile crew module occupancy log to 24 ± 0.5 h and read personal dosimeter badge.': '核對乘員艙段停留紀錄至滿 24 ± 0.5 小時，並讀取個人輻射劑量佩章。',
+
+    'Monitor 5-min GOES >=10 MeV and >=100 MeV integral proton channels; confirm SPE onset on 3 consecutive 5-min readings.': '持續監測每 5 分鐘更新之 GOES ≥10 MeV 與 ≥100 MeV 積分質子通量；連續 3 筆 5 分鐘讀數超標即確認太陽粒子風暴 (SPE) 爆發。',
+    'Ingest 5-min NOAA GOES integral proton flux (>=10 MeV & >=100 MeV) and DONKI SEP feed; drop records >30 min old.': '接收每 5 分鐘 NOAA GOES 積分質子通量（≥10 MeV 與 ≥100 MeV）及 DONKI 太陽高能粒子通報；自動剔除逾 30 分鐘之過期資料。',
+    'Solar energetic proton storms can rapidly deliver acute radiation doses during EVA or in lightly shielded modules.': '太陽高能質子風暴會在艙外活動 (EVA) 或輕度遮蔽艙段內迅速造成急性高劑量輻射暴露。',
+    'High-energy solar protons penetrate spacecraft hulls during solar storms, creating acute radiation sickness and lymphocyte depletion risk.': '高能太陽質子於太陽風暴期間可穿透太空船外殼，引發急性輻射症候群與淋巴球驟降風險。',
+    'Continue routine 5-min GOES & DONKI space-weather monitoring.': '維持每 5 分鐘例行 GOES 與 DONKI 太空氣象質子監測。',
+    'Review EVA schedule and pre-position storm shelter water/stowage supplies.': '檢視艙外活動排程並預先於輻射掩體就位飲水與儲物屏蔽物資。',
+    'Increase RAD-01 evaluation to every 5 min.': '將 RAD-01 區域輻射評估頻率提高至每 5 分鐘一次。',
+    'Move crew to the most shielded storm shelter area immediately; terminate any planned/ongoing EVA.': '立即將全體乘員撤離至遮蔽最強之風暴掩體；終止任何進行中或預定之 EVA。',
+    'Increase RAD-01 telemetry readout to 5-min cadence and notify ground & flight surgeon for human decision.': '將 RAD-01 遙測頻率提升至每 5 分鐘一次，並通報地面與航太醫師進行人工決策。',
+    'Switch to GOES secondary satellite / DONKI backup feed; verify local RAD-01 DOSTEL/HERA.': '切換至 GOES 備用衛星／DONKI 備援資料源，並檢核本地 RAD-01 DOSTEL/HERA 讀數。',
+
+    'Conduct monthly Sound Level Meter octave-band survey (63 Hz–8 kHz) across work and sleep stations.': '每月使用聲壓計 (SLM) 對各工作區與睡眠站執行八音度頻帶（63 Hz–8 kHz）噪音巡檢。',
+    'Measure A-weighted SPL and octave bands (63 Hz–8 kHz) with calibrated Type 1 SLM (pre/post drift <= 0.5 dB, lab cal <= 12 mo).': '使用經校正之 Type 1 精密聲壓計量測 A 加權聲壓級與八音度頻帶（63 Hz–8 kHz，前後漂移 ≤0.5 dB，實驗室校正 ≤12 個月）。',
+    'Continuous cabin fan/pump noise degrades speech intelligibility, sleep recovery, and inner-ear hair cells.': '持續的艙內風扇與幫浦噪音會降低語音清晰度、妨礙睡眠恢復並損傷內耳毛細胞。',
+    'Ensures continuous background noise stays below NC-50 (work) and NC-40 (sleep) to prevent hearing loss and alarm masking.': '確保艙內持續背景噪音低於工作區 NC-50 與睡眠區 NC-40 上限，以防聽力受損及警報聲遭掩蓋。',
+    'Perform field acoustic calibrator check and repeat octave-band survey.': '使用現場聲學校正器檢核聲壓計後，重新執行八音度頻帶噪音巡檢。',
+    'Inspect fan mufflers/vibration isolators and use hearing protection during extended tasks in module.': '檢查風扇消音器與減震墊；於該艙段長時間作業時請配戴護耳裝備。',
+    'Don hearing protection immediately, isolate noisy rack/pump, notify ground & flight surgeon (human decision).': '立即戴上護耳裝備、隔離高噪音機櫃或幫浦，並通報地面與航太醫師。',
+
+    'Wear personal dosimeter for 24 h capturing LEQ16 (work), LEQ8 (sleep), Lmax, peak, and 24-h dose D.': '連續 24 小時佩戴個人噪音劑量計，完整記錄工作期 LEQ16、睡眠期 LEQ8、最大音壓、峰值與 24 小時累積劑量 D%。',
+    'Wear personal noise dosimeter at collar for 24 h (16 h work + 8 h sleep); require >=20 h valid uncovered recording.': '於領口佩戴個人噪音劑量計 24 小時（含 16h 工作＋8h 睡眠），要求未遭衣物遮蔽之有效紀錄 ≥20 小時。',
+    'Measures actual ear-level noise dose D% and sleep-period LEQ8 to protect cochlear recovery during sleep.': '量測乘員耳際實際承受之累積噪音劑量 D% 與睡眠期 LEQ8，確保耳蝸毛細胞於睡眠期間獲得修復。',
+    'Protects auditory hair cells by ensuring quiet 8-h sleep recovery (<=50 dBA) and keeping daily dose D <= 50%.': '確保睡眠 8 小時處於安靜環境 (≤50 dBA) 且每日累積噪音劑量 D ≤ 50%，以保護聽覺毛細胞。',
+    'Repeat 24-h personal noise dosimetry session ensuring >=20 h uncovered wear.': '重新執行 24 小時個人噪音劑量佩戴，確保未遮蔽之有效佩戴時間 ≥20 小時。',
+    'Use sleep earplugs / ANR headset during noisy work and inspect sleep-station ventilation.': '於高噪音作業時配戴主動降噪耳機／睡眠耳塞，並檢查睡眠艙通風口噪音。',
+    'Mandate ANR hearing protection, quiet sleep quarters, schedule ACO-03 audiogram & flight surgeon review (human decision).': '強制配戴主動降噪護耳設備、移至安靜睡眠區休息，並安排 ACO-03 聽力檢查與航太醫師審查。',
+
+    'Measure pure-tone thresholds at 500–6000 Hz in <=NC-40 background; confirm any shift on retest.': '於背景噪音 ≤NC-40 之安靜環境下量測 500–6000 Hz 純音聽力閾值；若出現閾值偏移須經複測確認。',
+    'Test 500, 1000, 2000, 3000, 4000, 6000 Hz in <=NC-40 ambient noise; repeat any frequency differing >10 dB; confirm shifts on retest.': '於 ≤NC-40 安靜環境測試 500、1000、2000、3000、4000、6000 Hz 純音聽力；同頻率誤差 >10 dB 須重測確認。',
+    'Detects temporary or permanent cochlear threshold shifts early before irreversible sensorineural hearing loss occurs.': '在發生不可逆感音神經性聽損前，及早偵測暫時性或永久性耳蝸聽力閾值偏移 (STS)。',
+    'Compares in-flight hearing sensitivity against pre-flight audiogram to catch noise-induced or CO2/fluid-shift auditory changes.': '比對飛行中與發射前純音聽力圖，及早捕捉噪音性聽損或高 CO2／體液頭向轉移引發之聽覺變化。',
+    'Repeat pure-tone audiometry inside quiet NC-40 berth and confirm within-frequency repeatability <=10 dB.': '於 NC-40 安靜睡眠艙內重測純音聽力，並確認同頻率重測誤差 ≤10 dB。',
+    'Reduce noise exposure, verify headset volume, and schedule follow-up retest audiogram.': '降低噪音暴露、檢核通訊耳機音量上限並排程複測聽力圖。',
+    'Enforce auditory rest + ANR hearing protection; notify ground & flight surgeon for clinical human decision.': '強制執行聽覺休息與主動降噪防護，並通報地面與航太醫師進行臨床評估。',
+
+    'Sample MCA / CDRA CO2 continuously; compute ppCO2 (mmHg) = ppm * 1e-6 * 760 over 1-h and 7-d windows.': '連續採樣主成分分析儀 (MCA) 與除碳器 (CDRA) 讀數，計算 1 小時與 7 日移動平均二氧化碳分壓 ppCO2 (mmHg)。',
+    'Convert CO2 ppm to ppCO2 (mmHg) = ppm * 1e-6 * 760; reject <200 or >20,000 ppm and >=24 h flatlined readings.': '將 CO2 濃度 (ppm) 換算為分壓 ppCO2 (mmHg)；自動剔除超出 200–20,000 ppm 或連續 ≥24 小時數值凍結之異常讀數。',
+    'Elevated cabin CO2 dilates cerebral blood vessels, causing headaches, decision errors, and worsening optic disc edema (SANS).': '艙內偏高的二氧化碳會擴張腦部血管，引發頭痛、決策失誤並加劇視神經盤水腫 (SANS)。',
+    'Frozen CO2 sensors (like the ISS RR-1 152-h flatline) mask hypercapnia, causing headaches, cognitive slowing, and SANS risk.': '凍結卡死的 CO2 感測器（如 ISS RR-1 連續 152h 卡死案例）會掩蓋高碳酸血症，導致頭痛、認知遲緩與 SANS 惡化風險。',
+    'Cross-check primary MCA IR bench against portable CO2 meter and backup CDRA sensor immediately.': '立即以手持式 CO2 偵測器與備用 CDRA 感測器交叉比對主 MCA 紅外線分析儀讀數。',
+    'Check CDRA and ventilation, prompt headache/vision self-report.': '檢查 CDRA 除碳器與跨艙通風循環，並請乘員回報是否有頭痛或視力變化。',
+    'Increase CO2 removal or move crew to a better-ventilated module; notify flight surgeon if headache is reported (human decision).': '提高除碳效率或將乘員移至通風較佳艙段；若有頭痛症狀立即通報航太醫師。',
+
+    'Read dual cabin manometers (1-min/10-min dP/dt; <=0.5 kPa sensor agreement for leak) and compute PIO2 = FiO2 * (P_total - 47 mmHg).': '讀取雙重艙壓計（監測 1 分鐘/10 分鐘降壓率 dP/dt，雙感測器誤差 ≤0.5 kPa 始確認洩壓）並計算吸入氧分壓 PIO2。',
+    'Monitor dual pressure sensors (0–110 kPa; require <=0.5 kPa agreement for leak declaration) and compute PIO2 = FiO2 * (P_mmHg - 47).': '監測雙重艙壓感測器（0–110 kPa，雙感測器一致 ≤0.5 kPa 判定洩壓）並計算吸入氧分壓 PIO2 = FiO2 × (P_mmHg - 47)。',
+    'Protects against hypoxia (low PIO2), flammability (>23.5% O2), and hull micrometeoroid/seal depressurization.': '防範低氧失能（低 PIO2）、高氧火災風險（O2 > 23.5%）以及微隕石撞擊或艙門密封失效導致之失壓。',
+    'Prevents acute hypoxic incapacitation, cabin fire hazard (>23.5% O2), and rapid hull depressurization emergencies.': '預防急性缺氧昏迷、艙內高氧助燃風險（>23.5% O2）與快速艙體失壓緊急事故。',
+    'Verify dual cabin pressure transducers and MCA O2 partial pressure bench.': '檢核雙重艙壓感測器一致性與 MCA 氧分壓分析儀狀態。',
+    'Inspect N2/O2 pressure control assembly (PCA) valves and check hull hatch seals with ultrasonic leak detector.': '檢查氮氧壓力控制總成 (PCA) 閥門，並使用超音波測漏儀巡檢艙門氣密墊片。',
+    'Execute depressurization emergency procedure; notify ground and flight surgeon immediately (human decision).': '立即執行艙體失壓／低氧緊急應變程序，並通報地面與航太醫師。',
+
+    'Monitor hourly THC temperature and relative humidity sensors across cabin modules.': '每小時監測各艙段溫濕度控制系統 (THC) 之溫度與相對濕度感測器讀數。',
+    'Read 1-h mean Temperature (5–45 °C) and Relative Humidity (0–100%); reject >6 h flat-lined readings.': '讀取每小時平均溫度（5–45 °C）與相對濕度（0–100%）；自動剔除連續 >6 小時無變化之凍結讀數。',
+    'Maintains thermal comfort, prevents heat strain during exercise, and suppresses condensation-driven fungal growth.': '維持艙內熱舒適度、預防運動時熱衰竭，並抑制艙壁結露引發之黴菌滋生。',
+    'Excessive heat/humidity impairs cognitive alertness, raises cardiovascular strain, and promotes microbial biofilm growth.': '過高溫濕度會削弱認知警覺性、加重心血管熱負荷，並助長艙面與管路微生物生物膜繁殖。',
+    'Cross-check THC sensor with portable psychrometer and verify fan airflow across sensor.': '使用可攜式乾濕球溫濕度計交叉比對 THC 感測器，並確認探頭氣流暢通。',
+
+    'Run AQM GC-MS trace gas sweeps and continuous combustion/NH3 electrochemical detectors; compute max(conc / SMAC).': '執行空氣品質監測儀 (AQM) 氣相層析掃描與連續火災／氨氣電化學偵測，計算各化合物相對於太空船最大容許濃度 (SMAC) 之最大比值。',
+    'Verify AQM internal calibration check; reject negative concentrations; report max(conc / SMAC) across compounds.': '檢核 AQM 內部校正標準、剔除負濃度異常值，並計算所有揮發性有機物之最大 conc / SMAC 比值。',
+    'Compute conc / SMAC for each AQM compound at relevant duration; report maximum ratio.': '針對各揮發性化合物計算對應暴露時間之 conc / SMAC 比值，並回報最高風險比率。',
+    'Toxic trace gases, battery/wire pyrolysis products, or cooling-loop ammonia leaks cause rapid airway injury or asphyxiation.': '有毒微量氣體、電池／電線熱解煙霧或冷卻迴路氨氣外洩，會迅速造成呼吸道灼傷或窒息危急事件。',
+    'Prevents neurotoxic, hepatotoxic, or irritant buildup inside sealed spacecraft air loops.': '防止神經毒性、肝毒性或刺激性揮發氣體於封閉太空艙空氣迴路中累積。',
+    'Monitors off-gassing solvents, siloxanes, CO, and NH3 against Spacecraft Maximum Allowable Concentrations (SMAC).': '依據太空船最大容許濃度 (SMAC) 嚴密監控材料除氣溶劑、矽氧烷、一氧化碳與氨氣。',
+    'Run AQM calibration check and verify cabin air with colorimetric Drager tubes if odor noticed.': '執行 AQM 氣相層析校正檢核；若聞到異味請立即以 Drager 比色檢知管採樣確認。',
+
+    "Run weekly TOCA for TOC, residual iodine (at dispenser), and silver; store below-DL values as '< DL', never 0.": "每週執行總有機碳分析儀 (TOCA) 檢測飲水 TOC、供水口殘餘碘與銀離子；低於偵測極限須記錄為 '< DL'（不可記為 0）。",
+    "Analyze TOC, iodine, and silver weekly per water source; record values below detection limit as '< DL' (never 0).": "每週按供水口分析 TOC、碘與銀離子濃度；低於偵測極限之數值一律記錄為 '< DL'。",
+    'Protects recycled WPA drinking water against organic chemical breakthrough, thyroid iodine excess, or biocide loss.': '保護水回收系統 (WPA) 再生飲用水免於有機污染物穿透、碘過量影響甲狀腺或殺菌銀離子失效。',
+    'Closed-loop urine/condensate water recovery requires strict organic carbon and biocide bounds to prevent toxicity and biofilm.': '閉環尿液與冷凝水回收系統必須嚴格控管總有機碳與殺菌劑濃度，以防化學毒性與管路生物膜污染。',
+    'Repeat TOCA water quality run with fresh check standard.': '使用新鮮檢核標準液重新執行 TOCA 水質檢測。',
+
+    'Incubate air/surface/water culture plates with negative blank; reject incomplete incubation or condensation spread.': '搭配陰性空白對照培養空氣／表面／飲水微生物試片；若培養時間未滿或冷凝水擴散則判定無效。',
+    'Compare air (1000/100 CFU/m³), surface (10,000/100 CFU/100 cm²), and water (50 CFU/mL; 0 coliform/fungi per 100 mL) to limits.': '比對空氣（細菌 1000／真菌 100 CFU/m³）、表面（10,000／100 CFU/100 cm²）與飲水（50 CFU/mL；大腸桿菌/真菌為 0）是否合乎 NASA 限值。',
+    'Prevents cabin fungal blooms, waterborne GI illness, and respiratory allergens in microgravity.': '防止微重力艙段內黴菌爆發、水源性腸胃道感染與呼吸道過敏原累積。',
+    'Spaceflight immune dysregulation heightens opportunistic bacterial/fungal infection risk from cabin surfaces, air, or water.': '太空飛行引發之免疫失調會提高乘員受艙面、空氣或飲水中伺機性細菌／真菌感染之風險。',
+    'Repeat microbial sampling with negative control blank and complete incubation.': '搭配陰性空白對照重新執行微生物採樣並確保完整培養時間。',
+
+    'Read 1-h optical particulate sensor means (total dust, PM2.5 respirable, lunar dust TWA); reject self-clean intervals.': '讀取每小時光學微粒感測器均值（總粉塵、PM2.5 可吸入微粒、月塵 TWA）；自動排除自清吹掃時段。',
+    'Monitor simulated 1-h optical dust sensor against total (3 mg/m³), respirable <2.5 um (1 mg/m³), and lunar dust TWA (0.3 mg/m³) limits.': '監測每小時光學粉塵感測器是否低於總粉塵 (3 mg/m³)、PM2.5 可吸入粉塵 (1 mg/m³) 與月塵 (0.3 mg/m³) 安全上限。',
+    'Prevents ocular foreign-body injury and lunar dust pneumoconiosis in reduced-gravity habitats.': '預防微重力與低重力居住艙內發生眼部異物損傷及月塵肺塵症。',
+    'Floating particulates and sharp lunar regolith dust do not settle in microgravity/hypogravity, risking corneal and alveolar injury.': '懸浮微粒與鋒利的月壤粉塵在微重力下不會自然沉降，極易造成角膜刮傷與肺泡損傷。',
+    'Wait for optical particulate sensor self-clean cycle to finish and inspect inlet.': '等待光學微粒感測器自清循環完成，並檢查進氣口是否受阻。',
+
+    'Record nightly Actiwatch TST (>=80% wear) + morning subjective sleep log.': '每晚透過腕式 Actiwatch 記錄總睡眠時數 TST（有效佩戴 ≥80%）並搭配晨間主觀睡眠日誌。',
+    'Wear Actiwatch overnight (>=80% wear time) + morning sleep log; flag >2 h log discrepancy.': '整夜佩戴 Actiwatch（佩戴率 ≥80%）並填寫晨間睡眠日誌；若客觀與主觀時數落差 >2 小時則標記檢核。',
+    'Adequate sleep (>=7 h) preserves reaction speed, emotional regulation, and antiviral T-cell immunity.': '充足睡眠（≥7 小時）是維持反應速度、情緒穩定與抗病毒 T 細胞免疫力之關鍵。',
+    'Chronic spaceflight sleep restriction (ISS average ~6.09 h) degrades vigilance, immune defense, and mood stability.': '太空長期睡眠不足（ISS 平均僅約 6.09 小時）會顯著削弱警覺度、免疫防禦力與情緒穩定度。',
+    'Verify Actiwatch wrist strap fit (>=80% wear time) and re-sync tomorrow morning.': '確認 Actiwatch 錶帶貼合手腕（佩戴率 ≥80%）並於明早重新同步讀取。',
+
+    'Run 3-min Psychomotor Vigilance Test (PVT-B); reject if false starts >10 or >20% stimuli missed.': '執行 3 分鐘精神運動警覺度測試 (PVT-B)；若預判搶按 >10 次或漏按率 >20% 則判定無效重測。',
+    'Complete 3-min PVT-B recording reciprocal RT speed (1/s) and >500 ms lapses.': '完成 3 分鐘 PVT-B 反應測試，記錄反應速度倒數 (1/s) 與逾 500 ms 之注意力恍神次數。',
+    'Detects subtle cognitive slowing before operational errors occur during docking, robotics, or EVA.': '在執行交會對接、機械臂操作或出艙任務 (EVA) 發生人為失誤前，及早偵測細微之認知反應遲緩。',
+    'Objective neurobehavioral assay sensitive to sleep debt, cabin hypercapnia (ppCO2), and circadian misalignment.': '高敏感度之客觀神經行為測試，能即時反映睡眠債、艙內高二氧化碳 (ppCO2) 與晝夜節律失調。',
+    'Repeat 3-min PVT-B ensuring <=10 false starts and <=20% missed stimuli.': '重新執行 3 分鐘 PVT-B 測試，確保搶按 ≤10 次且漏按率 ≤20%。',
+
+    'Administer daily 0–100 VAS, post-major-task Bedford scale (1–10), and monthly POMS-37.': '每日填寫 0–100 視覺類比壓力量表 (VAS)、重大任務後 Bedford 工作負荷量表 (1–10) 與每月 POMS-37 情緒量表。',
+    'Collect daily 0–100 VAS mood/stress, post-task Bedford (1–10), and monthly POMS-37; reject straight-lined/incomplete.': '收集每日 0–100 VAS 心情/壓力、任務後 Bedford (1–10) 與每月 POMS-37 量表；自動剔除全填同分或未完成之無效問卷。',
+    'Prevents task saturation and isolation burnout on long-duration transit without infringing crew autonomy or privacy.': '在尊重乘員自主權與個人日記隱私的前提下，預防長途深空航行之任務過載與孤立倦怠。',
+    'Monitors cognitive overload and confinement stress while strictly protecting crew diary privacy.': '在嚴格保護乘員私人日記隱私（絕不集中上傳）的同時，監測認知超載與幽閉壓力。',
+    'Re-administer brief daily VAS & post-task Bedford rating (never storing journal text centrally).': '重新填寫簡短每日 VAS 與任務後 Bedford 評分（自由文字日記僅留存本地絕不集中儲存）。',
+
+    'Track wrist photometer lux (first 2 h post-wake & 3 h pre-sleep) and sleep-midpoint shift; reject sleeve-covered periods.': '透過腕式光度計追蹤起床首 2 小時與睡前 3 小時之光照度 (lux) 及睡眠中點偏移；自動剔除遭衣袖遮擋時段。',
+    'Measure photopic/melanopic lux in first 2 h post-wake, 3 h pre-sleep, and sleep-midpoint phase shift.': '量測起床後 2 小時與睡前 3 小時之視覺／視黑素等效照度 (lux) 及睡眠中點相位偏移。',
+    'Entrains the hypothalamic suprachiasmatic nucleus to prevent free-running circadian desynchrony.': '同步下視丘視交叉上核 (SCN) 生物主時鐘，防止深空缺乏日出日落導致之自由運轉節律失調。',
+    'Without a 24-h planetary sunrise, improper evening light suppresses melatonin and desynchronizes circadian clocks.': '在缺乏地球 24 小時日夜交替下，晚間不當強光會抑制褪黑激素並打亂生理時鐘。',
+    'Wear wrist photometer uncovered during first 2 h after waking and 3 h before sleep.': '起床後首 2 小時與睡前 3 小時請確保腕式光度計露於袖口外未受遮擋。',
+
     'Execute Layer-0 QC checks across DOSTEL/GOES radiation, Type-1 SLM/dosimeter/OOHA acoustics, MCA/CDRA/THC/AQM/TOCA/microbial habitat loops, and Actiwatch/PVT-B/Bedford behavioral assays.': '依序執行 Layer 0 品質檢核：DOSTEL/GOES 輻射偵測、Type-1 聲壓計/個人噪音計/OOHA 聽力測驗、MCA/CDRA/THC/AQM/TOCA 氣水微生物環控迴路，以及 Actiwatch 睡眠、PVT-B 警覺度與 Bedford 工作負荷量測。',
     'Integrates 17 closed-habitat, radiation, acoustic, and circadian-isolation cards across 3 NASA RIDGE hazards to provide autonomous offline decision support (all Red actions end with a human decision).': '整合 17 張封閉艙段環控、太空輻射、聲學噪音與生理節律監測卡（涵蓋 NASA 輻射/孤立/封閉環境三大危害），提供離線自主醫療決策支援（所有紅燈處置均保留人工最終確認）。',
     'All 17 Radiation, Acoustics, Atmosphere, and Isolation cards nominal; continue scheduled monitoring.': '全部 17 項輻射、聲學、大氣水質環控與孤立節律監測卡皆正常，請持續定期監測。',
@@ -979,6 +1106,9 @@ HUD_I18N_JS = r"""
     out = out.replace(/^Heart squeeze strain \(([+-]?[\d.]+)%\) is healthy, meaning your heart muscle hasn't weakened in microgravity\.$/, '心肌縱向應變 ($1%) 維持健康，代表心肌收縮力未因微重力而減弱。');
     out = out.replace(/^GLS shifted ([+-]?[\d.]+)% from pre-flight \(warning <= -10%\)\. Lower workload in weightlessness can cause mild heart-muscle thinning over long missions\.$/, '心肌應變 GLS 較發射前偏移 $1%（預警 ≤-10%），反映長期失重低負荷可能導致輕度心肌萎縮。');
     out = out.replace(/^Heart muscle squeeze \(GLS\) dropped ([+-]?[\d.]+)% \(red limit <= -15%\)\. This detects early weakening or stress on the heart wall before standard pumping numbers fall\.$/, '心肌應變 GLS 惡化至 $1%（紅線 ≤-15%），顯示心壁收縮功能已出現明顯壓力或衰退。');
+    out = out.replace(/^Blood flow in your neck vein has stalled \('([^']+)'\) because ~2 L of fluid shifted toward your head in zero-g\. Stagnant flow is the warning stage right before a blood clot forms\.$/, '由於失重環境下約 2 公升體液湧向頭部，您的頸內靜脈血流已出現滯留 ($1)，屬於血栓形成前之關鍵預警階段。');
+    out = out.replace(/^Plasma volume change \(([+-]?[\d.]+)%\) is mild and within normal spaceflight adaptation limits\.$/, '血漿容量變化 ($1%) 屬輕微範圍，符合正常的太空飛行生理適應。');
+    out = out.replace(/^Verify and re-measure '([^']+)' immediately\.$/, '請立即檢查並重新量測「$1」。');
     out = out.replace(/^S_bone=([\d.]+), VBT=([\d.]+)%, (?:Strength=([^,]+), )?Thigh=([^,]+), Calf=([^,]+), CTX=([^,]+), (?:Est|Modeled) Hip Loss=([^\s.]+%?\/mo)\.(?:\s*\[URGENT ESCALATION\])?$/, (_, a, b, str, c, d, e, f) => {
       const strPart = str ? `｜肌力 ${str}` : '';
       return `骨骼刺激 S_bone=${a}｜速度衰減 ${b}%${strPart}｜大腿 ${c}｜小腿 ${d}｜骨吸收 CTX ${e}｜推估髖骨流失 ${f}`;
