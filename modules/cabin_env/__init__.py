@@ -5,6 +5,15 @@ from modules.cabin_env.acoustics import (
     _eval_aco02,
     _eval_aco03,
 )
+from modules.cabin_env.atmosphere import (
+    _eval_atm01,
+    _eval_atm02,
+    _eval_atm03,
+    _eval_atm04,
+    _eval_atm05,
+    _eval_atm06,
+    _eval_atm07,
+)
 from modules.cabin_env.card_helpers import (
     _check_staleness,
     _clean_time_series,
@@ -74,4 +83,11 @@ __all__ = [
     "_eval_aco01",
     "_eval_aco02",
     "_eval_aco03",
+    "_eval_atm01",
+    "_eval_atm02",
+    "_eval_atm03",
+    "_eval_atm04",
+    "_eval_atm05",
+    "_eval_atm06",
+    "_eval_atm07",
 ]
