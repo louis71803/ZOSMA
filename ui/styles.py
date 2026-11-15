@@ -697,6 +697,29 @@ HUD_CSS = """
 .led-YELLOW { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
 .led-RED { background: #ef4444; box-shadow: 0 0 10px #ef4444; }
 .led-QC { background: #f97316; box-shadow: 0 0 8px #f97316; }
+.led-REF { background: #64748b; box-shadow: none; opacity: 0.75; }
+
+.urgent-esc-banner {
+  background: linear-gradient(90deg, rgba(220, 38, 38, 0.32), rgba(127, 29, 29, 0.55));
+  border: 1px solid rgba(248, 113, 113, 0.75);
+  border-radius: 9px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fecaca;
+  letter-spacing: 0.4px;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.25);
+}
+
+.sim-disclaimer-bar {
+  font-size: 11px;
+  color: #94a3b8;
+  text-align: center;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(8, 14, 28, 0.55);
+  border: 1px dashed rgba(148, 163, 184, 0.16);
+}
 
 .subsys-name {
   font-size: 12.5px;

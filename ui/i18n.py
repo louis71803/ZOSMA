@@ -110,6 +110,9 @@ HUD_I18N_JS = r"""
       shared_real_lbl: 'Shared OSDR',
       missing_files_lbl: 'Missing {n} file(s)',
       gen_csv_btn: 'GENERATE DEMO CSV TEMPLATES IN data/',
+      sim_disclaimer: 'Displayed values are simulated data generated from published ISS loss rates, not actual astronaut measurements.',
+      urgent_escalation_banner: '🚨 URGENT ESCALATION: Report to ground at the next communication pass.',
+      qc_trend_blocked: 'Invalid / insufficient measurement (Layer 0 QC). Trend points and 30-day projection are withheld until re-measured.',
       drawer_title: '⚙ SYSTEM SETTINGS & TELEMETRY OVERRIDES',
       close_btn: '✕ CLOSE',
       lang_label: 'INTERFACE LANGUAGE / 介面語言',
@@ -243,6 +246,9 @@ HUD_I18N_JS = r"""
       shared_real_lbl: '共享 OSDR',
       missing_files_lbl: '缺 {n} 檔',
       gen_csv_btn: '在 data/ 生成範本 CSV 檔案',
+      sim_disclaimer: '展示數值為模擬數據，依已發表的太空站流失率產生，並非真實太空人測量值。',
+      urgent_escalation_banner: '🚨 緊急上報：下次通訊立即回報地面。',
+      qc_trend_blocked: '測量無效（Layer 0 品質檢核未通過）：不繪製無效點與 30 天趨勢預測線，請立即重測。',
       drawer_title: '⚙ 系統設定與手動遙測抽屜',
       close_btn: '✕ 關閉',
       lang_label: '介面語言 / INTERFACE LANGUAGE',
@@ -323,8 +329,12 @@ HUD_I18N_JS = r"""
     ctx_bone_resorption: '骨吸收指標 CTX',
     p1np_bone_formation: '骨生成指標 P1NP',
     est_monthly_bone_loss_pct: '推估每月骨流失率',
-    osd575_ca_alp_baseline: 'OSD-575 血清鈣/ALP基準',
+    osd575_ca_alp_baseline: '血清鈣/ALP 參考基準',
     musculoskeletal_qc_gatekeeper: '骨骼肌肉 QC 閘門',
+    sensor_qc_ok: '感測器品質檢核 (QC)',
+    qc_csa_calf_cm2: '小腿截面積 QC 檢核',
+    qc_csa_thigh_cm2: '大腿截面積 QC 檢核',
+    qc_incomplete_telemetry: '遙測欄位完整性檢核',
     delta_trt_um: '視網膜厚度變化 ΔTRT',
     delta_v_onh_mm3: '視神經盤體積變化',
     onsd_mm: '視神經鞘直徑 ONSD',
@@ -471,6 +481,43 @@ HUD_I18N_JS = r"""
     'Inspect Bio-Analyzer optical reader during weekly maintenance.': '於每週設備保養時檢查 Bio-Analyzer 光學判讀頭。',
     'Hold high-load E4D squats/deadlifts until Cardiovascular & Immune return to YELLOW/GREEN.': '在心血管與免疫系統恢復至黃燈或綠燈前，持續暫停高負荷 E4D 深蹲與硬舉訓練。',
 
+    // Role 2: Updated Musculoskeletal fixed reference & 4-group 3-step guidance corpus
+    'Target >= 0.90': '目標 ≥ 0.90',
+    'Target range 20-30%': '目標區間 20–30%',
+    'ISS average 1.0-1.5%/mo': '太空站平均 1.0–1.5%/月',
+    'Serum calcium remains stable during flight; basic check only and does not reflect bone loss severity.': '血鈣在飛行中維持穩定，僅作基本檢查，不代表骨流失程度。',
+    'Reference value only; not used for status light evaluation.': '僅供參考，不參與燈號判定。',
+    'Invalid measurement. Check probe contact and load-cell zeroing, then re-measure immediately.': '測量無效，請檢查探頭接觸與荷重元歸零後立即重測。',
+    'Urgent escalation: Report to ground at the next communication pass.': '緊急上報：下次通訊立即回報地面。',
+    'Follow current prescription.': '照原處方。',
+    'Built-in reference (non-NASA data)': '內建參考值（非 NASA 資料）',
+    'NASA OSDR OSD-575': 'NASA OSDR OSD-575 血清鈣/ALP',
+    '1) Push with maximum effort on every repetition during resistance training; E4D automatically records force and velocity for each rep. 2) Velocity loss equals the percentage drop in mean velocity from the fastest rep to the last rep in each set. 3) Isometric strength: once per week, pull maximally against the fixed bar for 3 repetitions and take the maximum value.': '1) 阻力訓練時每一下都盡全力推起，E4D 自動記錄每下的力量與速度。2) 速度衰減＝每組最快一下到最後一下的平均速度下降百分比。3) 等長肌力：每週一次，對固定桿全力拉，重複 3 次取最大值。',
+    'In microgravity, muscle strength drops by an average of 10%-12%, and about 12%-38% of crewmembers lose more than 20%, impairing EVA capability and post-landing mobility. Resistance training is the primary countermeasure, and intensity matters more than repetition count.': '失重下肌力平均下降 10%–12%，約 12%–38% 的組員下降超過 20%，會影響出艙與著陸後的行動能力。阻力訓練是最主要的對策，重點在強度而不是次數。',
+    '1) Once per week, scan the quadriceps and gastrocnemius using Ultrasound 2 in panoramic mode. 2) Use the pre-flight positioning template selected by leg length and sweep the probe smoothly along the template in one pass. 3) Repeat 3 times at the same site and average the values. Calf readings have higher variance; follow the trend rather than a single scan.': '1) 每週一次，以 Ultrasound 2 全景模式掃描股四頭肌與腓腸肌。2) 使用發射前依腿長選定的定位模板，探頭沿模板一次掃完。3) 同一位置連測 3 次取平均。小腿數值誤差較大，請看趨勢、不看單次。',
+    'After about 6 months on the ISS, crew lost 10%-16% of calf muscle volume and 4%-7% of thigh volume (MRI study of 4 crewmembers). Lower-limb muscle loss increases the risk of falls and injury after landing.': '在太空站約 6 個月後，組員小腿肌肉體積減少 10%–16%，大腿減少 4%–7%（4 名組員的 MRI 研究）。下肢肌肉流失會讓著陸後更容易跌倒或受傷。',
+    '1) Measure at the same time of day each session. 2) Wrap legs and torso securely around the SLAMMD mount and remain still. 3) Record the spring-driven readout and average consecutive measurements.': '1) 每次都在同一時段測量。2) 雙腿與身體環抱 SLAMMD 支架，保持不動。3) 彈簧推動後由系統讀數，連測取平均。',
+    'Body mass loss is usually caused by insufficient caloric intake. A 5%-10% loss requires attention, and over 10% is critical.': '體質量下降多半是因為吃得不夠。下降 5%–10% 需要關注，超過 10% 屬嚴重。',
+    '1) Draw fasting blood in the morning; sample at the same time of day each session for comparability. 2) Bone loss rate is a modeled estimate: BMD cannot be measured directly in flight and is confirmed post-flight by DXA. 3) Note: On the ISS, samples are frozen and returned to Earth for analysis; onboard real-time testing is a planned feature of this system.': '1) 晨間空腹採血；每次都在同一時段採樣，結果才能互相比較。2) 骨流失率為推估值：飛行中無法直接測骨密度，返回後以 DXA 確認。3) 註：太空站目前是將樣本冷凍送回地面分析；船上即時檢測為本系統的規劃功能。',
+    'In microgravity, bone resorption increases by about 50% and bone mineral density declines by an average of 1%-1.5% per month, most prominently at the hip. Lost bone calcium is excreted in urine (serum calcium remains normal), increasing kidney stone risk.': '失重下骨吸收約增加 50%，骨密度平均每月流失 1%–1.5%，髖部最明顯。流失的鈣由尿液排出（血鈣維持正常），會提高腎結石風險。',
+    '[Training] 1) Push with maximum effort on every repetition during resistance training; E4D automatically records force and velocity for each rep. 2) Velocity loss equals the percentage drop in mean velocity from the fastest rep to the last rep in each set. 3) Isometric strength: once per week, pull maximally against the fixed bar for 3 repetitions and take the maximum value. | [Muscle CSA] 1) Once per week, scan the quadriceps and gastrocnemius using Ultrasound 2 in panoramic mode. 2) Use the pre-flight positioning template selected by leg length and sweep the probe smoothly along the template in one pass. 3) Repeat 3 times at the same site and average the values. Calf readings have higher variance; follow the trend rather than a single scan. | [Body Mass] 1) Measure at the same time of day each session. 2) Wrap legs and torso securely around the SLAMMD mount and remain still. 3) Record the spring-driven readout and average consecutive measurements. | [Bone Metabolism] 1) Draw fasting blood in the morning; sample at the same time of day each session for comparability. 2) Bone loss rate is a modeled estimate: BMD cannot be measured directly in flight and is confirmed post-flight by DXA. 3) Note: On the ISS, samples are frozen and returned to Earth for analysis; onboard real-time testing is a planned feature of this system.': '【訓練指標】1) 阻力訓練時每一下都盡全力推起，E4D 自動記錄每下的力量與速度。2) 速度衰減＝每組最快一下到最後一下的平均速度下降百分比。3) 等長肌力：每週一次，對固定桿全力拉，重複 3 次取最大值。\n【肌肉截面積】1) 每週一次，以 Ultrasound 2 全景模式掃描股四頭肌與腓腸肌。2) 使用發射前依腿長選定的定位模板，探頭沿模板一次掃完。3) 同一位置連測 3 次取平均。小腿數值誤差較大，請看趨勢、不看單次。\n【體質量】1) 每次都在同一時段測量。2) 雙腿與身體環抱 SLAMMD 支架，保持不動。3) 彈簧推動後由系統讀數，連測取平均。\n【骨代謝】1) 晨間空腹採血；每次都在同一時段採樣，結果才能互相比較。2) 骨流失率為推估值：飛行中無法直接測骨密度，返回後以 DXA 確認。3) 註：太空站目前是將樣本冷凍送回地面分析；船上即時檢測為本系統的規劃功能。',
+    '[Training] In microgravity, muscle strength drops by an average of 10%-12%, and about 12%-38% of crewmembers lose more than 20%, impairing EVA capability and post-landing mobility. Resistance training is the primary countermeasure, and intensity matters more than repetition count. | [Muscle CSA] After about 6 months on the ISS, crew lost 10%-16% of calf muscle volume and 4%-7% of thigh volume (MRI study of 4 crewmembers). Lower-limb muscle loss increases the risk of falls and injury after landing. | [Body Mass] Body mass loss is usually caused by insufficient caloric intake. A 5%-10% loss requires attention, and over 10% is critical. | [Bone Metabolism] In microgravity, bone resorption increases by about 50% and bone mineral density declines by an average of 1%-1.5% per month, most prominently at the hip. Lost bone calcium is excreted in urine (serum calcium remains normal), increasing kidney stone risk.': '【訓練指標】失重下肌力平均下降 10%–12%，約 12%–38% 的組員下降超過 20%，會影響出艙與著陸後的行動能力。阻力訓練是最主要的對策，重點在強度而不是次數。\n【肌肉截面積】在太空站約 6 個月後，組員小腿肌肉體積減少 10%–16%，大腿減少 4%–7%（4 名組員的 MRI 研究）。下肢肌肉流失會讓著陸後更容易跌倒或受傷。\n【體質量】體質量下降多半是因為吃得不夠。下降 5%–10% 需要關注，超過 10% 屬嚴重。\n【骨代謝】失重下骨吸收約增加 50%，骨密度平均每月流失 1%–1.5%，髖部最明顯。流失的鈣由尿液排出（血鈣維持正常），會提高腎結石風險。',
+    'Complete full range of motion, push every rep maximally, and finish any incomplete sets for this week.': '動作幅度做完整、每下全力推，補足本週未完成的組數。',
+    'Starting from the next workout, increase squat, deadlift, and calf-raise load by approximately +5%.': '下次訓練起提高深蹲、硬舉、提踵負荷約 5%。',
+    'Stop the fatigued set immediately today and switch to recovery training.': '今天立即停止該組，改做恢復訓練。',
+    'Report to ground at the next communication pass.': '下次通訊上報地面。',
+    'Confirm training targets are met; consume 1.2-1.8 g protein per kg body mass daily with adequate calories.': '確認訓練達標；每日蛋白質達每公斤體重 1.2–1.8 g，熱量吃足。',
+    'Starting from the next workout, increase lower-limb load by approximately +5% and add 1 set of calf raises.': '下次訓練起提高下肢負荷約 5%，並增加 1 組提踵訓練。',
+    'Re-measure once immediately to rule out measurement error; then follow up during weekly routine checks.': '立即重測一次以排除測量誤差；之後於每週例行檢查時追蹤。',
+    'Log dietary intake for 3 days and add high-calorie foods.': '記錄飲食 3 天並補充高熱量食物。',
+    'Report to ground at the next communication pass so the medical team can adjust nutrition.': '下次通訊上報地面，由醫療團隊調整營養處方。',
+    'Confirm resistance training targets are met; take Vitamin D 1000 IU daily; hydrate to maintain daily urine output above 2 L.': '確認阻力訓練達標；每日補充維生素 D 1000 IU；多喝水維持每日尿量 > 2 公升。',
+    'Report to ground at the next communication pass for flight surgeon medication decision; increase monitoring frequency.': '下次通訊上報地面，由航太醫師評估藥物處置並提高監測頻率。',
+    'Follow current prescription; weekly (168h) E4D, isometric strength, body mass, and Ultrasound CSA checks; bone markers >= 14 days.': '照原處方執行；每週 (168h) 進行 E4D、等長肌力、體質量與超音波肌肉截面積檢查；骨代謝指標間隔 ≥ 14 天。',
+    'Complete full range of motion and slow eccentric control without increasing load; recheck E4D, isometric strength, and body mass in 72h, Ultrasound CSA >= 7 days, bone markers >= 14 days.': '維持原負荷並確實做好完整動作幅度與離心控制；72 小時後複檢 E4D、等長肌力與體質量（超音波 ≥ 7 天、骨代謝指標 ≥ 14 天）。',
+    'Stop fatigued set today and switch to recovery training; recheck E4D, isometric strength, and body mass in 72h, Ultrasound CSA >= 7 days, bone markers >= 14 days.': '今日立即停止疲勞組並改為恢復訓練；72 小時後複檢 E4D、等長肌力與體質量（超音波 ≥ 7 天、骨代謝指標 ≥ 14 天）。',
+    'Starting from the next workout, increase E4D load by approximately +5% or add sets; recheck E4D, isometric strength, and body mass in 24h, Ultrasound CSA >= 7 days, bone markers >= 14 days.': '下次訓練起提高 E4D 負荷約 +5% 或增加組數；24 小時後複檢 E4D、等長肌力與體質量（超音波 ≥ 7 天、骨代謝指標 ≥ 14 天）。',
+
     // Role 6: 17-Card Cabin Environment corpus
     'Execute Layer-0 QC checks across DOSTEL/GOES radiation, Type-1 SLM/dosimeter/OOHA acoustics, MCA/CDRA/THC/AQM/TOCA/microbial habitat loops, and Actiwatch/PVT-B/Bedford behavioral assays.': '依序執行 Layer 0 品質檢核：DOSTEL/GOES 輻射偵測、Type-1 聲壓計/個人噪音計/OOHA 聽力測驗、MCA/CDRA/THC/AQM/TOCA 氣水微生物環控迴路，以及 Actiwatch 睡眠、PVT-B 警覺度與 Bedford 工作負荷量測。',
     'Integrates 17 closed-habitat, radiation, acoustic, and circadian-isolation cards across 3 NASA RIDGE hazards to provide autonomous offline decision support (all Red actions end with a human decision).': '整合 17 張封閉艙段環控、太空輻射、聲學噪音與生理節律監測卡（涵蓋 NASA 輻射/孤立/封閉環境三大危害），提供離線自主醫療決策支援（所有紅燈處置均保留人工最終確認）。',
@@ -579,7 +626,10 @@ HUD_I18N_JS = r"""
     out = out.replace(/^ARRHYTHMIA-ELECTROLYTE CORRELATION \(M5\+M11\): Elevated PVC burden \(([\d.]+)%\) paired with hypokalemia \(K\+=([\d.]+) mmol\/L\) [—-] administer oral KCl and repeat ECG\.$/, '心律不整-電解質關聯警示 (M5+M11)：心室早搏負荷偏高 ($1%) 併發低血鉀 (K+=$2 mmol/L) — 給予口服氯化鉀 (KCl) 並複測心電圖。');
     out = out.replace(/^RHYTHM-ELECTROLYTE CHECK \(M5->M11\): Elevated PVC burden \(([\d.]+)%\) [—-] verify serum K\+ >= 3\.5 mmol\/L before exercise\.$/, '心律-電解質檢核 (M5→M11)：心室早搏負荷偏高 ($1%) — 運動前請先確認血清鉀 K+ ≥ 3.5 mmol/L。');
     out = out.replace(/^ORTHOSTATIC-HYPOVOLEMIA CORRELATION \(M6\+M10\): Orthostatic intolerance paired with ([+-]?[\d.]+)% plasma volume loss [—-] initiate oral salt\+fluid loading\.$/, '直立不耐-低血容關聯警示 (M6+M10)：直立耐受不良併發血漿容量流失 ($1%) — 立即啟動口服鹽水與液體補充。');
-    out = out.replace(/^S_bone=([\d.]+), VBT=([\d.]+)%, Thigh=([^,]+), Calf=([^,]+), CTX=([^,]+), Est Hip Loss=([^\s]+)\.$/, (_, a, b, c, d, e, f) => `骨骼刺激 S_bone=${a}｜速度衰減 ${b}%｜大腿 ${c}｜小腿 ${d}｜骨吸收 CTX ${e}｜推估髖骨流失 ${f}`);
+    out = out.replace(/^S_bone=([\d.]+), VBT=([\d.]+)%, (?:Strength=([^,]+), )?Thigh=([^,]+), Calf=([^,]+), CTX=([^,]+), (?:Est|Modeled) Hip Loss=([^\s.]+%?\/mo)\.(?:\s*\[URGENT ESCALATION\])?$/, (_, a, b, str, c, d, e, f) => {
+      const strPart = str ? `｜肌力 ${str}` : '';
+      return `骨骼刺激 S_bone=${a}｜速度衰減 ${b}%${strPart}｜大腿 ${c}｜小腿 ${d}｜骨吸收 CTX ${e}｜推估髖骨流失 ${f}`;
+    });
     out = out.replace(/^(OD|OS) delta TRT \+([\d.]+) um, delta V_ONH \+([\d.]+) mm3, ONSD ([\d.]+) mm(?: \| Cross-context cabin ppCO2=([\d.]+) mmHg)?\.$/, (_, eye, trt, vonh, onsd, co2) => `${eye} 眼視網膜 ΔTRT +${trt} µm｜視神經盤 ΔV_ONH +${vonh} mm³｜ONSD ${onsd} mm` + (co2 ? `｜連動艙內 ppCO2=${co2} mmHg` : ''));
     out = out.replace(/^Temp ([\d.]+) C, Lymph ([\d.]+) \(([^)]+)\), VZV ([\d.]+), SPE=(True|False)\.$/, (_, temp, ly, dp, vzv, spe) => `體溫 ${temp}°C｜淋巴球 ${ly} (${dp})｜水痘病毒 VZV ${vzv}｜風暴警報=${spe === 'True' ? '是' : '否'}`);
     out = out.replace(/^MCA CO2 sensor flatlined for ([\d.]+)h \(>=24h stuck-sensor QC fault\)\.$/, 'MCA 二氧化碳感測器讀數已凍結 $1 小時（觸發 ≥24h 故障閘門）。');

@@ -255,9 +255,39 @@ HUD_CONTROLLER_BODY_JS = r"""
     `;
   }
 
-  function buildTrendSvg(metric, missionDay) {
+  const MUSCULO_GROUP_MAP = {
+    e4d_s_bone_index: 'training',
+    iso_peak_force_n: 'training',
+    velocity_loss_pct: 'training',
+    csa_thigh_cm2: 'csa',
+    csa_calf_cm2: 'csa',
+    body_mass_kg: 'body_mass',
+    ntx_bone_resorption: 'bone_metabolism',
+    ctx_bone_resorption: 'bone_metabolism',
+    p1np_bone_formation: 'bone_metabolism',
+    est_monthly_bone_loss_pct: 'bone_metabolism',
+    osd575_ca_alp_baseline: 'bone_metabolism'
+  };
+
+  function resolveMetricDisplayName(m) {
+    if (!m) return '';
+    // Item 6: Only show 'OSD-575' if data/shared_real/OSD-575_cmp.csv is actually present (ref_data_source === 'REAL')
+    if (m.metric_name === 'osd575_ca_alp_baseline') {
+      if (m.ref_data_source === 'REAL') {
+        return state.lang === 'zh' ? 'OSD-575 血清鈣/ALP基準' : 'NASA OSDR OSD-575';
+      }
+      return state.lang === 'zh' ? '內建參考值（非 NASA 資料）' : (m.display_name || 'Built-in reference (non-NASA data)');
+    }
+    return metricLabel(m.metric_name);
+  }
+
+  function buildTrendSvg(metric, missionDay, modQualityPassed = true) {
     if (!metric) {
       return `<div style="padding:24px;color:#64748b;font-size:12px;">No telemetry series available.</div>`;
+    }
+    // Item 4: When INSUFFICIENT_DATA / QC failed, do not plot invalid points or 30-day projection line
+    if (!modQualityPassed || !metric.quality_passed || metric.raw_status === 'INSUFFICIENT_DATA') {
+      return `<div style="padding:36px 18px;text-align:center;color:#fb923c;font-size:12.5px;font-weight:600;border:1px dashed rgba(249,115,22,0.35);border-radius:10px;background:rgba(249,115,22,0.06);">${esc(t('qc_trend_blocked'))}</div>`;
     }
 
     const days = (metric.history_days && metric.history_days.length >= 2)
@@ -488,34 +518,48 @@ HUD_CONTROLLER_BODY_JS = r"""
       `;
     }).join('');
 
-    // Mini metric tiles
+    // Mini metric tiles (Items 1, 5, 6)
     const metricTilesHtml = metrics.map((m, idx) => {
-      const msk = !m.quality_passed ? 'QC' : (m.status_light || 'GREEN');
-      const deltaTxt = (m.delta_pct !== null && m.delta_pct !== undefined)
-        ? `${m.delta_pct > 0 ? '+' : ''}${m.delta_pct}% ${t('vs_base')}`
-        : `${t('layer_prefix')} ${layerLabel(m.decided_by)}`;
+      const isRef = m.raw_status === 'REFERENCE' || m.metric_name === 'p1np_bone_formation' || m.metric_name === 'osd575_ca_alp_baseline';
+      const msk = !m.quality_passed ? 'QC' : (isRef ? 'REF' : (m.status_light || 'GREEN'));
+      let deltaTxt = '';
+      if (m.delta_pct !== null && m.delta_pct !== undefined) {
+        deltaTxt = `${m.delta_pct > 0 ? '+' : ''}${m.delta_pct}% ${t('vs_base')}`;
+      } else if (m.message) {
+        deltaTxt = zhText(m.message);
+      } else {
+        deltaTxt = `${t('layer_prefix')} ${layerLabel(m.decided_by)}`;
+      }
+      const dispName = resolveMetricDisplayName(m);
       return `
         <div class="metric-card ${idx === state.selectedMetricIdx ? 'active' : ''}" data-metric-idx="${idx}">
           <div class="m-top">
-            <span class="m-name" title="${esc(metricLabel(m.metric_name))}">${esc(metricLabel(m.metric_name))}</span>
+            <span class="m-name" title="${esc(dispName)}">${esc(dispName)}</span>
             <span class="led-dot led-${msk}" style="width:7px;height:7px;"></span>
           </div>
           <div class="m-val-row">
             <span class="m-val">${esc(m.current_val)}</span>
             <span class="m-unit">${esc(m.unit)}</span>
           </div>
-          <div class="m-delta">${esc(deltaTxt)}</div>
+          <div class="m-delta" title="${esc(deltaTxt)}">${esc(deltaTxt)}</div>
         </div>
       `;
     }).join('');
 
-    // 3-step Crew Guidance content
-    const g = selMod.guidance || {};
+    // 3-step Crew Guidance content (Item 9: resolve guidance.groups by activeMetric)
+    const rawGuidance = selMod.guidance || {};
+    let g = rawGuidance;
+    if (rawGuidance.groups && activeMetric) {
+      const grpKey = MUSCULO_GROUP_MAP[activeMetric.metric_name];
+      if (grpKey && rawGuidance.groups[grpKey]) {
+        g = rawGuidance.groups[grpKey];
+      }
+    }
     let guideContentHtml = '';
     if (state.guideTab === 'measure') {
-      guideContentHtml = `<div>${esc(zhText(g.how_to_measure))}</div>`;
+      guideContentHtml = `<div style="white-space:pre-line;">${esc(zhText(g.how_to_measure))}</div>`;
     } else if (state.guideTab === 'meaning') {
-      guideContentHtml = `<div>${esc(zhText(g.plain_explanation))}</div>`;
+      guideContentHtml = `<div style="white-space:pre-line;">${esc(zhText(g.plain_explanation))}</div>`;
     } else {
       const steps = Array.isArray(g.action_protocol) ? g.action_protocol : [g.action_protocol || 'Nominal'];
       guideContentHtml = `<ol class="protocol-list">${steps.map(s => `<li>${esc(zhText(s))}</li>`).join('')}</ol>`;
@@ -614,6 +658,30 @@ HUD_CONTROLLER_BODY_JS = r"""
       bad_data: t('scen_bad')
     };
 
+    // Item 3: When INSUFFICIENT_DATA / QC failed on selected or any module, show '—' instead of '無風險 / NONE'
+    const anyQcFailed = Object.values(modulesMap).some(m => m && !m.quality_passed);
+    let projectedRedDisplay = esc(t('none_lbl'));
+    if (anyQcFailed || !selMod.quality_passed) {
+      projectedRedDisplay = '—';
+    } else if (schedule.earliest_red_days !== null && schedule.earliest_red_days !== undefined) {
+      projectedRedDisplay = esc(schedule.earliest_red_days) + ' ' + esc(t('days_unit'));
+    }
+
+    // Item 8: Enrich musculoskeletal summary note with Isometric Strength delta_pct while keeping CTX
+    let summaryRaw = selMod.summary_note || '';
+    if (state.selectedModule === 'musculoskeletal' && selMod.quality_passed) {
+      const isoMetric = metrics.find(m => m.metric_name === 'iso_peak_force_n');
+      if (isoMetric && isoMetric.delta_pct !== null && isoMetric.delta_pct !== undefined && !summaryRaw.includes('Strength=')) {
+        const sign = Number(isoMetric.delta_pct) > 0 ? '+' : '';
+        summaryRaw = summaryRaw.replace('VBT=', `Strength=${sign}${isoMetric.delta_pct}%, VBT=`);
+      }
+    }
+
+    // Item 2: Urgent escalation red banner at top of Musculoskeletal card
+    const urgentEscHtml = (selMod.urgent_escalation || (state.selectedModule === 'musculoskeletal' && selMod.short_term_plan && selMod.short_term_plan.urgent_alert))
+      ? `<div class="urgent-esc-banner">${esc(t('urgent_escalation_banner'))}</div>`
+      : '';
+
     // Dynamic ambient color stage when Cabin Environment anatomy is active
     const stageEnvClass = (state.viewMode === 'anatomy' && state.selectedModule === 'cabin_environment')
       ? `env-stage-${selSk}`
@@ -705,7 +773,7 @@ HUD_CONTROLLER_BODY_JS = r"""
             </div>
             <div class="kpi-tile" style="--accent:#a855f7">
               <span class="kpi-label">${esc(t('kpi_proj_lbl'))}</span>
-              <span class="kpi-val">${schedule.earliest_red_days !== null && schedule.earliest_red_days !== undefined ? esc(schedule.earliest_red_days) + ' ' + esc(t('days_unit')) : esc(t('none_lbl'))}</span>
+              <span class="kpi-val">${projectedRedDisplay}</span>
               <span class="kpi-sub">${esc(t('kpi_proj_sub'))}</span>
             </div>
           </div>
@@ -741,7 +809,8 @@ HUD_CONTROLLER_BODY_JS = r"""
                 <span class="badge badge-${selSk}">${esc(badgeLabel(selMod))}</span>
               </div>
 
-              ${selMod.summary_note ? `<div class="summary-strip">${esc(zhText(selMod.summary_note))}</div>` : ''}
+              ${urgentEscHtml}
+              ${summaryRaw ? `<div class="summary-strip">${esc(zhText(summaryRaw))}</div>` : ''}
 
               <div class="metric-grid">
                 ${metricTilesHtml}
@@ -750,7 +819,7 @@ HUD_CONTROLLER_BODY_JS = r"""
               <div class="chart-card">
                 <div class="chart-hdr">
                   <span class="chart-title">
-                    ${esc(t('traj_title'))} · <span style="color:#38bdf8">${esc(activeMetric ? metricLabel(activeMetric.metric_name) : '')}</span>
+                    ${esc(t('traj_title'))} · <span style="color:#38bdf8">${esc(activeMetric ? resolveMetricDisplayName(activeMetric) : '')}</span>
                     ${activeMetric && activeMetric.unit ? `(${esc(activeMetric.unit)})` : ''}
                   </span>
                   <div class="chart-legend">
@@ -758,7 +827,7 @@ HUD_CONTROLLER_BODY_JS = r"""
                     <span class="leg-item"><span class="leg-line" style="background:#f472b6;"></span>${esc(t('leg_forecast'))}</span>
                   </div>
                 </div>
-                ${buildTrendSvg(activeMetric, state.mission_day)}
+                ${buildTrendSvg(activeMetric, state.mission_day, selMod.quality_passed !== false)}
               </div>
 
               <div class="guide-box">
@@ -816,6 +885,11 @@ HUD_CONTROLLER_BODY_JS = r"""
                 ${esc(t('gen_csv_btn'))}
               </button>
             ` : ''}
+          </div>
+
+          <!-- ITEM 7: FIXED SIMULATION DISCLAIMER FOOTER -->
+          <div class="sim-disclaimer-bar">
+            ${esc(t('sim_disclaimer'))}
           </div>
 
         </div>
