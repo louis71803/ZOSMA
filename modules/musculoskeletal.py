@@ -1244,6 +1244,7 @@ def evaluate(
     metrics.append(
         {
             "metric_name": "e4d_s_bone_index",
+            "guidance_group": "training",
             "current_val": round(s_bone, 3),
             "baseline_val": None,
             "delta_pct": None,
@@ -1287,6 +1288,7 @@ def evaluate(
         action_yellow=GUIDANCE_GROUPS["training"]["actions"]["yellow"],
         action_red=GUIDANCE_GROUPS["training"]["actions"]["red"],
     )
+    iso_metric["guidance_group"] = "training"
     metrics.append(iso_metric)
     clinical_statuses.append(iso_metric["status_light"])
     if iso_dtr is not None:
@@ -1307,6 +1309,7 @@ def evaluate(
     metrics.append(
         {
             "metric_name": "velocity_loss_pct",
+            "guidance_group": "training",
             "current_val": round(vbt_loss, 1),
             "baseline_val": None,
             "delta_pct": None,
@@ -1342,6 +1345,7 @@ def evaluate(
         action_yellow=GUIDANCE_GROUPS["csa"]["actions"]["yellow"],
         action_red=GUIDANCE_GROUPS["csa"]["actions"]["red"],
     )
+    thigh_metric["guidance_group"] = "csa"
     metrics.append(thigh_metric)
     clinical_statuses.append(thigh_metric["status_light"])
     if thigh_dtr is not None:
@@ -1366,6 +1370,7 @@ def evaluate(
         action_yellow=GUIDANCE_GROUPS["csa"]["actions"]["yellow"],
         action_red=GUIDANCE_GROUPS["csa"]["actions"]["red"],
     )
+    calf_metric["guidance_group"] = "csa"
     metrics.append(calf_metric)
     clinical_statuses.append(calf_metric["status_light"])
     if calf_dtr is not None:
@@ -1390,6 +1395,7 @@ def evaluate(
         action_yellow=GUIDANCE_GROUPS["body_mass"]["actions"]["yellow"],
         action_red=GUIDANCE_GROUPS["body_mass"]["actions"]["red"],
     )
+    mass_metric["guidance_group"] = "body_mass"
     metrics.append(mass_metric)
     clinical_statuses.append(mass_metric["status_light"])
     if mass_dtr is not None:
@@ -1409,6 +1415,7 @@ def evaluate(
         base=base,
         horizon_days=30,
     )
+    ntx_metric["guidance_group"] = "bone_metabolism"
     metrics.append(ntx_metric)
     clinical_statuses.append(ntx_metric["status_light"])
     if ntx_dtr is not None:
@@ -1428,6 +1435,7 @@ def evaluate(
         base=base,
         horizon_days=30,
     )
+    ctx_metric["guidance_group"] = "bone_metabolism"
     metrics.append(ctx_metric)
     clinical_statuses.append(ctx_metric["status_light"])
     if ctx_dtr is not None:
@@ -1444,6 +1452,7 @@ def evaluate(
     p1np_slope = _compute_slope(p1np_days, p1np_vals)
     p1np_metric = {
         "metric_name": "p1np_bone_formation",
+        "guidance_group": "bone_metabolism",
         "current_val": round(p1np_val, 2),
         "baseline_val": round(p1np_base, 2),
         "delta_pct": p1np_delta_pct,
@@ -1482,6 +1491,7 @@ def evaluate(
     metrics.append(
         {
             "metric_name": "est_monthly_bone_loss_pct",
+            "guidance_group": "bone_metabolism",
             "current_val": est_hip_loss_mo,
             "baseline_val": None,
             "delta_pct": None,
@@ -1521,6 +1531,7 @@ def evaluate(
     metrics.append(
         {
             "metric_name": "osd575_ca_alp_baseline",
+            "guidance_group": "bone_metabolism",
             "display_name": ref_display_name,
             "current_val": round(ca_val, 2),
             "baseline_val": osd_summary["ca_mean"],
@@ -2107,5 +2118,37 @@ if __name__ == "__main__":
         assert osd_real["n_records"] == 28
         assert osd_real["ca_mean"] == 9.73
         assert osd_real["alp_mean"] == 54.2
+
+    # 11. Each metric has guidance_group matching a key in guidance.groups, preserved after to_schema()
+    expected_groups_map = {
+        "e4d_s_bone_index": "training",
+        "iso_peak_force_n": "training",
+        "velocity_loss_pct": "training",
+        "csa_thigh_cm2": "csa",
+        "csa_calf_cm2": "csa",
+        "body_mass_kg": "body_mass",
+        "ntx_bone_resorption": "bone_metabolism",
+        "ctx_bone_resorption": "bone_metabolism",
+        "p1np_bone_formation": "bone_metabolism",
+        "est_monthly_bone_loss_pct": "bone_metabolism",
+        "osd575_ca_alp_baseline": "bone_metabolism",
+    }
+    for scen_name in ("green", "yellow", "red"):
+        raw_res = evaluate(demo_payload(scen_name))
+        group_keys = set(raw_res["guidance"]["groups"].keys())
+        assert {m["metric_name"] for m in raw_res["metrics"]} == set(expected_groups_map.keys())
+        for m in raw_res["metrics"]:
+            assert "guidance_group" in m
+            assert m["guidance_group"] in group_keys
+            assert m["guidance_group"] == expected_groups_map[m["metric_name"]]
+
+        schema_res = to_schema(raw_res)
+        schema_dict = schema_res.model_dump()
+        schema_group_keys = set(schema_dict["guidance"]["groups"].keys())
+        assert schema_group_keys == group_keys
+        for m in schema_res.metrics:
+            m_dump = m.model_dump()
+            assert m_dump.get("guidance_group") in schema_group_keys
+            assert m_dump.get("guidance_group") == expected_groups_map[m.metric_name]
 
     print("ALL EXPANDED MUSCULOSKELETAL TESTS PASSED.")
