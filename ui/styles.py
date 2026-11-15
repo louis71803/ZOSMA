@@ -1403,4 +1403,271 @@ HUD_CSS = """
   color: #fbbf24;
   opacity: 0.9;
 }
+
+/* ================= CREW DAILY CHECK-IN & DEV REFERENCE UI ================= */
+.daily-log-btn {
+  border: 1px solid rgba(16, 185, 129, 0.52);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(5, 150, 105, 0.10));
+  color: #d1fae5;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 8px 14px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.daily-log-btn:hover {
+  background: rgba(16, 185, 129, 0.34);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.28);
+}
+
+.rem-btn-primary {
+  border-color: rgba(16, 185, 129, 0.72);
+  background: rgba(16, 185, 129, 0.24);
+  color: #ecfdf5;
+}
+
+.rem-btn-primary:hover {
+  background: rgba(16, 185, 129, 0.38);
+}
+
+.tl-log-btn {
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.12);
+  color: #bae6fd;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.tl-log-btn:hover {
+  background: rgba(56, 189, 248, 0.26);
+}
+
+.drawer-mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  background: rgba(3, 7, 15, 0.8);
+  padding: 4px;
+  border-radius: 9px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.due-context-box {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.18), rgba(120, 53, 15, 0.22));
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.checkin-meta-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(15, 23, 42, 0.68);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  border-radius: 9px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.checkin-trail-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 11px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px dashed rgba(16, 185, 129, 0.35);
+  border-radius: 8px;
+  font-size: 11px;
+  color: #6ee7b7;
+}
+
+.checkin-section {
+  background: rgba(11, 19, 36, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 11px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.checkin-section-hdr {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #f1f5f9;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  padding-bottom: 7px;
+}
+
+.checkin-section-sub {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.checkin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+}
+
+.checkin-card {
+  background: rgba(5, 10, 21, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 9px;
+  padding: 9px 10px;
+}
+
+.field-span-full {
+  grid-column: 1 / -1;
+  background: rgba(5, 10, 21, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 9px;
+  padding: 10px;
+}
+
+.num-stepper-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.num-input {
+  flex: 1;
+  text-align: center;
+  font-weight: 700;
+  color: #38bdf8;
+  min-width: 0;
+}
+
+.step-btn {
+  width: 28px;
+  height: 30px;
+  border-radius: 7px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.9);
+  color: #cbd5e1;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.step-btn:hover {
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+
+.symptom-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.symptom-chip {
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  background: rgba(15, 23, 42, 0.75);
+  color: #cbd5e1;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.symptom-chip.active {
+  border-color: rgba(245, 158, 11, 0.75);
+  background: rgba(245, 158, 11, 0.22);
+  color: #fde68a;
+}
+
+.dev-ref-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 5px;
+  border-top: 1px dashed rgba(148, 163, 184, 0.14);
+}
+
+.dev-ref-ranges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  font-size: 9.8px;
+  line-height: 1.3;
+}
+
+.ref-tag {
+  white-space: nowrap;
+}
+
+.ref-g { color: #6ee7b7; }
+.ref-y { color: #fcd34d; }
+.ref-r { color: #fca5a5; }
+
+.dev-ref-btns {
+  display: inline-flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.ref-fill-btn {
+  border-radius: 5px;
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 2px 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.ref-fill-g {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.45);
+  color: #34d399;
+}
+
+.ref-fill-y {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.48);
+  color: #fbbf24;
+}
+
+.ref-fill-r {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #f87171;
+}
+
+.dev-quick-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
 """

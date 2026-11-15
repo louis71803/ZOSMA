@@ -14,6 +14,12 @@ from typing import Any, Optional
 
 import pandas as pd
 
+from core.checkin_tracker import (
+    apply_checkin_history_to_results,
+    default_daily_vitals,
+    default_module_checkins,
+    get_active_checkin_payload,
+)
 from core.schema import ModuleEvaluationResult, normalize_module_result
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -304,6 +310,9 @@ def load_runtime_session() -> dict[str, Any]:
         },
         "updated_at": None,
         "manual_overrides": {mod: {} for mod in MODULE_ORDER},
+        "daily_vitals": default_daily_vitals(),
+        "module_checkins": default_module_checkins(),
+        "checkin_series": {},
         "history": [],
     }
     if not RUNTIME_SESSION_PATH.exists():
@@ -340,6 +349,22 @@ def load_runtime_session() -> dict[str, Any]:
                 if isinstance(data["manual_overrides"].get(mod), dict):
                     overrides[mod] = dict(data["manual_overrides"][mod])
         merged["manual_overrides"] = overrides
+
+        daily_v = default_daily_vitals()
+        if isinstance(data.get("daily_vitals"), dict):
+            daily_v.update(data["daily_vitals"])
+        merged["daily_vitals"] = daily_v
+
+        mod_chk = default_module_checkins()
+        if isinstance(data.get("module_checkins"), dict):
+            for mod in MODULE_ORDER:
+                if isinstance(data["module_checkins"].get(mod), dict):
+                    mod_chk[mod].update(data["module_checkins"][mod])
+        merged["module_checkins"] = mod_chk
+
+        if not isinstance(merged.get("checkin_series"), dict):
+            merged["checkin_series"] = {}
+
         if not isinstance(merged.get("history"), list):
             merged["history"] = []
         return merged
@@ -358,8 +383,11 @@ def save_runtime_session(
     developer_mode: Optional[bool] = None,
     prefer_real_csv: Optional[bool] = None,
     use_manual_overrides: Optional[bool] = None,
+    daily_vitals: Optional[dict[str, Any]] = None,
+    module_checkins: Optional[dict[str, dict[str, Any]]] = None,
+    checkin_series: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
-    """Persist manual input overrides and a compact summary snapshot to runtime_session.json."""
+    """Persist manual input overrides, crew daily check-ins, and session state to runtime_session.json."""
     ensure_data_directories()
     existing = load_runtime_session()
     timestamp = datetime.now(timezone.utc).isoformat()
@@ -378,6 +406,21 @@ def save_runtime_session(
         bool(use_manual_overrides)
         if use_manual_overrides is not None
         else bool(existing.get("use_manual_overrides", False))
+    )
+    daily_vitals_val = (
+        dict(daily_vitals)
+        if isinstance(daily_vitals, dict)
+        else dict(existing.get("daily_vitals", default_daily_vitals()))
+    )
+    module_checkins_val = (
+        dict(module_checkins)
+        if isinstance(module_checkins, dict)
+        else dict(existing.get("module_checkins", default_module_checkins()))
+    )
+    checkin_series_val = (
+        dict(checkin_series)
+        if isinstance(checkin_series, dict)
+        else dict(existing.get("checkin_series", {}))
     )
 
     history = list(existing.get("history", []))
@@ -406,6 +449,9 @@ def save_runtime_session(
         "offline_clock": offline_clock if isinstance(offline_clock, dict) else existing.get("offline_clock", {}),
         "updated_at": timestamp,
         "manual_overrides": manual_overrides,
+        "daily_vitals": daily_vitals_val,
+        "module_checkins": module_checkins_val,
+        "checkin_series": checkin_series_val,
         "history": history,
     }
     with RUNTIME_SESSION_PATH.open("w", encoding="utf-8") as fh:
@@ -485,13 +531,19 @@ def evaluate_all_modules(
     crew_id: str = "C002",
     mission_day: int = 124,
     prefer_real_csv: bool = True,
+    checkin_series: Optional[dict[str, Any]] = None,
 ) -> tuple[dict[str, ModuleEvaluationResult], dict[str, Any]]:
-    """Run all 5 domain modules with CSV/demo fallback and cross-module context propagation.
+    """Run all 5 domain modules with CSV/demo fallback, crew daily check-ins, and cross-module context propagation.
 
     Execution order runs `cabin_environment` first so `spe_alert`, `ppco2_1h_mmHg`,
     and `sleep_tst_h` are propagated to `immune_metabolic` and `neuro_ocular`.
     """
     overrides = manual_overrides or {}
+    active_checkin_map = (
+        get_active_checkin_payload(checkin_series, crew_id=crew_id, mission_day=mission_day)
+        if (checkin_series and scenario == "green")
+        else {}
+    )
     results: dict[str, ModuleEvaluationResult] = {}
     cross_context: dict[str, Any] = {
         "spe_alert": False,
@@ -531,6 +583,12 @@ def evaluate_all_modules(
             payload["crew_id"] = crew_id
             payload["mission_day"] = mission_day
 
+            # Apply crew daily / scheduled check-ins before cross-module propagation
+            mod_checkin = active_checkin_map.get(module_id) or {}
+            for k, v in mod_checkin.items():
+                if v is not None:
+                    payload[k] = v
+
             # Apply cross-module context from Role 6 -> Role 5 & Role 4
             if module_id == "immune_metabolic":
                 if cross_context.get("spe_alert"):
@@ -538,17 +596,21 @@ def evaluate_all_modules(
                     cross_context["propagated_flags"].append(
                         "cabin_environment.spe_alert -> immune_metabolic.spe_event_flag"
                     )
-                if "sleep_h" not in overrides.get(module_id, {}) and cross_context.get("sleep_tst_h") is not None:
+                if (
+                    "sleep_h" not in mod_checkin
+                    and "sleep_h" not in overrides.get(module_id, {})
+                    and cross_context.get("sleep_tst_h") is not None
+                ):
                     payload.setdefault("sleep_h", cross_context["sleep_tst_h"])
 
             if module_id == "neuro_ocular":
-                if cross_context.get("ppco2_1h_mmHg") is not None:
+                if "ppco2_1h_mmHg" not in mod_checkin and cross_context.get("ppco2_1h_mmHg") is not None:
                     payload["ppco2_1h_mmHg"] = cross_context["ppco2_1h_mmHg"]
                     cross_context["propagated_flags"].append(
                         f"cabin_environment.ppco2_1h_mmHg ({cross_context['ppco2_1h_mmHg']}) -> neuro_ocular"
                     )
 
-            # Manual UI slider overrides take final precedence
+            # Manual UI slider overrides (Developer Mode) take final precedence
             mod_override = overrides.get(module_id) or {}
             for k, v in mod_override.items():
                 if v is not None:
@@ -599,5 +661,13 @@ def evaluate_all_modules(
                 mission_day=mission_day,
                 error_message=str(exc),
             )
+
+    if checkin_series and scenario == "green":
+        results = apply_checkin_history_to_results(
+            results=results,
+            checkin_series=checkin_series,
+            crew_id=crew_id,
+            mission_day=mission_day,
+        )
 
     return results, cross_context
