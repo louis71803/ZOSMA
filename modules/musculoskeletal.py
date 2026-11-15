@@ -211,7 +211,7 @@ GUIDANCE_GROUPS: dict[str, dict[str, Any]] = {
         ),
         "plain_explanation": (
             "In microgravity, muscle strength drops by an average of 10%-12%, and about 12%-38% of crewmembers lose more than 20%, "
-            "impairing EVA capability and post-landing mobility. Resistance training is currently the only proven effective countermeasure, "
+            "impairing EVA capability and post-landing mobility. Resistance training is the primary countermeasure, "
             "and intensity matters more than repetition count."
         ),
         "actions": {
@@ -228,7 +228,7 @@ GUIDANCE_GROUPS: dict[str, dict[str, Any]] = {
             "3) Repeat 3 times at the same site and average the values. Calf readings have higher variance; follow the trend rather than a single scan."
         ),
         "plain_explanation": (
-            "After a 6-month ISS mission, calf muscle volume decreases by an average of 10%-16% and thigh volume by 4%-7%. "
+            "After about 6 months on the ISS, crew lost 10%-16% of calf muscle volume and 4%-7% of thigh volume (MRI study of 4 crewmembers). "
             "Lower-limb muscle loss increases the risk of falls and injury after landing."
         ),
         "actions": {
@@ -239,12 +239,12 @@ GUIDANCE_GROUPS: dict[str, dict[str, Any]] = {
     },
     "body_mass": {
         "how_to_measure": (
-            "1) Measure in the morning before eating. "
+            "1) Measure at the same time of day each session. "
             "2) Wrap legs and torso securely around the SLAMMD mount and remain still. "
             "3) Record the spring-driven readout and average consecutive measurements."
         ),
         "plain_explanation": (
-            "Body mass loss is usually caused by insufficient caloric intake and accelerates bone and muscle loss. "
+            "Body mass loss is usually caused by insufficient caloric intake. "
             "A 5%-10% loss requires attention, and over 10% is critical."
         ),
         "actions": {
