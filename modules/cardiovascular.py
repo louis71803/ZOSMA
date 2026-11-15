@@ -75,6 +75,7 @@ from modules.cardio_data import (
     load_shared_osdr_overrides as _load_shared_osdr_overrides,
     safe_bool as _safe_bool,
     safe_float as _safe_float,
+    summarize_biomonitor_stream as _summarize_biomonitor_stream,
 )
 from modules.cardio_guidance import build_indicator_guidance as _build_indicator_guidance
 
@@ -129,7 +130,7 @@ def _linear_trend_projection(
     Returns:
         (slope_per_day, days_until_red, yellow_trend_triggered)
     """
-    if len(days) < 2 or len(values) < 2 or len(days) != len(values):
+    if len(days) < 3 or len(values) < 3 or len(days) != len(values):
         return None, None, False
 
     x = np.asarray(days[-5:], dtype=float)
@@ -375,16 +376,35 @@ def evaluate(
         base.update(osdr_base_overrides)
 
     merged.update(osdr_updates)
+    stream_summary = _summarize_biomonitor_stream(raw_pay)
     merged.update({k: v for k, v in raw_pay.items() if v is not None or k in {"rest_hr_bpm", "spo2_pct"}})
+    if stream_summary and scenario == "green":
+        for k, v in stream_summary.items():
+            if k not in raw_pay or raw_pay.get(k) is None:
+                merged[k] = v
+            elif k in {"rest_hr_bpm", "sbp_mmHg", "dbp_mmHg", "spo2_pct", "resp_rate_bpm", "ecg_lead_quality", "motion_artifact_g"} and "csv_biomonitor_stream_day124" in raw_pay:
+                # Only use stream aggregate when daily_vitals didn't explicitly supply a different override
+                if "csv_daily_vitals" not in raw_pay:
+                    merged[k] = v
     if manual_inputs:
         for k, v in manual_inputs.items():
             if v is not None:
                 merged[k] = v
 
-    if (
+    # Detect explicit CRP override (`crp_mg_l` without explicit `crp_change_pct`)
+    explicit_crp_val = (manual_inputs or {}).get("crp_mg_l")
+    explicit_crp_pct = (manual_inputs or {}).get("crp_change_pct")
+    raw_crp_val = raw_pay.get("crp_mg_l")
+    raw_crp_pct = raw_pay.get("crp_change_pct")
+
+    if explicit_crp_val is not None and explicit_crp_pct is None:
+        merged.pop("crp_change_pct", None)
+    elif raw_crp_val is not None and raw_crp_pct is None and explicit_crp_pct is None:
+        merged.pop("crp_change_pct", None)
+    elif (
         "crp_mg_l" in osdr_updates
-        and "crp_change_pct" not in raw_pay
-        and "crp_change_pct" not in (manual_inputs or {})
+        and raw_crp_pct is None
+        and explicit_crp_pct is None
     ):
         base_crp = float(_safe_float(base.get("crp_mg_l"), 0.9) or 0.9)
         cur_crp = float(_safe_float(merged.get("crp_mg_l"), base_crp) or base_crp)
@@ -395,7 +415,10 @@ def evaluate(
     mission_day = int(_safe_float(merged.get("mission_day"), 124) or 124)
 
     has_csv_records = any(k.startswith("csv_") for k in merged)
-    if has_osdr_real and str(raw_pay.get("data_source", "")).upper() != "MANUAL":
+    is_demo_csv = bool(base.get("is_demo_template") is True)
+    if str(merged.get("data_source", "")).upper() == "SIMULATED" or (is_demo_csv and str(raw_pay.get("data_source", "")).upper() != "REAL"):
+        data_source = "SIMULATED"
+    elif has_osdr_real and str(raw_pay.get("data_source", "")).upper() != "MANUAL":
         data_source = "REAL"
     elif merged.get("data_source"):
         data_source = str(merged["data_source"]).upper()
@@ -414,18 +437,32 @@ def evaluate(
     def _hist(key: str, current_val: float) -> tuple[list[int], list[float]]:
         item = history.get(key)
         if item and len(item.get("days", [])) >= 2:
-            d = list(item["days"])
-            v = [float(x) for x in item["values"]]
-            if d[-1] == mission_day:
-                v[-1] = float(current_val)
-            else:
-                d.append(mission_day)
-                v.append(float(current_val))
-            return d, v
-        base_v = _safe_float(base.get(key), current_val) or current_val
-        days_arr = [1, 30, 60, 90, mission_day]
-        step = (current_val - base_v) / 4.0
-        vals_arr = [round(base_v + step * i, 2) for i in range(5)]
+            pairs = [
+                (int(d), float(val))
+                for d, val in zip(item["days"], item["values"])
+                if int(d) <= mission_day
+            ]
+            if len(pairs) >= 2:
+                d = [p[0] for p in pairs]
+                v = [p[1] for p in pairs]
+                if d[-1] == mission_day:
+                    v[-1] = float(current_val)
+                else:
+                    d.append(mission_day)
+                    v.append(float(current_val))
+                return d, v
+        base_v = _safe_float(base.get(key), current_val)
+        if base_v is None:
+            base_v = current_val
+        if mission_day <= 1:
+            return [0, mission_day], [float(current_val), float(current_val)]
+        n_pts = 5
+        days_arr = sorted({max(1, round(1 + (mission_day - 1) * i / (n_pts - 1))) for i in range(n_pts)})
+        if len(days_arr) < 2:
+            days_arr = [0, mission_day]
+        step = (current_val - base_v) / max(len(days_arr) - 1, 1)
+        vals_arr = [round(base_v + step * i, 2) for i in range(len(days_arr))]
+        vals_arr[-1] = float(current_val)
         return days_arr, vals_arr
 
     metrics: list[dict[str, Any]] = []
@@ -444,6 +481,7 @@ def evaluate(
     hr_status, hr_by = _combine_three_layers(hr_l1, hr_l2, hr_trend_warn, hr_days_red)
     if hr_days_red is not None and hr_status != "RED":
         projected_red_days.append(hr_days_red)
+    hr_slope_txt = f"{hr_slope:+.3f}/day" if hr_slope is not None else "n/a"
     metrics.append({
         "metric_name": "rest_hr_bpm",
         "indicator": "M1: Resting Heart Rate (Bio-Monitor)",
@@ -462,7 +500,7 @@ def evaluate(
         "lower_is_worse": False,
         "history_days": hr_days,
         "history_values": hr_vals,
-        "message": f"Resting HR {rest_hr:.1f} bpm (baseline {base['rest_hr_bpm']:.0f} bpm, slope {hr_slope:+.3f}/day).",
+        "message": f"Resting HR {rest_hr:.1f} bpm (baseline {base['rest_hr_bpm']:.0f} bpm, slope {hr_slope_txt}).",
     })
 
     # ------------------------------------------------------------------
@@ -708,6 +746,9 @@ def evaluate(
         ijv_status = "YELLOW"
     else:
         ijv_status = "GREEN"
+    ijv_score_map = {"forward": 0.0, "stagnant": 1.0, "reversed": 2.0}
+    ijv_score = 2.0 if (ijv_thrombus or not ijv_comp) else ijv_score_map.get(ijv_flow, 0.0)
+    ijv_days, ijv_vals = _hist("ijv_flow_status", ijv_score)
     metrics.append({
         "metric_name": "ijv_flow_status",
         "indicator": "M9: IJV Neck Vein Flow & Clot (Ultrasound 2)",
@@ -719,6 +760,11 @@ def evaluate(
         "status": ijv_status,
         "decided_by": "rule",
         "data_source": data_source,
+        "yellow_threshold": 1.0,
+        "red_threshold": 2.0,
+        "lower_is_worse": False,
+        "history_days": ijv_days,
+        "history_values": ijv_vals,
         "message": f"IJV Doppler='{ijv_flow}', compressible={ijv_comp}, thrombus={ijv_thrombus}.",
     })
 

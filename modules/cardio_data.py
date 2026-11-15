@@ -126,6 +126,7 @@ def demo_baseline() -> dict[str, Any]:
     """Pre-flight personal cardiovascular baseline for Crew C002."""
     return {
         "crew_id": "C002",
+        "is_demo_template": True,
         "rest_hr_bpm": 62.0,
         "rest_hr_sd": 4.0,
         "sbp_mmHg": 116.0,
@@ -526,7 +527,15 @@ def export_demo_csvs(overwrite: bool = False) -> list[str]:
             written.append(str(path))
 
     baseline_path = DATA_DIR / "preflight_baseline.json"
-    if overwrite or not baseline_path.exists():
+    needs_baseline = overwrite or (not baseline_path.exists())
+    if not needs_baseline and baseline_path.exists():
+        try:
+            existing_base = json.loads(baseline_path.read_text(encoding="utf-8"))
+            if not isinstance(existing_base, dict) or "is_demo_template" not in existing_base:
+                needs_baseline = True
+        except Exception:
+            needs_baseline = True
+    if needs_baseline:
         with baseline_path.open("w", encoding="utf-8") as fh:
             json.dump(demo_baseline(), fh, indent=2)
         written.append(str(baseline_path))
@@ -855,4 +864,55 @@ def extract_history_from_payload(payload: dict[str, Any], scenario: str, mission
                 if len(vals) >= 2:
                     fallback[col] = {"days": valid_days, "values": vals}
 
+    # Include IJV Doppler flow ordinal history (0=forward, 1=stagnant, 2=reversed) from ultrasound.csv
+    us_records = payload.get("csv_ultrasound")
+    if isinstance(us_records, list) and len(us_records) >= 2:
+        flow_score = {"forward": 0.0, "stagnant": 1.0, "reversed": 2.0}
+        us_days: list[int] = []
+        us_vals: list[float] = []
+        for idx, r in enumerate(us_records, start=1):
+            if isinstance(r, dict):
+                d = safe_float(r.get("mission_day"), float(idx * 30))
+                f_tok = str(r.get("ijv_flow", "forward")).strip().lower()
+                us_days.append(int(d) if d is not None else idx * 30)
+                us_vals.append(flow_score.get(f_tok, 0.0))
+        if len(us_vals) >= 2:
+            fallback["ijv_flow_status"] = {"days": us_days, "values": us_vals}
+
     return fallback
+
+
+def summarize_biomonitor_stream(payload: dict[str, Any]) -> dict[str, Any]:
+    """Aggregate high-resolution Day-124 Bio-Monitor stream rows when present.
+
+    Provides averaged vitals and minimum signal quality across the 5-min samples
+    without crashing when the stream CSV is absent.
+    """
+    records = payload.get("csv_biomonitor_stream_day124")
+    if not isinstance(records, list) or not records:
+        return {}
+
+    hr_vals = [v for r in records if isinstance(r, dict) and (v := safe_float(r.get("hr_bpm"))) is not None]
+    sbp_vals = [v for r in records if isinstance(r, dict) and (v := safe_float(r.get("sbp_mmHg"))) is not None]
+    dbp_vals = [v for r in records if isinstance(r, dict) and (v := safe_float(r.get("dbp_mmHg"))) is not None]
+    spo2_vals = [v for r in records if isinstance(r, dict) and (v := safe_float(r.get("spo2_pct"))) is not None]
+    resp_vals = [v for r in records if isinstance(r, dict) and (v := safe_float(r.get("resp_rate_bpm"))) is not None]
+    q_vals = [v for r in records if isinstance(r, dict) and (v := safe_float(r.get("ecg_lead_quality"))) is not None]
+    m_vals = [v for r in records if isinstance(r, dict) and (v := safe_float(r.get("motion_artifact_g"))) is not None]
+
+    out: dict[str, Any] = {}
+    if hr_vals:
+        out["rest_hr_bpm"] = round(sum(hr_vals) / len(hr_vals), 1)
+    if sbp_vals:
+        out["sbp_mmHg"] = round(sum(sbp_vals) / len(sbp_vals), 1)
+    if dbp_vals:
+        out["dbp_mmHg"] = round(sum(dbp_vals) / len(dbp_vals), 1)
+    if spo2_vals:
+        out["spo2_pct"] = round(sum(spo2_vals) / len(spo2_vals), 1)
+    if resp_vals:
+        out["resp_rate_bpm"] = round(sum(resp_vals) / len(resp_vals), 1)
+    if q_vals:
+        out["ecg_lead_quality"] = round(min(q_vals), 2)
+    if m_vals:
+        out["motion_artifact_g"] = round(max(m_vals), 2)
+    return out
