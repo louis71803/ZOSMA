@@ -39,33 +39,36 @@ SHARED_REAL_DIR = BASE_DIR / "data" / "shared_real"
 
 # Provenance tags strictly restricted to four labels:
 # "NASA" | "ISS_study" | "other_literature" | "team_spec"
+# Full source list and URLs are maintained in data/musculoskeletal/literature_reference.json.
 REFERENCES: dict[str, dict[str, Any]] = {
     "e4d_hardware": {
-        "provenance": "NASA",
+        "provenance": "other_literature",
+        "citation": "ESA E4D release (Jan 2026); Danish Aerospace Company E4D product page; NASA NTRS 20240008204.",
         "description": "European multi-purpose exercise device E4D, launched to the ISS for testing in April 2026.",
     },
     "bone_loss_iss_avg": {
         "provenance": "NASA",
-        "citation": "NASA Human Research Program / Spaceflight Bone Loss Overview",
+        "citation": "NASA Human Research Program - Risk of Spaceflight-Induced Bone Changes.",
         "covers": "Average spaceflight bone mineral density loss 1.0-1.5%/month.",
     },
     "strength_avg_loss": {
         "provenance": "NASA",
+        "citation": "NASA Human Research Program - Risk of Reduced Cardiorespiratory and Musculoskeletal Fitness.",
         "covers": "Average strength loss under microgravity 10-12%.",
     },
     "nutrition_hydration": {
         "provenance": "NASA",
-        "citation": "NASA-STD-3001 Vol 2",
+        "citation": "NASA OCHMO-TB-030 Bone Loss (Vitamin D 35-90 ng/mL); NASA JSC-67378 Rev 1, 2020 (protein 1.2-1.8 g/kg/day, Vitamin D 1000 IU/day); Whitson et al., NASA NTRS 20000020539 (urine output 2 L/day).",
         "covers": "Vitamin D 35-90 ng/mL reference range, protein 1.2-1.8 g/kg/day, Vitamin D 1000 IU/day, daily urine output >= 2 L/day.",
     },
     "iss_site_bone_muscle_resorption": {
         "provenance": "ISS_study",
-        "citation": "LeBlanc et al. (2000), JBMR; Sibonga et al. (2007), Bone 41(6):973-983; Trappe et al. (2009), J Appl Physiol; Smith et al. (2005, 2012), JBMR.",
-        "covers": "Thigh CSA 4%/7%, Calf CSA 5%/10%, isometric strength thresholds (<5%/5-10%/>10%), bone resorption +50%, lumbar spine 0.9%/mo and proximal hip 1.4-1.5%/mo.",
+        "citation": "Lang et al. (2004), J Bone Miner Res 19(6):1006-12; Gopalakrishnan et al. (2010), Aviat Space Environ Med 81:91-104; Trappe et al. (2009), J Appl Physiol 106(4):1159-68; English et al. (2015), Aerosp Med Hum Perform 86(12 Suppl):A68-77; Smith et al. (2005), J Bone Miner Res 20(2):208-18.",
+        "covers": "Published ranges that anchor the team thresholds: lumbar spine 0.9%/mo and hip 1.4-1.5%/mo (Lang 2004); calf 10-16% and thigh 4-7% volume loss (Gopalakrishnan 2010, n=4); isokinetic strength loss 8-17% (English 2015, n=37); bone resorption about +50% (Smith 2005). The cut-off values themselves (thigh 4%/7%, calf 5%/10%, strength 5%/10%) are team-defined.",
     },
     "vbt_and_body_mass": {
         "provenance": "other_literature",
-        "citation": "Pareja-Blanco et al. (2017), Scand J Med Sci Sports 27(7):724-735; clinical nutritional anthropometry.",
+        "citation": "Sanchez-Medina & Gonzalez-Badillo (2011), Med Sci Sports Exerc 43(9):1725-34 (trained men, not astronauts); Science News, 'The Zero Gravity Diet', quoting NASA nutritionist S. M. Smith.",
         "covers": "Intra-set velocity loss 30% upper fatigue limit; SLAMMD body mass loss 5%/10%.",
     },
     "team_operational_specs": {
@@ -524,6 +527,31 @@ def export_demo_csvs() -> list[str]:
     return written
 
 
+def _pick_osd575_columns(columns: Any) -> tuple[Optional[Any], Optional[Any]]:
+    """Select Calcium and ALP value columns deterministically, avoiding reference range columns."""
+    cols = list(columns)
+    cols_lower = [(col, str(col).strip().lower()) for col in cols]
+
+    ca_exact = {"ca", "calcium", "calcium_mg_dl", "serum_ca_mg_dl"}
+    alp_exact = {"alp", "alp_u_l", "serum_alp_u_l", "alk_phos"}
+
+    ca_col = next((orig for orig, low in cols_lower if low in ca_exact), None)
+    if ca_col is None:
+        ca_col = next(
+            (orig for orig, low in cols_lower if "calcium" in low and "value" in low and "range" not in low),
+            None,
+        )
+
+    alp_col = next((orig for orig, low in cols_lower if low in alp_exact), None)
+    if alp_col is None:
+        alp_col = next(
+            (orig for orig, low in cols_lower if "alkaline_phosphatase" in low and "value" in low and "range" not in low),
+            None,
+        )
+
+    return ca_col, alp_col
+
+
 def _load_osd575_summary() -> dict[str, Any]:
     """Load real NASA OSDR OSD-575 serum Ca & ALP if present; report explicit errors or fallback."""
     csv_path = _find_osd575_csv()
@@ -543,15 +571,7 @@ def _load_osd575_summary() -> dict[str, Any]:
                     "ca_series": [r["calcium_mg_dl"] for r in SIMULATED_CMP_FALLBACK],
                     "alp_series": [r["alp_u_l"] for r in SIMULATED_CMP_FALLBACK],
                 }
-            cols_lower = {str(c).strip().lower(): c for c in df.columns}
-            ca_col = next(
-                (cols_lower[c] for c in cols_lower if c in {"ca", "calcium", "calcium_mg_dl", "serum_ca_mg_dl"} or "calc" in c),
-                None,
-            )
-            alp_col = next(
-                (cols_lower[c] for c in cols_lower if c in {"alp", "alp_u_l", "serum_alp_u_l", "alk_phos"} or "alkaline" in c or c.startswith("alp")),
-                None,
-            )
+            ca_col, alp_col = _pick_osd575_columns(df.columns)
             if ca_col is None or alp_col is None:
                 return {
                     "data_source": "SIMULATED",
@@ -1224,6 +1244,7 @@ def evaluate(
     metrics.append(
         {
             "metric_name": "e4d_s_bone_index",
+            "guidance_group": "training",
             "current_val": round(s_bone, 3),
             "baseline_val": None,
             "delta_pct": None,
@@ -1267,6 +1288,7 @@ def evaluate(
         action_yellow=GUIDANCE_GROUPS["training"]["actions"]["yellow"],
         action_red=GUIDANCE_GROUPS["training"]["actions"]["red"],
     )
+    iso_metric["guidance_group"] = "training"
     metrics.append(iso_metric)
     clinical_statuses.append(iso_metric["status_light"])
     if iso_dtr is not None:
@@ -1287,6 +1309,7 @@ def evaluate(
     metrics.append(
         {
             "metric_name": "velocity_loss_pct",
+            "guidance_group": "training",
             "current_val": round(vbt_loss, 1),
             "baseline_val": None,
             "delta_pct": None,
@@ -1322,6 +1345,7 @@ def evaluate(
         action_yellow=GUIDANCE_GROUPS["csa"]["actions"]["yellow"],
         action_red=GUIDANCE_GROUPS["csa"]["actions"]["red"],
     )
+    thigh_metric["guidance_group"] = "csa"
     metrics.append(thigh_metric)
     clinical_statuses.append(thigh_metric["status_light"])
     if thigh_dtr is not None:
@@ -1346,6 +1370,7 @@ def evaluate(
         action_yellow=GUIDANCE_GROUPS["csa"]["actions"]["yellow"],
         action_red=GUIDANCE_GROUPS["csa"]["actions"]["red"],
     )
+    calf_metric["guidance_group"] = "csa"
     metrics.append(calf_metric)
     clinical_statuses.append(calf_metric["status_light"])
     if calf_dtr is not None:
@@ -1370,6 +1395,7 @@ def evaluate(
         action_yellow=GUIDANCE_GROUPS["body_mass"]["actions"]["yellow"],
         action_red=GUIDANCE_GROUPS["body_mass"]["actions"]["red"],
     )
+    mass_metric["guidance_group"] = "body_mass"
     metrics.append(mass_metric)
     clinical_statuses.append(mass_metric["status_light"])
     if mass_dtr is not None:
@@ -1389,6 +1415,7 @@ def evaluate(
         base=base,
         horizon_days=30,
     )
+    ntx_metric["guidance_group"] = "bone_metabolism"
     metrics.append(ntx_metric)
     clinical_statuses.append(ntx_metric["status_light"])
     if ntx_dtr is not None:
@@ -1408,6 +1435,7 @@ def evaluate(
         base=base,
         horizon_days=30,
     )
+    ctx_metric["guidance_group"] = "bone_metabolism"
     metrics.append(ctx_metric)
     clinical_statuses.append(ctx_metric["status_light"])
     if ctx_dtr is not None:
@@ -1424,6 +1452,7 @@ def evaluate(
     p1np_slope = _compute_slope(p1np_days, p1np_vals)
     p1np_metric = {
         "metric_name": "p1np_bone_formation",
+        "guidance_group": "bone_metabolism",
         "current_val": round(p1np_val, 2),
         "baseline_val": round(p1np_base, 2),
         "delta_pct": p1np_delta_pct,
@@ -1462,6 +1491,7 @@ def evaluate(
     metrics.append(
         {
             "metric_name": "est_monthly_bone_loss_pct",
+            "guidance_group": "bone_metabolism",
             "current_val": est_hip_loss_mo,
             "baseline_val": None,
             "delta_pct": None,
@@ -1501,6 +1531,7 @@ def evaluate(
     metrics.append(
         {
             "metric_name": "osd575_ca_alp_baseline",
+            "guidance_group": "bone_metabolism",
             "display_name": ref_display_name,
             "current_val": round(ca_val, 2),
             "baseline_val": osd_summary["ca_mean"],
@@ -1865,7 +1896,7 @@ def build_iss_comparison_figure(eval_result: Optional[dict[str, Any]] = None) ->
                 marker_color="#38bdf8",
             ),
             go.Bar(
-                name="Published ISS Unmitigated Ref (Sibonga et al.)",
+                name="Published ISS reference (Lang et al. 2004)",
                 x=["Lumbar Spine (%/mo)", "Proximal Hip (%/mo)"],
                 y=[0.90, 1.45],
                 marker_color="#f97316",
@@ -2064,5 +2095,60 @@ if __name__ == "__main__":
     assert build_trajectory_figure(evaluate(demo_payload("bad_data"))) is not None
     assert build_iss_comparison_figure() is not None
     assert build_osd575_baseline_figure() is not None
+
+    # 9. OSD-575 column selection must ignore range_min/range_max even when listed first
+    reordered_cols = [
+        "Sample Name",
+        "calcium_range_min_milligram_per_deciliter",
+        "calcium_range_max_milligram_per_deciliter",
+        "calcium_value_milligram_per_deciliter",
+        "alkaline_phosphatase_range_min_units_per_liter",
+        "alkaline_phosphatase_range_max_units_per_liter",
+        "alkaline_phosphatase_value_units_per_liter",
+    ]
+    picked_ca, picked_alp = _pick_osd575_columns(reordered_cols)
+    assert picked_ca == "calcium_value_milligram_per_deciliter"
+    assert picked_alp == "alkaline_phosphatase_value_units_per_liter"
+
+    # 10. Real OSD-575 CSV summary check when file is present
+    osd575_real_path = SHARED_REAL_DIR / "OSD-575_cmp.csv"
+    if osd575_real_path.exists():
+        osd_real = _load_osd575_summary()
+        assert osd_real["data_source"] == "REAL"
+        assert osd_real["n_records"] == 28
+        assert osd_real["ca_mean"] == 9.73
+        assert osd_real["alp_mean"] == 54.2
+
+    # 11. Each metric has guidance_group matching a key in guidance.groups, preserved after to_schema()
+    expected_groups_map = {
+        "e4d_s_bone_index": "training",
+        "iso_peak_force_n": "training",
+        "velocity_loss_pct": "training",
+        "csa_thigh_cm2": "csa",
+        "csa_calf_cm2": "csa",
+        "body_mass_kg": "body_mass",
+        "ntx_bone_resorption": "bone_metabolism",
+        "ctx_bone_resorption": "bone_metabolism",
+        "p1np_bone_formation": "bone_metabolism",
+        "est_monthly_bone_loss_pct": "bone_metabolism",
+        "osd575_ca_alp_baseline": "bone_metabolism",
+    }
+    for scen_name in ("green", "yellow", "red"):
+        raw_res = evaluate(demo_payload(scen_name))
+        group_keys = set(raw_res["guidance"]["groups"].keys())
+        assert {m["metric_name"] for m in raw_res["metrics"]} == set(expected_groups_map.keys())
+        for m in raw_res["metrics"]:
+            assert "guidance_group" in m
+            assert m["guidance_group"] in group_keys
+            assert m["guidance_group"] == expected_groups_map[m["metric_name"]]
+
+        schema_res = to_schema(raw_res)
+        schema_dict = schema_res.model_dump()
+        schema_group_keys = set(schema_dict["guidance"]["groups"].keys())
+        assert schema_group_keys == group_keys
+        for m in schema_res.metrics:
+            m_dump = m.model_dump()
+            assert m_dump.get("guidance_group") in schema_group_keys
+            assert m_dump.get("guidance_group") == expected_groups_map[m.metric_name]
 
     print("ALL EXPANDED MUSCULOSKELETAL TESTS PASSED.")
