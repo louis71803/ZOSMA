@@ -130,6 +130,10 @@ HUD_I18N_JS = r"""
       status_YELLOW: 'YELLOW',
       status_RED: 'RED',
       status_WATCH: 'GREEN-WATCH',
+      status_INSUFFICIENT_DATA: 'QC FAIL',
+      status_NO_DATA: 'NO DATA',
+      status_RESCAN_REQUIRED: 'RESCAN',
+      status_QC_FAIL: 'QC FAIL',
       mod_short: {
         cabin_environment: 'Cabin & Rad',
         cardiovascular: 'Cardiovascular',
@@ -267,6 +271,10 @@ HUD_I18N_JS = r"""
       status_YELLOW: '預警 YELLOW',
       status_RED: '危急 RED',
       status_WATCH: '觀察 WATCH',
+      status_INSUFFICIENT_DATA: '資料不足',
+      status_NO_DATA: '無資料',
+      status_RESCAN_REQUIRED: '需重掃',
+      status_QC_FAIL: '品質異常',
       mod_short: {
         cabin_environment: '艙內環境/輻射',
         cardiovascular: '心血管與有氧',
@@ -275,11 +283,11 @@ HUD_I18N_JS = r"""
         immune_metabolic: '免疫與代謝'
       },
       mod_full: {
-        cabin_environment: '輻射、聲學與艙內環境 (Role 6)',
-        cardiovascular: '心血管與有氧耐力 (Role 3)',
-        musculoskeletal: '骨骼與肌肉系統 (Role 2)',
-        neuro_ocular: '神經眼壓與前庭平衡 (Role 4)',
-        immune_metabolic: '免疫、內分泌與代謝 (Role 5)'
+        cabin_environment: '輻射、聲學與艙內環境',
+        cardiovascular: '心血管與有氧耐力',
+        musculoskeletal: '骨骼與肌肉系統',
+        neuro_ocular: '神經眼壓與前庭平衡 (SANS)',
+        immune_metabolic: '免疫、內分泌與代謝'
       }
     }
   };
@@ -702,7 +710,145 @@ HUD_I18N_JS = r"""
     '[ATM-04] Run AQM calibration check and verify cabin air with colorimetric Drager tubes if odor noticed.': '[ATM-04 揮發氣體] 執行 AQM 氣相層析校正檢核；若聞到異味立即以 Drager 檢知管採樣。',
     '[ATM-04] Verify TCCS charcoal bed life and AQM carrier gas supply.': '[ATM-04 長期處方] 定期確認 TCCS 活性碳濾床壽命與 AQM 載氣鋼瓶存量。',
     '[ATM-04] Enforce strict flight material off-gassing screening, log alcohol-wipe usage, and maintain TCCS beds.': '[ATM-04 長期處方] 嚴格控管酬載除氣篩檢、記錄酒精擦拭用量並維護 TCCS 除毒濾床。',
-    '[ATM-04] Maintain TCCS charcoal/catalyst beds, AQM internal check standards, and accessible PBA respirators.': '[ATM-04 長期處方] 維護 TCCS 活性碳/觸媒床、AQM 內校標準與隨手可得之緊急呼吸器 (PBA)。'
+    '[ATM-04] Maintain TCCS charcoal/catalyst beds, AQM internal check standards, and accessible PBA respirators.': '[ATM-04 長期處方] 維護 TCCS 活性碳/觸媒床、AQM 內校標準與隨手可得之緊急呼吸器 (PBA)。',
+
+    // Role 6: [ATM-05..07] Water, Microbial, Particulates & [ISO-01..04] Sleep, PVT-B, Mood/Workload, Circadian Light
+    '[ATM-05] Re-run TOCA calibration standard check; use contingency iodinated/silvered potable water bag until verified.': '[ATM-05 飲用水質] 重新執行 TOCA 標準液校正；確認合格前請暫改用緊急儲備飲水袋。',
+    '[ATM-05] Repeat TOCA water quality run with fresh check standard.': '[ATM-05 飲用水質] 使用新鮮檢核標準液重新執行 TOCA 水質檢測。',
+    '[ATM-05] Flush dispenser line, inspect WPA catalytic reactor / silver dosing bed, and schedule 48-h TOCA recheck.': '[ATM-05 飲用水質] 沖洗供水管線、檢查水處理系統 (WPA) 觸媒反應器與銀離子除菌床，並排程 48 小時後複檢 TOCA。',
+    '[ATM-05] Halt consumption from affected dispenser, switch to reserve potable water, replace WPA multifiltration/ACTEX bed, notify flight surgeon (human decision).': '[ATM-05 飲用水質] 立即停用該供水口並改飲儲備水、更換 WPA 多重過濾/ACTEX 除碘床，並通報航太醫師。',
+    '[ATM-05] Perform weekly TOCA water analysis and maintain residual biocide (silver 100–500 ug/L or I2 removal ACTEX).': '[ATM-05 長期處方] 每週執行 TOCA 水質分析，維持殘餘殺菌劑濃度（銀離子 100–500 µg/L 或 ACTEX 除碘）。',
+    '[ATM-05] Conduct weekly TOCA analysis and biocide check per potable water dispenser.': '[ATM-05 長期處方] 每週對各飲水供應口執行 TOCA 總有機碳與殺菌劑殘留檢核。',
+
+    '[ATM-06] Re-sample air/surface/water using fresh contact slides/media with negative blank and full incubation.': '[ATM-06 微生物] 使用全新接觸培養片與陰性對照空白重新採樣空氣/表面/飲水，並完成完整培養。',
+    '[ATM-06] Repeat microbial sampling with negative control blank and complete incubation.': '[ATM-06 微生物] 搭配陰性對照空白重新進行微生物採樣並確保完整培養時間。',
+    '[ATM-06] Perform targeted surface disinfection, vacuum HEPA return grilles, and schedule re-sampling.': '[ATM-06 微生物] 執行局部表面殺菌擦拭、吸除 HEPA 回風口積塵並排程重新採樣。',
+    '[ATM-06] Isolate contaminated water dispenser / disinfect surfaces with approved biocide wipes, inspect HEPA filters, notify flight surgeon (human decision).': '[ATM-06 微生物] 隔離受污染供水口、以核准殺菌濕巾消毒艙面、檢查 HEPA 濾網並通報航太醫師。',
+    '[ATM-06] Maintain HEPA filtration, weekly antimicrobial surface wipe-downs, and monthly potable water coliform tests.': '[ATM-06 長期處方] 維護 HEPA 過濾效能、每週抗菌擦拭艙面並每月檢測飲水大腸桿菌群。',
+    '[ATM-06] Perform quarterly air/surface/water microbial assays and monthly water coliform checks.': '[ATM-06 長期處方] 每季執行空氣/表面/水體微生物培養與每月飲水大腸桿菌群檢核。',
+
+    '[ATM-07] Await completion of optical dust sensor zero-air self-clean cycle.': '[ATM-07 懸浮微粒] 等待光學粉塵感測器完成零點潔淨空氣自清循環後重讀。',
+    '[ATM-07] Wait for optical particulate sensor self-clean cycle to finish and inspect inlet.': '[ATM-07 懸浮微粒] 等待光學微粒感測器自清程序完成並檢查進氣口是否堵塞。',
+    '[ATM-07] Vacuum HEPA intake screens, wipe airlock surfaces, and wear eye/dust protection during cleanup.': '[ATM-07 懸浮微粒] 吸除 HEPA 進氣濾網粉塵、擦拭氣閘艙表面，清理時請配戴護目鏡與防塵口罩。',
+    '[ATM-07] Increase HEPA fan flow and inspect cargo transfer dust.': '[ATM-07 懸浮微粒] 提高 HEPA 過濾風量並檢查貨運裝卸揚塵來源。',
+    '[ATM-07] Don N95/P100 respiratory & eye protection, maximize HEPA air scrubbing, isolate dusty EVA suits, notify flight surgeon (human decision).': '[ATM-07 懸浮微粒] 立即配戴 N95/P100 防護口罩與護目鏡、全開 HEPA 空氣淨化、隔離沾染月塵之太空衣並通報航太醫師。',
+    '[ATM-07] Maintain HEPA filters and enforce strict post-EVA suit vacuuming / airlock isolation.': '[ATM-07 長期處方] 定期維護 HEPA 濾網並嚴格執行出艙後太空衣吸塵與氣閘艙粉塵隔離。',
+    '[ATM-07] Vacuum HEPA return screens weekly and run airlock dust mitigation post-EVA.': '[ATM-07 長期處方] 每週吸除 HEPA 回風濾網並於每次 EVA 後執行氣閘艙除塵程序。',
+
+    '[ISO-01] Ensure wrist Actiwatch snug contact (>=80% nightly wear) and complete morning sleep log.': '[ISO-01 睡眠監測] 確認腕式 Actiwatch 貼合佩戴（夜間有效佩戴 ≥80%）並填寫晨間睡眠日誌。',
+    '[ISO-01] Verify Actiwatch wrist strap fit (>=80% wear time) and re-sync tomorrow morning.': '[ISO-01 睡眠監測] 確認 Actiwatch 錶帶鬆緊度（佩戴率 ≥80%）並於明早重新同步。',
+    '[ISO-01] Eliminate evening schedule slam-shifts, dim pre-sleep cabin lighting (<=20 lux), and verify berth noise/temperature.': '[ISO-01 睡眠監測] 避免晚間排程急遽變動、睡前調暗艙內燈光 (≤20 lux) 並確認睡眠艙噪音與溫度。',
+    '[ISO-01] Schedule nap/recovery sleep opportunity and check cabin ppCO2 ventilation.': '[ISO-01 睡眠監測] 安排小睡或補眠時段，並檢查睡眠區 ppCO2 通風狀況。',
+    '[ISO-01] Defer high-risk EVA/robotics, enforce protected sleep recovery block, check ISO-04 light/ACO-02 noise, flight surgeon review (human decision).': '[ISO-01 睡眠監測] 延後高風險 EVA／機械臂操作、強制保留完整補眠時段、聯動檢查光照與噪音並由航太醫師審查。',
+    '[ISO-01] Enforce >=8.5 h scheduled sleep window, morning blue-enriched light, and quiet NC-40 sleep berth.': '[ISO-01 長期處方] 排程保留 ≥8.5 小時睡眠時間窗、晨間高藍光喚醒與 NC-40 安靜睡眠艙環境。',
+    '[ISO-01] Maintain consistent circadian wake/sleep schedule.': '[ISO-01 長期處方] 維持固定規律之起床與就寢生理節律作息。',
+
+    '[ISO-02] Repeat 3-min PVT-B in distraction-free posture without anticipatory button presses.': '[ISO-02 警覺反應] 於無干擾環境下重新執行 3 分鐘 PVT-B 反應測試（切勿預判搶按）。',
+    '[ISO-02] Repeat 3-min PVT-B ensuring <=10 false starts and <=20% missed stimuli.': '[ISO-02 警覺反應] 重新進行 3 分鐘 PVT-B 測試，確保搶按次數 ≤10 次且漏按率 ≤20%。',
+    '[ISO-02] Hold safety-critical EVA/robotics until rested; cross-check ISO-01 sleep & ATM-01 CO2; flight surgeon review (human decision).': '[ISO-02 警覺反應] 充分休息前暫緩高風險 EVA／機械臂作業；交叉檢查睡眠與艙內 CO2 並交由航太醫師評估。',
+    '[ISO-02] Perform am/pm 3-min PVT-B every 4th day and pre-EVA to verify neurobehavioral readiness.': '[ISO-02 長期處方] 每 4 天早晚及出艙前執行 3 分鐘 PVT-B 測試以確認神經行為反應就緒。',
+
+    '[ISO-03] Prompt brief non-intrusive Bedford & VAS check-in at crew convenience.': '[ISO-03 工作負荷] 請乘員於空檔補填簡短 Bedford 工作負荷與 VAS 壓力自評。',
+    '[ISO-03] Re-administer brief daily VAS & post-task Bedford rating (never storing journal text centrally).': '[ISO-03 工作負荷] 重新填寫每日 VAS 與任務後 Bedford 評分（自由文字日記僅留存本地端絕不集中上傳）。',
+    '[ISO-03] Rebalance crew task schedule at next planning conference and protect personal off-duty downtime.': '[ISO-03 工作負荷] 於下次任務規劃會議重新平衡工作量，並保障個人下班休息時間。',
+    '[ISO-03] Shed non-essential timeline tasks immediately; offer optional private medical/psychological conference (crewmember chooses whether to request private conference; human decision).': '[ISO-03 工作負荷] 立即卸除非必要排程任務，並提供自願性私人醫療／心理會談選項（由乘員自主決定）。',
+    '[ISO-03] Keep Bedford workload <=3 on routine days, protect private crew communications, never centralize journal text.': '[ISO-03 長期處方] 平常日維持 Bedford 負荷 ≤3、保障乘員私人通訊隱私且絕不集中儲存個人日記。',
+
+    '[ISO-04] Keep Actiwatch light sensor uncovered outside flight-suit cuff during wake hours.': '[ISO-04 節律光照] 清醒時段請將 Actiwatch 光感測器露於飛行服袖口外避免遮擋。',
+    '[ISO-04] Switch cabin SSLAs to pre-sleep depleted-blue mode (<=20 lux) 3 h before bedtime and boost 2-h morning bright light.': '[ISO-04 節律光照] 睡前 3 小時將艙內固態照明 (SSLA) 切為低藍光模式 (≤20 lux)，起床後強化 2 小時晨間亮光。',
+    '[ISO-04] Deploy timed Solid-State Lighting Assembly (SSLA) phase-reset protocol, screen-dimming filters, flight surgeon circadian consult (human decision).': '[ISO-04 節律光照] 啟動定時 SSLA 光照相位重設處方與螢幕濾藍光，並安排航太醫師節律會診。',
+    '[ISO-04] Enforce NASA dynamic SSLA schedule: high morning melanopic lux (first 2 h) and <=20 lux in 3 h pre-sleep.': '[ISO-04 長期處方] 落實 NASA 動態照明排程：起床首 2 小時高褪黑激素抑制亮光、睡前 3 小時 ≤20 lux 低照度。',
+
+    // Remaining per-metric action & guidance strings across Role 6, Role 3, Role 2, Role 4, Role 5
+    'Wear Bio-Monitor shirt for resting HR/BP/SpO2/Resp; run scheduled 24h Holter, CEVIS 150W bike test, LBNP tolerance test, and Ultrasound 2 heart/neck scan.': '穿著 Bio-Monitor 感測衣量測靜息心率/血壓/血氧/呼吸；依排程執行 24h Holter、CEVIS 150W 飛輪測試、LBNP 耐受測試與心臟/頸部超音波。',
+    'Microgravity shifts ~2L of fluid toward the head, shrinking plasma volume (%DeltaPV), risking neck vein stasis/clots (IJV), electrolyte-driven PVCs, and orthostatic fainting. All 11 indicators are currently nominal (click any M1-M11 card above for details).': '微重力會將約 2 公升體液推向頭部，縮減血漿容量 (%ΔPV) 並帶來頸靜脈滯留/血栓、低鉀早搏與直立暈厥風險。目前 11 項指標全數正常（點擊上方任一指標卡可檢視個別指引）。',
+    'Moisten Bio-Monitor textile electrodes, tighten thoracic strap, remain still 60s, and re-measure.': '潤濕 Bio-Monitor 織物電極、拉緊胸帶、保持靜止 60 秒後重新量測。',
+
+    'Adjust THC temperature/humidity setpoint and inspect cold-plate condensate separator.': '調整溫濕度控制 (THC) 設定點並檢查冷卻板冷凝水分離器。',
+    'Alert everyone first, then don masks/respirators (portable breathing apparatus -> emergency masks during fire); increase trace-contaminant scrubbing; notify ground and flight surgeon (human decision).': '立即警示全體乘員並戴上呼吸防護面罩、提高微量污染物淨化功率，同時通報地面與航太醫師。',
+    'Await completion of optical dust sensor zero-air self-clean cycle.': '等待光學粉塵感測器完成零點自清循環。',
+    'Await post-SAA pass readout or cross-check second DOSTEL/HERA detector in module.': '等待通過南大西洋異常區 (SAA) 後之讀數，或交叉比對艙內第二組 DOSTEL/HERA 偵測器。',
+    'Check GOES primary/secondary telemetry link; hold EVA decisions pending human review.': '檢查 GOES 主/備衛星遙測鏈路；於人工審查前暫緩 EVA 決策。',
+    'Circadian light exposure and phase alignment nominal.': '晝夜節律光照暴露與相位對齊正常。',
+    'Continue nominal ALARA occupancy tracking.': '維持常規 ALARA 輻射停留時數追蹤。',
+    'Continue routine housekeeping disinfection and HEPA filtration.': '維持例行艙內清潔消毒與 HEPA 空氣過濾。',
+    'Cross-check RAD-03 GOES proton flux, minimize time in lightly shielded nodes, prepare storm shelter.': '交叉比對 RAD-03 質子通量、減少停留於低遮蔽艙段並預備輻射掩體。',
+    'Cross-check module mechanical pressure gauge and secondary manometer immediately.': '立即交叉比對艙段機械式壓力錶與備援壓力計。',
+    'Declare SPE emergency: move crew to storm shelter, terminate EVA, notify ground & flight surgeon (human decision).': '發布太陽粒子風暴 (SPE) 緊急狀態：撤離乘員至風暴掩體、終止 EVA 並通報地面與航太醫師。',
+    'Defer high-risk EVA/robotics, enforce protected sleep recovery block, check ISO-04 light/ACO-02 noise, flight surgeon review (human decision).': '延後高風險 EVA／機械臂任務、強制保留補眠時段、檢查光照與噪音並由航太醫師審查。',
+    'Deploy timed Solid-State Lighting Assembly (SSLA) phase-reset protocol, screen-dimming filters, flight surgeon circadian consult (human decision).': '部署定時 SSLA 照明相位重設處方與螢幕減光濾鏡，並安排航太醫師節律會診。',
+    'Don N95/P100 respiratory & eye protection, maximize HEPA air scrubbing, isolate dusty EVA suits, notify flight surgeon (human decision).': '配戴 N95/P100 口罩與護目鏡、全開 HEPA 除塵、隔離沾塵太空衣並通報航太醫師。',
+    'Eliminate evening schedule slam-shifts, dim pre-sleep cabin lighting (<=20 lux), and verify berth noise/temperature.': '避免晚間排程急遽變動、睡前調暗艙內照明 (≤20 lux) 並確認睡眠艙噪音與溫度。',
+    'Ensure wrist Actiwatch snug contact (>=80% nightly wear) and complete morning sleep log.': '確保 Actiwatch 貼合手腕佩戴（夜間 ≥80%）並完成晨間睡眠紀錄。',
+    'Flush dispenser line, inspect WPA catalytic reactor / silver dosing bed, and schedule 48-h TOCA recheck.': '沖洗供水管線、檢查 WPA 觸媒反應器／銀離子床並排程 48 小時後複檢 TOCA。',
+    'Halt consumption from affected dispenser, switch to reserve potable water, replace WPA multifiltration/ACTEX bed, notify flight surgeon (human decision).': '停用該供水口並改用儲備飲水、更換 WPA 多重過濾／ACTEX 床並通報航太醫師。',
+    'Halt strenuous exercise, check CCAA condensing heat exchanger, increase hydration, notify ground & flight surgeon (human decision).': '停止劇烈運動、檢查 CCAA 冷凝熱交換器、加強補水並通報地面與航太醫師。',
+    'Hearing thresholds stable vs pre-flight baseline.': '聽力閾值與發射前基準相比維持穩定。',
+    'Hold safety-critical EVA/robotics until rested; cross-check ISO-01 sleep & ATM-01 CO2; flight surgeon review (human decision).': '充分休息前暫緩關鍵 EVA／機械臂操作；交叉確認睡眠與 CO2 並請航太醫師審查。',
+    'Increase RAD-01 evaluation to every 5 min, review EVA schedule, pre-position shelter supplies.': '將 RAD-01 評估加密至每 5 分鐘一次、檢視 EVA 排程並預置掩體物資。',
+    'Inspect payload/stowage off-gassing source and increase TCCS trace-contaminant scrubbing.': '巡檢酬載／儲物除氣來源並提高 TCCS 微量污染物吸附速率。',
+    'Isolate contaminated water dispenser / disinfect surfaces with approved biocide wipes, inspect HEPA filters, notify flight surgeon (human decision).': '隔離受污染供水口、以殺菌濕巾消毒表面、檢查 HEPA 濾網並通報航太醫師。',
+    'Keep Actiwatch light sensor uncovered outside flight-suit cuff during wake hours.': '清醒時請將 Actiwatch 光感測器露於袖口外避免遮擋。',
+    'Maintain consistent circadian wake/sleep schedule.': '維持一致規律之睡眠起床節律。',
+    'Maintain standard ALARA radiation hygiene.': '維持標準 ALARA 輻射防護原則。',
+    'Move to most shielded area; in Orion, line cabin walls with stowage; terminate EVA; notify flight surgeon (human decision).': '移至高屏蔽區（獵戶座艙以儲物袋鋪設艙壁）、終止 EVA 並通報航太醫師。',
+    'Nominal CDRA CO2 scrubbing and inter-module ventilation.': 'CDRA 除碳與跨艙通風正常。',
+    'Nominal TCCS trace-contaminant control.': 'TCCS 微量揮發污染物控制正常。',
+    'Nominal cabin HEPA particulate filtration.': '艙內 HEPA 懸浮微粒過濾正常。',
+    'Nominal cabin pressure and oxygen control.': '艙內總壓與氧氣控制正常。',
+    'Nominal cabin thermal and humidity control.': '艙內溫濕度控制正常。',
+    'Nominal module acoustic environment.': '艙段聲學噪音環境正常。',
+    'Nominal space weather vigilancia.': '太空氣象與質子通量監測正常。',
+    'Perform targeted surface disinfection, vacuum HEPA return grilles, and schedule re-sampling.': '執行局部表面消毒、吸除 HEPA 回風口粉塵並安排複採。',
+    'Personal acoustic exposure nominal.': '乘員個人噪音暴露劑量正常。',
+    'Potable water safe for crew consumption.': '飲用水質符合標準，可安全飲用。',
+    'Prompt brief non-intrusive Bedford & VAS check-in at crew convenience.': '請乘員於方便時補填簡短 Bedford 與 VAS 壓力評分。',
+    'Re-run 24-h crew acoustic dosimetry with collar microphone uncovered (>=20 h valid).': '確保領口麥克風未受遮擋並重測 24 小時個人噪音劑量（有效時數 ≥20h）。',
+    'Re-run AQM internal calibration standard and verify grab-sample canister / Drager tube backup.': '重新執行 AQM 內部標準校正並確認採氣鋼瓶／Drager 檢知管備援。',
+    'Re-run TOCA calibration standard check; use contingency iodinated/silvered potable water bag until verified.': '重跑 TOCA 標準液檢核；確認前暫飲用緊急備援水袋。',
+    'Re-sample air/surface/water using fresh contact slides/media with negative blank and full incubation.': '以新培養片搭配陰性空白重新採樣空氣/表面/水體並完整培養。',
+    'Rebalance crew task schedule at next planning conference and protect personal off-duty downtime.': '於下次規劃會議重新調配任務負荷並保障休息時間。',
+    'Recalibrate Sound Level Meter with pistonphone (<=0.5 dB drift) and repeat module survey.': '以活塞發聲器重新校正聲壓計（漂移 ≤0.5 dB）並重測艙段噪音。',
+    'Relocate crewmember to quiet crew quarters (<=NC-40) and repeat KUDUwave/OOHA audiogram.': '移至安靜睡眠艙 (≤NC-40) 重新執行 KUDUwave/OOHA 純音聽力測試。',
+    'Repeat 3-min PVT-B in distraction-free posture without anticipatory button presses.': '於無干擾狀態下重測 3 分鐘 PVT-B（避免搶按）。',
+    'Schedule nap/recovery sleep opportunity and check cabin ppCO2 ventilation.': '安排補眠小睡時段並確認艙內 ppCO2 通風。',
+    'Shed non-essential timeline tasks immediately; offer optional private medical/psychological conference (crewmember chooses whether to request private conference; human decision).': '立即減免非必要工作排程，並提供自願性私人醫療／心理會談。',
+    'Switch cabin SSLAs to pre-sleep depleted-blue mode (<=20 lux) 3 h before bedtime and boost 2-h morning bright light.': '睡前 3 小時切換 SSLA 為低藍光模式 (≤20 lux)，晨起強化 2 小時亮光暴露。',
+    'Switch telemetry to backup CDRA/portable CO2 sensor and purge MCA sample line.': '切換至備用 CDRA／手持式 CO2 感測器並吹掃 MCA 採樣管線。',
+    'Switch to secondary cabin thermistor/hygrometer and inspect THC air-sampling louver.': '切換至備用溫濕度感測器並檢查 THC 採樣百葉口。',
+    'Vacuum HEPA intake screens, wipe airlock surfaces, and wear eye/dust protection during cleanup.': '吸除 HEPA 進氣網積塵、擦拭氣閘艙表面並於清理時配戴防塵護目裝備。',
+    'Vigilance and reaction speed nominal.': '警覺度與反應速度正常。',
+    'Workload and behavioral health nominal.': '工作負荷與心理行為指標正常。',
+
+    'Bone resorption marker within nominal limits.': '骨吸收指標維持於正常範圍內。',
+    'Calf soleus/gastrocnemius CSA preserved.': '小腿比目魚肌／腓腸肌截面積維持良好。',
+    'SLAMMD body mass & caloric balance on target.': 'SLAMMD 體質量與熱量平衡達標。',
+    'Thigh quadriceps/hamstring cross-sectional area preserved.': '大腿股四頭肌／腿後肌截面積維持良好。',
+
+    'Evaluate intracranial fluid pressure / LBNP.': '評估顱內體液壓力並排程 LBNP 下半身負壓對策。',
+    'Increase OCT cadence & check cabin ppCO2.': '加密 Mini OCT 掃描頻率並核對艙內 ppCO2。',
+    'Initiate daily LBNP -25 mmHg & Flight Surgeon SANS review.': '啟動每日 -25 mmHg LBNP 並通報航太醫師進行 SANS 評估。',
+    'Monitor ONH edema closely.': '密切追蹤視神經盤水腫變化。',
+    'Optic disc normal.': '視神經盤形態正常。',
+    'Re-align eye cup on Mini OCT and re-acquire registered optic disc scan.': '重新對準 Mini OCT 眼罩並重拍已對位基準之視神經盤掃描。',
+    'Retinal thickness stable.': '視網膜總厚度維持穩定。',
+    'Run 10-min gaze-stabilization drills.': '執行 10 分鐘凝視穩定前庭適應訓練。',
+    'Sheath diameter normal.': '視神經鞘直徑正常。',
+    'Switch to Space Anticipation Glasses (+0.75/+1.0 D).': '換戴太空預備調節眼鏡 (+0.75/+1.0 D)。',
+    'Vestibular adaptation stable.': '前庭平衡適應狀態穩定。',
+    'Visual acuity stable.': '視力與屈光狀態穩定。',
+
+    '48h post-SPE CBC monitoring + isolate symptomatic crew.': '太陽風暴後 48 小時追蹤 CBC 血球，並隔離有症狀乘員。',
+    'Antipyretic + hydration + infectious isolation.': '給予退燒藥、加強補水並執行感染隔離。',
+    'Cellular immunity steady.': '細胞免疫功能穩定。',
+    'Correlate with fever/infection panel.': '結合體溫與感染發炎指標綜合判讀。',
+    'Discard cartridge, wipe fingerstick site, and re-run Bio-Analyzer CBC.': '丟棄異常卡匣、擦淨指尖採血處並重測 Bio-Analyzer CBC。',
+    'Drink +750 mL water + potassium citrate tablet.': '補充 +750 mL 飲水並服用檸檬酸鉀錠預防結石。',
+    'Monitor latent viral reactivation.': '持續監測潛伏病毒再活化趨勢。',
+    'No systemic inflammation.': '無全身性發炎反應。',
+    'Re-check temp in 6h.': '6 小時後複測口腔體溫。',
+    'Renal hydration on target.': '腎臟保護飲水量達標。',
+    'Start oral Valacyclovir protocol & inspect skin for rash.': '啟動口服抗病毒藥 (Valacyclovir) 程序並檢查皮膚水泡／紅疹。'
   };
 
   function t(key, vars = {}) {
@@ -791,7 +937,134 @@ HUD_I18N_JS = r"""
     out = out.replace(/^Bio-Monitor ECG \/ PTT lead quality below 0\.50 threshold\.$/, 'Bio-Monitor 心電/脈搏波導極訊號品質低於 0.50 門檻，請重新貼合電極。');
     out = out.replace(/^Mini OCT QC failed for (OD|OS) \(score=([\d.]+), registered=(True|False)\)\.$/, '$1 眼 Mini OCT 品質檢核未通過（品質分=$2，對位=$3），請重新掃描。');
     out = out.replace(/^Bio-Analyzer QC failed: Neutrophil fraction ([\d.]+)% < 10% \(possible sample mis-sort\)\.$/, 'Bio-Analyzer 品質檢核失敗：嗜中性球比例僅 $1% (<10%)，疑為採血分選異常。');
-    out = out.replace(/^Layer 0 QC Gatekeeper rejected telemetry:/, 'Layer 0 品質閘門已攔截異常遙測：');
+    out = out.replace(/^Layer 0 QC Gatekeeper rejected telemetry:\s*/, 'Layer 0 品質閘門已攔截異常遙測：');
+
+    // Layer 0 QC dynamic error fragments (Cardiovascular, Musculoskeletal, Neuro, Immune, Cabin)
+    out = out.replace(/Bio-Monitor ECG lead quality too low \(([^)]+)\)\./g, 'Bio-Monitor 心電導極訊號品質過低 ($1)。');
+    out = out.replace(/Excessive motion artifact \(([^)]+)\)\./g, '動作干擾過大 ($1)。');
+    out = out.replace(/Resting HR missing or physiologically invalid \(([^)]+)\)\./g, '靜息心率遺失或超出人體合理範圍 ($1)。');
+    out = out.replace(/SpO2 missing or physiologically invalid \(([^)]+)\)\./g, '血氧 SpO2 遺失或超出合理範圍 ($1)。');
+    out = out.replace(/Device sensor_qc_ok flag reported False \(probe contact \/ load-cell tare failure\)\./g, '感測器 QC 旗標為 False（探頭接觸不良或荷重元歸零失敗）。');
+    out = out.replace(/([a-zA-Z0-9_]+)=([\d.]+)\s+([^\s]+)\s+outside plausible range \[([^\]]+)\]\s*([^\s.]+)\./g, '$1=$2 $3 超出合理範圍 [$4] $5。');
+    out = out.replace(/OCT quality score ([\d.]+) \(<6\.0\) or unregistered scan\./g, 'OCT 影像品質分數 $1 (<6.0) 或尚未完成基準對位。');
+    out = out.replace(/Neutrophils < 10% of WBC indicates optical\/cartridge mis-sort\./g, '嗜中性球比例低於 WBC 10%，顯示光學／卡匣樣本分選異常。');
+
+    // Role 3 [YELLOW FOCUS ...] / [RED FOCUS ...] dynamic guidance prefixes
+    out = out.replace(/^\[(YELLOW|RED) FOCUS [—–-] ([^\]]+)\]\s*(.+)$/, (_, lvl, mods, rest) => {
+      const prefix = lvl === 'RED' ? `【紅燈危急重點：${mods}】` : `【黃燈預警重點：${mods}】`;
+      return `${prefix} ${zhText(rest)}`;
+    });
+    out = out.replace(/\(Click any M1-M11 card above to inspect its individual 3-step guide\.\)$/g, '（點擊上方任一 M1–M11 指標卡可檢視個別 3 步驟指引。）');
+    out = out.replace(/All 11 indicators are currently nominal \(click any M1-M11 card above for details\)\.$/g, '目前全部 11 項指標皆正常（點擊上方任一 M1–M11 指標卡可檢視詳情）。');
+
+    // Role 3 Cardiovascular m_msg patterns
+    out = out.replace(/^Resting HR ([\d.]+) bpm \(baseline ([\d.]+) bpm, slope ([+-]?[\d.]+)\/day\)\.$/, '靜息心率 $1 bpm（基準 $2 bpm，斜率 $3/天）。');
+    out = out.replace(/^BP ([\d.]+\/[\d.]+) mmHg vs baseline ([\d.]+\/[\d.]+)\.$/, '血壓 $1 mmHg（基準 $2）。');
+    out = out.replace(/^SpO2 ([\d.]+)% \(Yellow < 96%, Red <= 92%\)\.$/, '血氧 SpO2 $1%（黃燈 <96%，紅燈 ≤92%）。');
+    out = out.replace(/^Respiratory rate ([\d.]+) breaths\/min \(Yellow > 20, Red > 25\)\.$/, '靜息呼吸頻率 $1 次/分（黃燈 >20，紅燈 >25）。');
+    out = out.replace(/^Holter PVC ([\d.]+)%, AFib=(YES|NO) \(([^)]+)\)\.$/, (_, pvc, af, ref) => `Holter PVC 早搏 ${pvc}%，心房顫動=${af === 'YES' ? '是' : '否'} (${ref})。`);
+    out = out.replace(/^LBNP HR rise \+([\d.]+) bpm, SBP drop (-?[\d.]+) mmHg, dizzy=(True|False) \(([^)]+)\)\.$/, (_, hr, sbp, dz, ref) => `LBNP 心率升幅 +${hr} bpm，收縮壓降 ${sbp} mmHg，頭暈=${dz === 'True' ? '是' : '否'} (${ref})。`);
+    out = out.replace(/^CEVIS 150W steady-state HR ([\d.]+) bpm \(drift \+([\d.]+) bpm\)\.$/, 'CEVIS 150W 穩態心率 $1 bpm（飄移 +$2 bpm）。');
+    out = out.replace(/^Left-ventricular GLS relative change ([+-]?[\d.]+)% \(Yellow <= -10%, Red <= -15%\)\.$/, '左心室縱向應變 GLS 相對變化 $1%（黃燈 ≤-10%，紅燈 ≤-15%）。');
+    out = out.replace(/^IJV Doppler='([^']+)', compressible=(True|False), thrombus=(True|False)\.$/, (_, fl, comp, thr) => `頸內靜脈血流='${fl === 'forward' ? '順向' : (fl === 'stagnant' ? '滯留' : '逆流')}'，可壓扁=${comp === 'True' ? '是' : '否'}，血栓=${thr === 'True' ? '是' : '否'}。`);
+    out = out.replace(/^%DeltaPV = ([+-]?[\d.]+)% \(Hb ([\d.]+) g\/dL, Hct ([\d.]+)% vs pre-flight ([^)]+)\)\.$/, '血漿容量變化 %ΔPV = $1%（Hb $2 g/dL，Hct $3%，發射前 $4）。');
+    out = out.replace(/^K\+ ([\d.]+) mmol\/L, Na\+ ([\d.]+), Alb ([\d.]+), TP ([\d.]+), CRP ([+-]?[\d.]+)%, Fibrinogen ([\d.]+) mg\/dL, PF4 ([\d.]+) ng\/mL\.$/, 'K+ $1 mmol/L，Na+ $2，白蛋白 $3，總蛋白 $4，CRP $5%，纖維蛋白原 $6 mg/dL，PF4 $7 ng/mL。');
+
+    // Role 2 Musculoskeletal m_msg patterns
+    out = out.replace(/^(iso_peak_force_n|csa_thigh_cm2|csa_calf_cm2|body_mass_kg): ([\d.]+) ([^\s]+) \(([^)]+)\)\.$/, (_, k, v, u, desc) => `${metricLabel(k)}：${v} ${u}（${desc.replace('vs baseline', '較基準').replace('Yellow', '黃燈').replace('Red', '紅燈')}）。`);
+    out = out.replace(/^(NTX|CTX) bone resorption ([\d.]+) ([^\s(]+) \(([^)]+)\)\.$/, (_, marker, v, u, desc) => `${marker} 骨吸收 ${v} ${u}（${desc.replace('vs baseline', '較基準').replace('Yellow +2 SD w/ 5% floor=', '黃燈 +2SD(5%下限)=').replace('Red >= +50%', '紅燈 ≥+50%')}）。`);
+
+    // Role 4 Neuro-Ocular & Role 5 Immune m_msg patterns
+    out = out.replace(/^(OD|OS) delta TRT \+([\d.]+) um \(Yellow >= 20, Red >= 55\)\.$/, '$1 眼視網膜厚度 ΔTRT +$2 µm（黃燈 ≥20，紅燈 ≥55）。');
+    out = out.replace(/^(OD|OS) optic nerve head volume \+([\d.]+) mm\^3\.$/, '$1 眼視神經盤體積變化 +$2 mm³。');
+    out = out.replace(/^Optic nerve sheath diameter ([\d.]+) mm \(delta ([+-]?[\d.]+) mm\)\.$/, '視神經鞘直徑 $1 mm（變化 $2 mm）。');
+    out = out.replace(/^Hyperopic shift ([+-]?[\d.]+) D\.$/, '遠視屈光偏移 $1 D。');
+    out = out.replace(/^VOG VOR gain ([\d.]+) \(day (\d+) post-transition\)\.$/, 'VOG 前庭動眼增益 $1（重力轉換後第 $2 天）。');
+    out = out.replace(/^Lymphocytes ([\d.]+) \(([^)]+)\); SPE_flag=(True|False)\.$/, (_, ly, d, spe) => `淋巴球 ${ly}（${d.replace('vs baseline', '較基準')}）；SPE風暴=${spe === 'True' ? '是' : '否'}。`);
+    out = out.replace(/^Oral temp ([\d.]+) C \(NLR stress index ([\d.]+)\)\.$/, '口腔體溫 $1°C（NLR 壓力指數 $2）。');
+    out = out.replace(/^Salivary VZV viral shedding (\d+) copies\/mL\.$/, '唾液水痘病毒 (VZV) 脫落量 $1 copies/mL。');
+    out = out.replace(/^Inflammatory marker CRP ([\d.]+) mg\/L\.$/, '發炎指標 CRP $1 mg/L。');
+    out = out.replace(/^24h fluid intake (\d+) mL \(renal stone prevention\)\.$/, '24小時飲水量 $1 mL（預防腎結石）。');
+
+    // Role 6 Cabin Environment m_msg & QC patterns
+    out = out.replace(/^1-h mean ([\d.]+) uGy\/h within Columbus baseline \(([^)]+)\)\.$/, '1 小時均值 $1 µGy/h，位於 Columbus 基準範圍 ($2)。');
+    out = out.replace(/^1-h mean ([\d.]+) uGy\/h is ([\d.]+x) \([^)]+\) module 7-day median \(([^)]+)\) outside SAA\.$/, '非 SAA 區域 1 小時均值 $1 µGy/h，達 7 日中位數 ($3) 之 $2 倍。');
+    out = out.replace(/^1-h mean ([\d.]+) uGy\/h \(([\d.]+x) Columbus median ([\d.]+) uGy\/h[^)]*\) AND RAD-03 >= S1\.$/, '1 小時均值 $1 µGy/h（達基準 $3 µGy/h 之 $2）且伴隨 RAD-03 ≥ S1 太陽風暴。');
+    out = out.replace(/^Career dose ([\d.]+) mSv.*projected end ([\d.]+) mSv\.$/, '累積職業劑量 $1 mSv，推估任務結束累積 $2 mSv。');
+    out = out.replace(/^Career dose ([\d.]+) mSv \(([^)]+)\)\.$/, '累積劑量 $1 mSv（$2）。');
+    out = out.replace(/^Career dose ([\d.]+) mSv \(>480 mSv.*\| single SPE ([\d.]+) mSv.*$/, '累積劑量 $1 mSv (>480 mSv 警戒)｜單次 SPE 事件 $2 mSv (>250 mSv 上限)。');
+    out = out.replace(/^GOES >=10 MeV = ([\d.]+) pfu.*>=100 MeV = ([\d.]+) pfu.*$/, 'GOES ≥10 MeV 質子 $1 pfu，≥100 MeV 質子 $2 pfu。');
+    out = out.replace(/^Confirmed SPE onset: >=10 MeV flux ([\d.]+) pfu.*$/, '確認太陽質子風暴 (SPE) 爆發：≥10 MeV 通量達 $1 pfu。');
+    out = out.replace(/^GOES >=100 MeV integral proton flux = ([\d.]+) pfu\.$/, 'GOES ≥100 MeV 積分質子通量 = $1 pfu。');
+    out = out.replace(/^All octave bands within NC-50 \(SPL ([\d.]+) dBA <= ([\d.]+) dBA\)\.$/, '各八音度頻帶均合乎 NC-50 規範（SPL $1 dBA ≤ $2 dBA）。');
+    out = out.replace(/^SPL ([\d.]+) dBA; bands above NC-50: \[([^\]]+)\]; tonal margin ([\d.]+) dB\.$/, '聲壓級 $1 dBA；超標頻帶 [$2] Hz；純音裕度 $3 dB。');
+    out = out.replace(/^Module SPL ([\d.]+) dBA \(>=85 dBA\) or peak ([\d.]+) dB \(>=140 dB\)\.$/, '艙段空間聲壓 $1 dBA (≥85) 或峰值 $2 dB (≥140)。');
+    out = out.replace(/^Sleep LEQ8 = ([\d.]+) dBA.*24-h dose D = ([\d.]+)%.*$/, '睡眠 8h 均能音量 $1 dBA｜24 小時噪音劑量 $2%。');
+    out = out.replace(/^LEQ8 = ([\d.]+) dBA.*24-h noise dose D = ([\d.]+)%.*$/, '8h 均能音量 $1 dBA (>62) 或 24h 噪音劑量 $2% (>100%)。');
+    out = out.replace(/^24-h cumulative noise dose D = ([\d.]+)%\.$/, '24 小時累積噪音劑量 D = $1%。');
+    out = out.replace(/^2\/3\/4 kHz avg shift ([\d.]+) dB.*max single-freq shift ([\d.]+) dB.*$/, '2/3/4 kHz 平均聽力偏移 $1 dB，最大單頻偏移 $2 dB。');
+    out = out.replace(/^Confirmed single-frequency shift ([\d.]+) dB.*$/, '確認單頻聽力閾值偏移 $1 dB (≥15 dB 預警)。');
+    out = out.replace(/^Confirmed OSHA Standard Threshold Shift: 2\/3\/4 kHz average shift = ([\d.]+) dB.*$/, '確認 OSHA 標準聽力閾移：2/3/4 kHz 平均偏移 $1 dB (≥10 dB 紅線)。');
+    out = out.replace(/^7-d mean ppCO2 = ([\d.]+) mmHg.*1-h mean = ([\d.]+) mmHg\.$/, '7 日平均 ppCO2 = $1 mmHg (<2.5)，1 小時均值 = $2 mmHg。');
+    out = out.replace(/^1-h mean ppCO2 = ([\d.]+) mmHg.*7-d mean = ([\d.]+) mmHg.*$/, '1 小時 ppCO2 = $1 mmHg，7 日均值 = $2 mmHg。');
+    out = out.replace(/^Nominal cabin atmosphere: P=([\d.]+) kPa.*PIO2=([\d.]+) mmHg.*O2=([\d.]+)%\.$/, '艙內大氣正常：總壓 $1 kPa，PIO2 $2 mmHg，O2 $3%。');
+    out = out.replace(/^PIO2=([\d.]+) mmHg.*P=([\d.]+) kPa.*$/, '吸入氧分壓 PIO2=$1 mmHg 或緩慢洩壓 (總壓 $2 kPa)。');
+    out = out.replace(/^FAST-TRACK RAPID DEPRESSURIZATION: P=([\d.]+) kPa, dP\/dt=([+-]?[\d.]+) kPa\/min.*PIO2=([\d.]+) mmHg\.$/, '快速失壓緊急通道：總壓 $1 kPa，降壓率 $2 kPa/min，PIO2 $3 mmHg！');
+    out = out.replace(/^Inspired oxygen PIO2 = ([\d.]+) mmHg \(FiO2=([\d.]+)\)\.$/, '吸入氧分壓 PIO2 = $1 mmHg（氧濃度 FiO2=$2）。');
+    out = out.replace(/^T=([\d.]+)[^,]*, RH=([\d.]+)%.*inside nominal performance zone\.$/, '溫度 $1°C、濕度 $2% 落於標準效能區間內。');
+    out = out.replace(/^T=([\d.]+)[^,]*, RH=([\d.]+)% outside performance zone.*$/, '溫度 $1°C、濕度 $2% 超出舒適效能區間（仍在健康容許範圍）。');
+    out = out.replace(/^T=([\d.]+)[^,]*, RH=([\d.]+)% outside health envelope.*$/, '溫度 $1°C、濕度 $2% 已超出健康安全包絡線！');
+    out = out.replace(/^Cabin relative humidity = ([\d.]+)%\.$/, '艙內相對濕度 = $1%。');
+    out = out.replace(/^All trace compounds < 50% SMAC \(max: ([^)]+)\)\.$/, '所有微量揮發物 <50% SMAC（最高：$1）。');
+    out = out.replace(/^Max trace contaminant ([^\s]+) = ([\d.]+)% SMAC.*$/, '最大微量污染物 $1 達 $2% SMAC（50–100% 黃燈區間）。');
+    out = out.replace(/^FAST-TRACK AMMONIA LEAK ALARM TRIGGERED!$/, '緊急快速通道：偵測到氨氣洩漏／火災警報！');
+    out = out.replace(/^Potable water \(([^)]+)\) nominal: TOC=([\d.]+) mg\/L.*I2=([\d.]+) mg\/L.*Ag=([\d.]+) ug\/L.*$/, '飲用水 ($1) 正常：TOC=$2 mg/L，碘=$3 mg/L，銀=$4 µg/L。');
+    out = out.replace(/^Potable water \(([^)]+)\): TOC=([\d.]+) mg\/L.*$/, '飲用水 ($1) 異常預警：TOC=$2 mg/L 或殺菌劑不足。');
+    out = out.replace(/^Dispenser iodine = ([\d.]+) mg\/L \(limit <=0\.2 mg\/L\)\.$/, '供水口殘餘碘濃度 = $1 mg/L（上限 ≤0.2 mg/L）。');
+    out = out.replace(/^All microbial counts <50% of limit.*$/, '所有微生物菌數均 <50% 上限（大腸桿菌/真菌未檢出）。');
+    out = out.replace(/^Microbial load ([^\s]+) at ([\d.]+)% of NASA limit.*$/, '微生物負荷 $1 達 NASA 上限之 $2%（黃燈區間）。');
+    out = out.replace(/^Microbial exceedance \(([^)]+)\)\.$/, '微生物超標警報（$1）。');
+    out = out.replace(/^Airborne particulates <50% of limits \(max ratio = ([\d.]+)%\)\.$/, '懸浮微粒 <50% 上限（最高佔比 $1%）。');
+    out = out.replace(/^Particulates at ([\d.]+)% of limit.*$/, '懸浮微粒達安全上限之 $1%（黃燈區間）。');
+    out = out.replace(/^Particulate limit reached: total=([^,]+), PM2\.5=([^,]+), lunar=(.+)$/, '懸浮微粒觸及紅線上限：總塵=$1，PM2.5=$2，月塵=$3');
+    out = out.replace(/^Total sleep time ([\d.]+) h \(>=7\.0 h optimal\)\.$/, '總睡眠時數 $1 小時（≥7.0 小時最佳）。');
+    out = out.replace(/^Total sleep time ([\d.]+) h \(<7\.0 h.*$/, '總睡眠時數 $1 小時（<7.0 小時不足）。');
+    out = out.replace(/^Total sleep time ([\d.]+) h \(<6 h.*$/, '總睡眠時數 $1 小時（連續多晚 <6 小時紅燈）。');
+    out = out.replace(/^PVT-B response speed ([\d.]+) 1\/s within personal baseline.*lapses=(\d+)\.$/, 'PVT-B 反應速度 $1 1/s 落於個人基準內（失誤 $2 次）。');
+    out = out.replace(/^PVT-B speed ([\d.]+) 1\/s \(([^)]+)\)\.$/, 'PVT-B 反應速度 $1 1/s（$2）。');
+    out = out.replace(/^Bedford workload=(\d+).*VAS stress=(\d+) within personal baseline\.$/, 'Bedford 負荷=$1（≤3），VAS 壓力=$2 落於個人基準內。');
+    out = out.replace(/^Bedford workload=(\d+).*VAS stress=(\d+).*$/, 'Bedford 負荷=$1 或 VAS 壓力=$2 偏高。');
+    out = out.replace(/^Bedford=(\d+).*VAS=(\d+).*hopelessness=(True|False)\.$/, 'Bedford 負荷=$1 (>6)，VAS=$2，無助感警示=$3。');
+    out = out.replace(/^Daily VAS stress = ([\d.]+) \(baseline ([^)]+)\)\.$/, '每日 VAS 壓力評分 = $1（基準 $2）。');
+    out = out.replace(/^Pre-sleep (\d+) lux.*midpoint shift ([\d.]+) h.*$/, '睡前光照 $1 lux，晝夜節律中點偏移 $2 小時。');
+    out = out.replace(/^Pre-sleep=(\d+) lux.*midpoint shift=([\d.]+) h\.$/, '睡前光照 $1 lux（有強光干擾），節律偏移 $2 小時。');
+    out = out.replace(/^Sleep-midpoint shift ([\d.]+) h.*$/, '睡眠中點嚴重偏移 $1 小時 (>2h 紅線)。');
+
+    // Role 6 Layer 0 QC rejection messages
+    out = out.replace(/Rejected (\d+) reading\(s\) >1000x module median without second-detector confirmation\.;?\s*/g, '攔截 $1 筆超過中位數 1000 倍且無雙偵測器交叉確認之異常值。');
+    out = out.replace(/Masked (\d+) South Atlantic Anomaly pass reading\(s\).*\./g, '已遮蔽 $1 筆南大西洋異常區 (SAA) 通過讀數。');
+    out = out.replace(/^Rejected day missing ([\d.]+) h.*$/, '拒絕該日資料：乘員艙段停留紀錄遺失 $1 小時 (>4h)。');
+    out = out.replace(/GOES proton record age ([\d.]+) min exceeds 30-min freshness limit\.;?\s*/g, 'GOES 質子資料延遲 $1 分鐘超過 30 分鐘時效上限。');
+    out = out.replace(/Rejected (\d+) GOES reading\(s\) with flux <= 0\./g, '剔除 $1 筆通量 ≤0 之無效 GOES 讀數。');
+    out = out.replace(/^SLM pre\/post field calibration drift ([\d.]+) dB > 0\.5 dB limit\.$/, '聲壓計現場校正前後漂移 $1 dB (>0.5 dB 上限)。');
+    out = out.replace(/Dosimetry valid duration ([\d.]+) h < 20 h minimum\.;?\s*/g, '噪音劑量計有效佩戴 $1 小時（低於 20 小時下限）。');
+    out = out.replace(/Microphone-covered flag detected on crew personal dosimeter\./g, '偵測到個人噪音計麥克風被衣物遮蔽。');
+    out = out.replace(/Frequency repeat response differed by ([\d.]+) dB.*Ambient background noise.*rejected\./g, '純音聽力重測差異達 $1 dB (>10 dB) 且背景噪音超過 NC-40，本次測驗無效。');
+    out = out.replace(/^Stuck CO2 sensor detected: (\d+) identical consecutive hourly values.*$/, '偵測到 CO2 感測器凍結：連續 $1 小時讀數完全相同 (≥24h)。');
+    out = out.replace(/^Rejected (\d+) pressure reading\(s\) outside 0.*110 kPa\.$/, '剔除 $1 筆超出 0–110 kPa 合理範圍之艙壓讀數。');
+    out = out.replace(/^Stuck THC sensor: flat-lined T\/RH for (\d+) h.*$/, '偵測到溫濕度感測器凍結：讀數連續 $1 小時無變化 (>6h)。');
+    out = out.replace(/AQM run failed internal calibration check -> rejected\.;?\s*/g, 'AQM 氣相層析內部校正未通過（已拒收）。');
+    out = out.replace(/Rejected (\d+) negative compound concentration\(s\)\./g, '剔除 $1 筆負數氣體濃度讀數。');
+    out = out.replace(/TOCA run failed standard\/calibration check -> rejected\.;?\s*/g, 'TOCA 水質分析標準校正未通過（已拒收）。');
+    out = out.replace(/Below-detection-limit water analyte stored as '< DL' \(never 0\)\./g, '低於偵測極限之水質項目已記錄為 < DL。');
+    out = out.replace(/Plate incubation incomplete -> rejected\..*$/g, '微生物培養時間未滿、培養皿結露擴散或缺少陰性空白對照，樣本無效。');
+    out = out.replace(/^Rejected (\d+) particulate reading\(s\) during sensor self-clean purge\.$/, '已剔除 $1 筆感測器自清吹掃期間之粉塵讀數。');
+    out = out.replace(/^Rejected (\d+) night\(s\) with <80% Actiwatch wear time or invalid range\.$/, '剔除 $1 晚 Actiwatch 佩戴率 <80% 或無效睡眠紀錄。');
+    out = out.replace(/^Rejected (\d+) PVT-B session\(s\) with false starts >10 or >20% missed stimuli\.$/, '剔除 $1 次 PVT-B 測驗（搶按 >10 次或漏按 >20%）。');
+    out = out.replace(/Privacy guard: free-text journal entry stripped locally \(never stored centrally\)\.;?\s*/g, '隱私保護：自由書寫日記已於本地剝離（絕不集中上傳）。');
+    out = out.replace(/Rejected (\d+) straight-lined, incomplete, or out-of-range survey entry\/entries\./g, '剔除 $1 筆全填同分、未完成或超限之問卷資料。');
+    out = out.replace(/^Rejected (\d+) light-sensor period\(s\) due to off-wrist or sleeve-covered flag\.$/, '剔除 $1 筆光感測器離腕或遭袖口遮蔽時段資料。');
+
     return out;
   }
 
