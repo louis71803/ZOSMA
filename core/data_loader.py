@@ -93,6 +93,7 @@ EXPECTED_DATA_FILES: dict[str, list[str]] = {
         "iso02_pvt.csv",
         "iso03_mood.csv",
         "iso04_light.csv",
+        "preflight_baseline.json",
     ],
 }
 

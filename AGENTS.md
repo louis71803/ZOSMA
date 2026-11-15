@@ -33,40 +33,34 @@ Read startup files again only when:
 - **UI & Visualization:** `Streamlit` + bidirectional `st.components.v2` SpaceX HUD (`ui/styles.py`, `ui/i18n.py`, `ui/anatomy_svgs.py`, `ui/hud_controller.py`, `ui/hud_assets.py`) with 3-column Mission Control dashboard, offline MCC spacecraft RTC clock, manual input sliders, interactive holographic human body & cabin status map, 3-step crew guidance cards, and closed-loop daily/long-term scheduler + `Plotly` longitudinal trend charts.
 - **Data Validation:** `Pydantic` (strictly typed Input/Output schemas in `core/schema.py`).
 
-### 2. Separation of Concerns, Zero-Conflict File Ownership & Subpackage Standard (Option A)
+### 2. Separation of Concerns, Zero-Conflict File Ownership & Parallel Entry-Point + Subfolder Pattern
 To guarantee **zero Git merge conflicts** and protect teammates who are domain researchers rather than experienced coders, responsibilities and directory boundaries are strictly divided:
 
 - **Role 1 (Lead System Integrator & UI Architect — `main` branch):**
-  - **Owns:** `app.py`, `requirements.txt`, `core/` (`schema.py`, `data_loader.py`, `scheduler.py`), `ui/` (`styles.py`, `i18n.py`, `anatomy_svgs.py`, `hud_controller.py`, `hud_assets.py`), `modules/__init__.py`, and `data/shared_real/`.
+  - **Owns:** `app.py`, `requirements.txt`, `core/` (`schema.py`, `data_loader.py`, `scheduler.py`, `checkin_tracker.py`), `ui/` (`styles.py`, `i18n.py`, `anatomy_svgs.py`, `drawer_renderer.py`, `hud_controller.py`, `hud_assets.py`, `checkin_spec.py`), `modules/__init__.py`, and `data/shared_real/`.
   - **Exclusive Responsibilities:**
     1. **Frontend UI & Telemetry Input Forms:** Provides manual sliders/inputs in the HUD for all 5 domains and passes them as clean Python `dict` payloads to each module's `evaluate()` function.
     2. **Centralized Data Persistence (Storage):** Handles all saving/appending of new measurements and offline RTC state to local storage (`data/runtime_session.json`). **Modules 2–6 MUST NOT write to shared databases directly.**
     3. **Global Short-Term & Long-Term Schedule Aggregation & Cross-Module Context:** Collects `short_term_plan` and `long_term_plan` outputs from all 5 modules, propagates cross-module flags (`spe_alert`, `ppco2_1h_mmHg`, `sleep_tst_h`), resolves conflicts (e.g., halting heavy E4D resistance workouts if Cardiovascular or Immune triggers a `RED` fever/arrhythmia/clot alert), and renders the master timeline.
 
 - **Roles 2–6 (5 Domain Evaluator Agents — `feat/*` branches):**
-  - **Role 2 (Musculoskeletal):** Owns `modules/musculoskeletal/` (or single-file `modules/musculoskeletal.py`) and `data/musculoskeletal/`.
-  - **Role 3 (Cardiovascular & Aerobic):** Owns `modules/cardiovascular/` (or single-file `modules/cardiovascular.py`) and `data/cardiovascular/`.
-  - **Role 4 (Neuro-Ocular & Vestibular):** Owns `modules/neuro_ocular/` (or single-file `modules/neuro_ocular.py`) and `data/neuro_ocular/`.
-  - **Role 5 (Immune, Endocrine & Metabolic):** Owns `modules/immune_metabolic/` (or single-file `modules/immune_metabolic.py` / `modules/immune.py`) and `data/immune_metabolic/`.
-  - **Role 6 (Radiation, Acoustics & Cabin Env):** Owns `modules/cabin_environment/` (or single-file `modules/cabin_environment.py`) and `data/cabin_environment/`.
+  - **Role 2 (Musculoskeletal):** Owns entry point `modules/musculoskeletal.py`, optional helper subfolder `modules/musculo/`, and `data/musculoskeletal/`.
+  - **Role 3 (Cardiovascular & Aerobic):** Owns entry point `modules/cardiovascular.py`, helper subfolder `modules/cardio/`, and `data/cardiovascular/`.
+  - **Role 4 (Neuro-Ocular & Vestibular):** Owns entry point `modules/neuro_ocular.py`, optional helper subfolder `modules/neuro/`, and `data/neuro_ocular/`.
+  - **Role 5 (Immune, Endocrine & Metabolic):** Owns entry point `modules/immune_metabolic.py` (or `modules/immune.py`), optional helper subfolder `modules/immune_pkg/`, and `data/immune_metabolic/`.
+  - **Role 6 (Radiation, Acoustics & Cabin Env):** Owns entry point `modules/cabin_environment.py`, helper subfolder `modules/cabin_env/`, and `data/cabin_environment/`.
   - **Exclusive Responsibilities:** Implement **stateless pure evaluation functions** that accept sensor/manual inputs + baselines, run the 3-layer decision model (+ Layer 0 QC Gatekeeper), and return standardized diagnostics, 3-step crew guidance, and module-specific short-term/long-term recommendations.
 
-#### MANDATORY MODULE SPLITTING & SUBPACKAGE RULE (Option A — `modules/<module_id>/`)
-Whenever any domain module (Roles 2–6) grows large or needs to be split into multiple `.py` files (such as helper functions, rules, data loaders, or guidance templates):
-1. **Never place extra helper `.py` files Loose in the root `modules/` directory** (e.g., do NOT create `modules/cardio_data.py` or mismatched folders like `modules/cabin_env/`).
-2. **Use a dedicated Python subpackage named after the canonical `module_id`:**
-   - `modules/musculoskeletal/`
-   - `modules/cardiovascular/`
-   - `modules/neuro_ocular/`
-   - `modules/immune_metabolic/`
-   - `modules/cabin_environment/`
-3. **Expose the standard public contract in `modules/<module_id>/__init__.py`:**
-   - Must export `evaluate`, `demo_baseline`, `demo_payload`, `export_demo_csvs`, and `to_schema` so `importlib.import_module(f"modules.{module_id}")` in `core/data_loader.py` works identically whether the module is a single file or a multi-file subpackage.
-4. **Path Resolution Inside Subpackages (`BASE_DIR` / `DATA_DIR`):**
-   - For a file inside `modules/<module_id>/*.py` (2 levels below project root), always resolve the project root with **three `.parent` calls**:
+#### MANDATORY MODULE SPLITTING RULE (Parallel Entry-Point `.py` + Dedicated Helper Subfolder)
+Whenever any domain module (Roles 2–6) grows large and needs to be split into multiple `.py` files (such as helper functions, rules, sub-evaluators, data loaders, or guidance templates):
+1. **Keep the canonical top-level entry-point `.py` file in `modules/`** (`modules/musculoskeletal.py`, `modules/cardiovascular.py`, `modules/neuro_ocular.py`, `modules/immune_metabolic.py`, `modules/cabin_environment.py`) as the main orchestrator that calls into its subfolder and exposes `evaluate`, `demo_baseline`, `demo_payload`, `export_demo_csvs`, and `to_schema`.
+2. **Never place extra helper `.py` files loose in the root `modules/` directory** — always place all split helper `.py` files inside the role's parallel subfolder (`modules/cardio/`, `modules/cabin_env/`, `modules/musculo/`, `modules/neuro/`, `modules/immune_pkg/`) with an `__init__.py`.
+3. **Avoid Name Collisions Between Entry-Point File and Subfolder:** Because Python cannot have both `modules/foo.py` and `modules/foo/` with the exact same name in the same directory, the parallel helper subfolder uses the short prefix (`cardio/`, `cabin_env/`, `musculo/`, `neuro/`, `immune_pkg/`) alongside the canonical `modules/<module_id>.py` entry point.
+4. **Path Resolution Inside Helper Subfolders (`BASE_DIR` / `DATA_DIR`):**
+   - For a file inside `modules/<subfolder>/*.py` (2 levels below project root), always resolve the project root with **three `.parent` calls**:
      `BASE_DIR = Path(__file__).resolve().parent.parent.parent`
      `DATA_DIR = BASE_DIR / "data" / "<module_id>"`
-     *(Whereas a single top-level file `modules/<module_id>.py` uses `Path(__file__).resolve().parent.parent`).*
+     *(Whereas the top-level entry point `modules/<module_id>.py` uses `Path(__file__).resolve().parent.parent`).*
 
 ### 3. Data Folder Checklist & Proactive Missing-CSV Handling
 Teammates may not have placed their CSV/JSON files into `data/` yet. **NO module is allowed to crash with `FileNotFoundError`.**

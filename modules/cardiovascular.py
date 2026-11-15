@@ -3,9 +3,9 @@
 Branch: feat/cardiovascular
 Primary entry point: modules/cardiovascular.py (used by app.py & core/data_loader.py).
 
-Helper modules (strictly Role 3-scoped):
-- modules/cardio_data.py: pre-flight baselines, synthetic datasets, CSV templates, OSDR loaders
-- modules/cardio_guidance.py: status-aware 3-step astronaut guidance templates (M1-M11)
+Helper modules (strictly Role 3-scoped inside modules/cardio/):
+- modules/cardio/cardio_data.py: pre-flight baselines, synthetic datasets, CSV templates, OSDR loaders
+- modules/cardio/cardio_guidance.py: status-aware 3-step astronaut guidance templates (M1-M11)
 
 Implements:
 1. Layer 0 QC Gatekeeper (ecg_lead_quality, motion_artifact_g, impossible/missing values)
@@ -52,7 +52,7 @@ from core.schema import (
     ShortTermPlan,
     normalize_module_result,
 )
-from modules.cardio_data import (
+from modules.cardio.cardio_data import (
     BASE_DIR,
     DATA_DIR,
     EXPECTED_CSV_SCHEMAS,
@@ -77,7 +77,7 @@ from modules.cardio_data import (
     safe_float as _safe_float,
     summarize_biomonitor_stream as _summarize_biomonitor_stream,
 )
-from modules.cardio_guidance import build_indicator_guidance as _build_indicator_guidance
+from modules.cardio.cardio_guidance import build_indicator_guidance as _build_indicator_guidance
 
 STATUS_RANK: dict[str, int] = {
     "GREEN": 0,

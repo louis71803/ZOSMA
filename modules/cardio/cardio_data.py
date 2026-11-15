@@ -14,7 +14,7 @@ from typing import Any, Optional, Sequence
 
 import pandas as pd
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = BASE_DIR / "data" / "cardiovascular"
 SHARED_REAL_DIR = BASE_DIR / "data" / "shared_real"
 REAL_SUBDIR = DATA_DIR / "real"
