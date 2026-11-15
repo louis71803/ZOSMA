@@ -10,8 +10,10 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import importlib
+from pathlib import Path
 from typing import Any
 
+from PIL import Image
 import streamlit as st
 import streamlit.components.v2 as components_v2
 
@@ -41,9 +43,15 @@ from core.scheduler import aggregate_mission_schedule
 from core.schema import ModuleEvaluationResult
 from ui.hud_assets import HUD_CSS, HUD_HTML, HUD_JS
 
+_FAVICON_PATH = Path(__file__).resolve().parent / "ui" / "assets" / "zosma_favicon.png"
+try:
+    _PAGE_ICON: Any = Image.open(_FAVICON_PATH)
+except Exception:
+    _PAGE_ICON = "🧑‍🚀"
+
 st.set_page_config(
     page_title="Z.O.S.M.A. Flight Surgeon HUD",
-    page_icon="🧑‍🚀",
+    page_icon=_PAGE_ICON,
     layout="wide",
     initial_sidebar_state="collapsed",
 )

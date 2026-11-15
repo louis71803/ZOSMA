@@ -77,19 +77,32 @@ HUD_CSS = """
 }
 
 .brand-emblem {
-  width: 42px;
-  height: 42px;
-  border-radius: 11px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(14, 165, 233, 0.05));
-  border: 1px solid rgba(56, 189, 248, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #38bdf8;
-  font-weight: 800;
-  font-size: 16px;
-  letter-spacing: 1px;
-  box-shadow: 0 0 18px rgba(56, 189, 248, 0.22);
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+}
+
+.brand-logo-img {
+  height: 46px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.58))
+          drop-shadow(0 0 11px rgba(56, 189, 248, 0.32));
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.brand-logo-img:hover {
+  transform: scale(1.04);
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.78))
+          drop-shadow(0 0 14px rgba(56, 189, 248, 0.45));
 }
 
 .brand-titles {

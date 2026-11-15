@@ -6,10 +6,25 @@ slide-over telemetry drawer controls, and instant organ-to-trend interactivity.
 
 from __future__ import annotations
 
+import base64
+from pathlib import Path
+
 from ui.anatomy_svgs import HUD_ANATOMY_JS
 from ui.drawer_renderer import HUD_DRAWER_JS
 from ui.i18n import HUD_I18N_JS
 from ui.onboarding_bar import HUD_ONBOARDING_JS
+
+
+def _load_logo_data_uri() -> str:
+    """Load the cropped transparent Z.O.S.M.A. logo as an offline Base64 Data URI."""
+    logo_path = Path(__file__).resolve().parent / "assets" / "zosma_logo.png"
+    try:
+        raw = logo_path.read_bytes()
+        b64 = base64.b64encode(raw).decode("ascii")
+        return f"data:image/png;base64,{b64}"
+    except Exception:
+        return ""
+
 
 HUD_CONTROLLER_BODY_JS = r"""
   const STATUS_HEX = {
@@ -856,7 +871,11 @@ HUD_CONTROLLER_BODY_JS = r"""
           <!-- TOP MISSION COMMAND BAR -->
           <div class="cmd-bar">
             <div class="brand-group">
-              <div class="brand-emblem">Z</div>
+              <div class="brand-emblem">
+                ${BRAND_LOGO_URI
+                  ? `<img class="brand-logo-img" src="${BRAND_LOGO_URI}" alt="Z.O.S.M.A." />`
+                  : `<span>Z</span>`}
+              </div>
               <div class="brand-titles">
                 <div class="brand-name">
                   ${esc(t('hud_title'))}
@@ -1312,10 +1331,12 @@ HUD_CONTROLLER_BODY_JS = r"""
 
 def build_hud_js() -> str:
     """Assemble the complete ES module script for Streamlit v2 component mounting."""
+    logo_uri = _load_logo_data_uri()
     return (
         "export default function(component) {\n"
         "  const { data, setTriggerValue, parentElement } = component;\n"
         "  if (!data) return;\n"
+        f"  const BRAND_LOGO_URI = '{logo_uri}';\n"
         "  let root = parentElement.querySelector('#zosma-hud-mount');\n"
         "  if (!root) {\n"
         "    root = document.createElement('div');\n"
