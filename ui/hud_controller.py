@@ -342,13 +342,50 @@ HUD_CONTROLLER_BODY_JS = r"""
     return metricLabel(m.metric_name);
   }
 
-  function buildTrendSvg(metric, missionDay, modQualityPassed = true) {
+  function buildTrendSvg(metric, missionDay, modQualityPassed = true, modStandby = false) {
     if (!metric) {
       return `<div style="padding:24px;color:#64748b;font-size:12px;">No telemetry series available.</div>`;
+    }
+    // When subsystem or metric is in Day-1 STANDBY (awaiting first check-in), do NOT synthesize fake points or 30-day forecast
+    if (modStandby || metric.standby || metric.raw_status === 'STANDBY') {
+      const baseTxt = (metric.baseline_val !== null && metric.baseline_val !== undefined)
+        ? `<div style="margin-top:6px;font-size:11.5px;color:#94a3b8;">${esc(t('standby_base_lbl'))} <strong style="color:#e2e8f0;">${esc(metric.baseline_val)} ${esc(metric.unit || '')}</strong></div>`
+        : '';
+      return `
+        <div style="padding:32px 18px;text-align:center;color:#7dd3fc;font-size:12.5px;font-weight:600;border:1px dashed rgba(56,189,248,0.38);border-radius:10px;background:rgba(56,189,248,0.06);">
+          <div>${esc(t('standby_chart_msg'))}</div>
+          ${baseTxt}
+        </div>
+      `;
     }
     // Item 4: When INSUFFICIENT_DATA / QC failed, do not plot invalid points or 30-day projection line
     if (!modQualityPassed || !metric.quality_passed || metric.raw_status === 'INSUFFICIENT_DATA') {
       return `<div style="padding:36px 18px;text-align:center;color:#fb923c;font-size:12.5px;font-weight:600;border:1px dashed rgba(249,115,22,0.35);border-radius:10px;background:rgba(249,115,22,0.06);">${esc(t('qc_trend_blocked'))}</div>`;
+    }
+
+    // If only 0 or 1 measured point exists in history_days (e.g., Day-1 initial check-in), do NOT synthesize fake D0..D90 slope or +30d forecast
+    if (Array.isArray(metric.history_days) && metric.history_days.length < 2) {
+      if (metric.history_days.length === 0) {
+        return `
+          <div style="padding:32px 18px;text-align:center;color:#7dd3fc;font-size:12.5px;font-weight:600;border:1px dashed rgba(56,189,248,0.38);border-radius:10px;background:rgba(56,189,248,0.06);">
+            <div>${esc(t('standby_chart_msg'))}</div>
+          </div>
+        `;
+      }
+      const d0 = metric.history_days[0];
+      const v0 = (Array.isArray(metric.history_values) && metric.history_values.length === 1)
+        ? metric.history_values[0]
+        : metric.current_val;
+      const unitStr = metric.unit ? ` ${metric.unit}` : '';
+      const baseNote = (metric.baseline_val !== null && metric.baseline_val !== undefined)
+        ? `<div style="margin-top:6px;font-size:11.5px;color:#94a3b8;">${esc(t('standby_base_lbl'))} <strong style="color:#e2e8f0;">${esc(metric.baseline_val)}${esc(unitStr)}</strong></div>`
+        : '';
+      return `
+        <div style="padding:28px 18px;text-align:center;color:#38bdf8;font-size:12.5px;font-weight:600;border:1px dashed rgba(56,189,248,0.38);border-radius:10px;background:rgba(56,189,248,0.06);">
+          <div>${esc(t('single_pt_chart_msg', { d: d0, v: v0 + unitStr }))}</div>
+          ${baseNote}
+        </div>
+      `;
     }
 
     const days = (metric.history_days && metric.history_days.length >= 2)
@@ -525,13 +562,17 @@ HUD_CONTROLLER_BODY_JS = r"""
       `;
     }).join('');
 
-    // Mini metric tiles (Items 1, 5, 6 + clean single-line delta/QC caption)
+    // Mini metric tiles (Items 1, 5, 6 + clean single-line delta/QC/STANDBY caption)
     const metricTilesHtml = metrics.map((m, idx) => {
       const isRef = m.raw_status === 'REFERENCE' || m.metric_name === 'p1np_bone_formation' || m.metric_name === 'osd575_ca_alp_baseline';
-      const msk = !m.quality_passed ? 'QC' : (isRef ? 'REF' : (m.status_light || 'GREEN'));
+      const isStandby = Boolean(m.standby || m.raw_status === 'STANDBY');
+      const msk = !m.quality_passed ? 'QC' : (isStandby ? 'STANDBY' : (isRef ? 'REF' : (m.status_light || 'GREEN')));
       let deltaTxt = '';
       if (!m.quality_passed || m.raw_status === 'INSUFFICIENT_DATA') {
         deltaTxt = layerLabel('quality_check');
+      } else if (isStandby) {
+        const bStr = (m.baseline_val !== null && m.baseline_val !== undefined) ? `${m.baseline_val} ${m.unit || ''}`.trim() : '—';
+        deltaTxt = `${t('standby_base_lbl')} ${bStr} · ${t('standby_await_lbl')}`;
       } else if (m.delta_pct !== null && m.delta_pct !== undefined) {
         deltaTxt = `${m.delta_pct > 0 ? '+' : ''}${m.delta_pct}% ${t('vs_base')}`;
       } else if (m.message && m.message.length <= 48) {
@@ -540,6 +581,8 @@ HUD_CONTROLLER_BODY_JS = r"""
         deltaTxt = `${t('layer_prefix')} ${layerLabel(m.decided_by)}`;
       }
       const dispName = resolveMetricDisplayName(m);
+      const dispVal = isStandby ? '—' : m.current_val;
+      const dispUnit = isStandby ? '' : m.unit;
       return `
         <div class="metric-card ${idx === state.selectedMetricIdx ? 'active' : ''}" data-metric-idx="${idx}">
           <div class="m-top">
@@ -547,8 +590,8 @@ HUD_CONTROLLER_BODY_JS = r"""
             <span class="led-dot led-${msk}" style="width:7px;height:7px;"></span>
           </div>
           <div class="m-val-row">
-            <span class="m-val">${esc(m.current_val)}</span>
-            <span class="m-unit">${esc(m.unit)}</span>
+            <span class="m-val">${esc(dispVal)}</span>
+            <span class="m-unit">${esc(dispUnit)}</span>
           </div>
           <div class="m-delta" title="${esc(m.message ? zhText(m.message) : deltaTxt)}">${esc(deltaTxt)}</div>
         </div>
@@ -730,10 +773,10 @@ HUD_CONTROLLER_BODY_JS = r"""
       bad_data: t('scen_bad')
     };
 
-    // Item 3: When INSUFFICIENT_DATA / QC failed on selected or any module, show '—' instead of '無風險 / NONE'
+    // Item 3: When INSUFFICIENT_DATA / QC failed or STANDBY on selected module, show '—' instead of '無風險 / NONE'
     const anyQcFailed = Object.values(modulesMap).some(m => m && !m.quality_passed);
     let projectedRedDisplay = esc(t('none_lbl'));
-    if (anyQcFailed || !selMod.quality_passed) {
+    if (anyQcFailed || !selMod.quality_passed || selMod.standby || (activeMetric && activeMetric.standby)) {
       projectedRedDisplay = '—';
     } else if (schedule.earliest_red_days !== null && schedule.earliest_red_days !== undefined) {
       projectedRedDisplay = esc(schedule.earliest_red_days) + ' ' + esc(t('days_unit'));
@@ -911,7 +954,7 @@ HUD_CONTROLLER_BODY_JS = r"""
                     <span class="leg-item"><span class="leg-line" style="background:#f472b6;"></span>${esc(t('leg_forecast'))}</span>
                   </div>
                 </div>
-                ${buildTrendSvg(activeMetric, state.mission_day, selMod.quality_passed !== false)}
+                ${buildTrendSvg(activeMetric, state.mission_day, selMod.quality_passed !== false, Boolean(selMod.standby))}
               </div>
 
               <div class="guide-box">

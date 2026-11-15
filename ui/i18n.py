@@ -27,7 +27,8 @@ HUD_I18N_JS = r"""
       status_STANDBY: 'STANDBY',
       standby_base_lbl: 'Earth Base:',
       standby_await_lbl: 'Awaiting Day-1 Check-In',
-      standby_chart_msg: '📡 STANDBY: Pre-flight Earth baseline loaded. Click "📝 DAILY LOG" to record your first in-orbit measurement and plot D0 → D1 trajectory.',
+      standby_chart_msg: '📡 STANDBY (NO IN-ORBIT DATA YET): Pre-flight Earth baseline loaded. Click "📝 DAILY LOG" to record your first measurement.',
+      single_pt_chart_msg: '📍 Initial check-in recorded (Sol/Day {d}: {v}). +30d forecast requires at least 2 longitudinal days of data.',
       onb_title: 'MISSION BRIEFING · INITIAL ORBITAL ONBOARDING',
       onb_mode_day1: 'DAY-1 COLD START',
       onb_standby_cnt: 'SUBSYSTEMS STANDBY',
@@ -223,7 +224,8 @@ HUD_I18N_JS = r"""
       status_STANDBY: '待命建檔 STANDBY',
       standby_base_lbl: '地面基準:',
       standby_await_lbl: '待首次入軌量測',
-      standby_chart_msg: '📡 待命建檔中：已載入地面 L-30 個人基準與警戒線。請點擊上方「📝 日常打卡輸入」登錄首筆數據，即可點亮 D0 → D1 趨勢軌跡。',
+      standby_chart_msg: '📡 待命建檔中（尚無入軌實測資料）：已載入地面個人基準，請點擊上方「📝 日常打卡輸入」登錄首筆數據。',
+      single_pt_chart_msg: '📍 已記錄首筆入軌數據（第 {d} 天：{v}）。至少需累積 2 天以上之跨日實測點，始進行 +30 天斜率趨勢擬合與預測。',
       onb_title: '任務簡報 · 初登艦系統建檔與操作引導',
       onb_mode_day1: 'Day-1 初登艦待命模式',
       onb_standby_cnt: '個生理系統待打卡',
@@ -1091,7 +1093,16 @@ HUD_I18N_JS = r"""
     'No systemic inflammation.': '無全身性發炎反應。',
     'Re-check temp in 6h.': '6 小時後複測口腔體溫。',
     'Renal hydration on target.': '腎臟保護飲水量達標。',
-    'Start oral Valacyclovir protocol & inspect skin for rash.': '啟動口服抗病毒藥 (Valacyclovir) 程序並檢查皮膚水泡／紅疹。'
+    'Start oral Valacyclovir protocol & inspect skin for rash.': '啟動口服抗病毒藥 (Valacyclovir) 程序並檢查皮膚水泡／紅疹。',
+    'Pre-flight baseline loaded. Awaiting Day-1 Morning Vitals or LBNP/Ultrasound check-in.': '已載入地面發射前基準值，待執行入軌首日晨間生命徵象或 LBNP／超音波檢測打卡。',
+    'Pre-flight baseline loaded. Awaiting SLAMMD body mass & E4D / Ultrasound check-in.': '已載入地面發射前基準值，待執行 SLAMMD 微重力體重與 E4D／超音波肌肉檢測打卡。',
+    'Pre-flight baseline loaded. Awaiting Amsler grid, refraction & Mini OCT / ONSD check-in.': '已載入地面發射前基準值，待執行阿姆斯勒方格表、視力屈光與 Mini OCT／視神經鞘檢測打卡。',
+    'Pre-flight baseline loaded. Awaiting Day-1 Oral Temp, Hydration & CBC / Saliva check-in.': '已載入地面發射前基準值，待執行入軌首日晨間口溫、飲水量與血球／唾液檢測打卡。',
+    'Onboarding Check-In: Log morning resting HR, BP, and SpO2 in Crew Daily Log.': '入軌首日建檔：請於「日常打卡輸入」登錄晨間靜息心率、血壓與血氧 SpO2。',
+    'Onboarding Check-In: Log morning SLAMMD body mass and initial E4D session metrics.': '入軌首日建檔：請於「日常打卡輸入」登錄晨間 SLAMMD 體重與首次 E4D 訓練數據。',
+    'Onboarding Check-In: Perform baseline Amsler grid & visual acuity check-in.': '入軌首日建檔：請於「日常打卡輸入」登錄阿姆斯勒方格表自測與視力屈光結果。',
+    'Onboarding Check-In: Log morning oral temperature, 24h fluid intake, and symptoms.': '入軌首日建檔：請於「日常打卡輸入」登錄晨間口溫、24h 飲水量與症狀勾選。',
+    'Open Crew Daily Log to record initial in-orbit measurement.': '請開啟「日常打卡輸入」登錄首次入軌實測值。'
   };
 
   function t(key, vars = {}) {
@@ -1311,6 +1322,7 @@ HUD_I18N_JS = r"""
     out = out.replace(/Rejected (\d+) straight-lined, incomplete, or out-of-range survey entry\/entries\./g, '剔除 $1 筆全填同分、未完成或超限之問卷資料。');
     out = out.replace(/^Rejected (\d+) light-sensor period\(s\) due to off-wrist or sleeve-covered flag\.$/, '剔除 $1 筆光感測器離腕或遭袖口遮蔽時段資料。');
 
+    out = out.replace(/^Pre-flight baseline \(([^)]+)\) ready\. Awaiting crew check-in\.$/, '地面基準 ($1) 已就緒，待登錄首次入軌量測。');
     return out;
   }
 

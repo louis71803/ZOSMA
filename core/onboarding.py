@@ -168,13 +168,39 @@ def apply_day1_standby_mask(
                 if not is_ref:
                     active_count += 1
                     active_statuses.append(metric.status_light)
-                # Ensure clean D0 -> D_now trajectory rather than Day-124 demo history in day1_standby mode
+                # In day1_standby mode, keep ONLY actually logged check-in days (never leak D30/60/90/124 demo history)
                 meta = METRIC_TRACKING_META.get(metric.metric_name)
-                if meta and metric.history_days and max(metric.history_days) > mission_day:
-                    base_v = metric.baseline_val if isinstance(metric.baseline_val, (int, float)) else meta.get("baseline_default", 0.0)
-                    cur_v = metric.current_val if isinstance(metric.current_val, (int, float)) else base_v
-                    metric.history_days = [0, mission_day]
-                    metric.history_values = [float(base_v), float(cur_v)]
+                if meta:
+                    payload_key = meta["payload_key"]
+                    crew_entries = (checkin_series or {}).get(crew_id, {})
+                    pts: list[tuple[int, float]] = []
+                    if isinstance(crew_entries, dict):
+                        for dk, entry in crew_entries.items():
+                            if not isinstance(entry, dict):
+                                continue
+                            try:
+                                d_num = int(entry.get("mission_day", dk))
+                            except (TypeError, ValueError):
+                                continue
+                            if d_num > mission_day:
+                                continue
+                            vals_map = entry.get("values") or {}
+                            if payload_key in vals_map and vals_map[payload_key] is not None:
+                                try:
+                                    pts.append((d_num, float(vals_map[payload_key])))
+                                except (TypeError, ValueError):
+                                    pass
+                    pts.sort(key=lambda item: item[0])
+                    if pts:
+                        metric.history_days = [p[0] for p in pts]
+                        metric.history_values = [p[1] for p in pts]
+                        if len(pts) < 2:
+                            metric.slope_per_day = None
+                    else:
+                        cur_v = metric.current_val if isinstance(metric.current_val, (int, float)) else 0.0
+                        metric.history_days = [mission_day]
+                        metric.history_values = [float(cur_v)]
+                        metric.slope_per_day = None
             else:
                 metric.standby = True
                 metric.status_light = "GREEN"
