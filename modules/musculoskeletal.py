@@ -39,33 +39,36 @@ SHARED_REAL_DIR = BASE_DIR / "data" / "shared_real"
 
 # Provenance tags strictly restricted to four labels:
 # "NASA" | "ISS_study" | "other_literature" | "team_spec"
+# Full source list and URLs are maintained in data/musculoskeletal/literature_reference.json.
 REFERENCES: dict[str, dict[str, Any]] = {
     "e4d_hardware": {
-        "provenance": "NASA",
+        "provenance": "other_literature",
+        "citation": "ESA E4D release (Jan 2026); Danish Aerospace Company E4D product page; NASA NTRS 20240008204.",
         "description": "European multi-purpose exercise device E4D, launched to the ISS for testing in April 2026.",
     },
     "bone_loss_iss_avg": {
         "provenance": "NASA",
-        "citation": "NASA Human Research Program / Spaceflight Bone Loss Overview",
+        "citation": "NASA Human Research Program - Risk of Spaceflight-Induced Bone Changes.",
         "covers": "Average spaceflight bone mineral density loss 1.0-1.5%/month.",
     },
     "strength_avg_loss": {
         "provenance": "NASA",
+        "citation": "NASA Human Research Program - Risk of Reduced Cardiorespiratory and Musculoskeletal Fitness.",
         "covers": "Average strength loss under microgravity 10-12%.",
     },
     "nutrition_hydration": {
         "provenance": "NASA",
-        "citation": "NASA-STD-3001 Vol 2",
+        "citation": "NASA OCHMO-TB-030 Bone Loss (Vitamin D 35-90 ng/mL); NASA JSC-67378 Rev 1, 2020 (protein 1.2-1.8 g/kg/day, Vitamin D 1000 IU/day); Whitson et al., NASA NTRS 20000020539 (urine output 2 L/day).",
         "covers": "Vitamin D 35-90 ng/mL reference range, protein 1.2-1.8 g/kg/day, Vitamin D 1000 IU/day, daily urine output >= 2 L/day.",
     },
     "iss_site_bone_muscle_resorption": {
         "provenance": "ISS_study",
-        "citation": "LeBlanc et al. (2000), JBMR; Sibonga et al. (2007), Bone 41(6):973-983; Trappe et al. (2009), J Appl Physiol; Smith et al. (2005, 2012), JBMR.",
-        "covers": "Thigh CSA 4%/7%, Calf CSA 5%/10%, isometric strength thresholds (<5%/5-10%/>10%), bone resorption +50%, lumbar spine 0.9%/mo and proximal hip 1.4-1.5%/mo.",
+        "citation": "Lang et al. (2004), J Bone Miner Res 19(6):1006-12; Gopalakrishnan et al. (2010), Aviat Space Environ Med 81:91-104; Trappe et al. (2009), J Appl Physiol 106(4):1159-68; English et al. (2015), Aerosp Med Hum Perform 86(12 Suppl):A68-77; Smith et al. (2005), J Bone Miner Res 20(2):208-18.",
+        "covers": "Published ranges that anchor the team thresholds: lumbar spine 0.9%/mo and hip 1.4-1.5%/mo (Lang 2004); calf 10-16% and thigh 4-7% volume loss (Gopalakrishnan 2010, n=4); isokinetic strength loss 8-17% (English 2015, n=37); bone resorption about +50% (Smith 2005). The cut-off values themselves (thigh 4%/7%, calf 5%/10%, strength 5%/10%) are team-defined.",
     },
     "vbt_and_body_mass": {
         "provenance": "other_literature",
-        "citation": "Pareja-Blanco et al. (2017), Scand J Med Sci Sports 27(7):724-735; clinical nutritional anthropometry.",
+        "citation": "Sanchez-Medina & Gonzalez-Badillo (2011), Med Sci Sports Exerc 43(9):1725-34 (trained men, not astronauts); Science News, 'The Zero Gravity Diet', quoting NASA nutritionist S. M. Smith.",
         "covers": "Intra-set velocity loss 30% upper fatigue limit; SLAMMD body mass loss 5%/10%.",
     },
     "team_operational_specs": {
@@ -1865,7 +1868,7 @@ def build_iss_comparison_figure(eval_result: Optional[dict[str, Any]] = None) ->
                 marker_color="#38bdf8",
             ),
             go.Bar(
-                name="Published ISS Unmitigated Ref (Sibonga et al.)",
+                name="Published ISS reference (Lang et al. 2004)",
                 x=["Lumbar Spine (%/mo)", "Proximal Hip (%/mo)"],
                 y=[0.90, 1.45],
                 marker_color="#f97316",
