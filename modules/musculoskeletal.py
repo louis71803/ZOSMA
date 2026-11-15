@@ -270,17 +270,17 @@ GUIDANCE_GROUPS: dict[str, dict[str, Any]] = {
 }
 
 COMBINED_HOW_TO_MEASURE = (
-    "Training: Push every rep at full effort. E4D logs force and speed.\n"
-    "Muscle size: Scan thigh and calf weekly with Ultrasound 2 along your template. Scan 3 times.\n"
-    "Body mass: Hug the SLAMMD mount and stay still. Repeat and average.\n"
-    "Bone markers: Fasting blood sample at the same time of day."
+    "[Training] " + GUIDANCE_GROUPS["training"]["how_to_measure"] + " | "
+    "[Muscle CSA] " + GUIDANCE_GROUPS["csa"]["how_to_measure"] + " | "
+    "[Body Mass] " + GUIDANCE_GROUPS["body_mass"]["how_to_measure"] + " | "
+    "[Bone Metabolism] " + GUIDANCE_GROUPS["bone_metabolism"]["how_to_measure"]
 )
 
 COMBINED_PLAIN_EXPLANATION = (
-    "Strength: Falls 10-12% on average in flight; some crew lose over 20%.\n"
-    "Muscle size: Calf shrinks 10-16% and thigh 4-7% in about 6 months.\n"
-    "Body mass: Loss usually means not eating enough. Over 10% is critical.\n"
-    "Bone: Density falls 1-1.5% per month. Lost calcium raises kidney stone risk."
+    "[Training] " + GUIDANCE_GROUPS["training"]["plain_explanation"] + " | "
+    "[Muscle CSA] " + GUIDANCE_GROUPS["csa"]["plain_explanation"] + " | "
+    "[Body Mass] " + GUIDANCE_GROUPS["body_mass"]["plain_explanation"] + " | "
+    "[Bone Metabolism] " + GUIDANCE_GROUPS["bone_metabolism"]["plain_explanation"]
 )
 
 
