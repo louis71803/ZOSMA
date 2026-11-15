@@ -43,20 +43,23 @@ HUD_CONTROLLER_BODY_JS = r"""
     ? Number(savedClk.anchor_mission_day)
     : Number(data.mission_day || 124);
 
+  const prevUi = root._zosmaUiState || {};
+
   const state = {
     lang: data.lang || 'en',
     developer_mode: Boolean(data.developer_mode),
-    selectedModule: data.default_module || 'neuro_ocular',
-    viewMode: 'anatomy',       // 'anatomy' | 'overview'
-    musculoSide: 'front',      // 'front' | 'back'
-    neuroView: 'eye_zoom',     // 'eye_zoom' | 'cns_full'
-    selectedMetricIdx: Number(data.default_metric_idx || 0),
-    guideTab: data.default_guide_tab || 'measure',       // 'measure' | 'meaning' | 'action'
-    planTab: 'short',          // 'short' | 'long'
-    drawerOpen: false,
-    drawerSection: 'checkin',  // 'checkin' | 'settings'
-    checkinModuleTab: data.default_module || 'cabin_environment',
-    drawerTab: 'cabin_environment',
+    selectedModule: data.default_module || prevUi.selectedModule || 'neuro_ocular',
+    viewMode: prevUi.viewMode || 'anatomy',       // 'anatomy' | 'overview'
+    musculoSide: prevUi.musculoSide || 'front',   // 'front' | 'back'
+    neuroView: prevUi.neuroView || 'eye_zoom',    // 'eye_zoom' | 'cns_full'
+    selectedMetricIdx: Number(data.default_metric_idx !== undefined ? data.default_metric_idx : (prevUi.selectedMetricIdx || 0)),
+    guideTab: data.default_guide_tab || prevUi.guideTab || 'measure',       // 'measure' | 'meaning' | 'action'
+    planTab: prevUi.planTab || 'short',           // 'short' | 'long'
+    drawerOpen: Boolean(prevUi.drawerOpen),
+    drawerSection: prevUi.drawerSection || 'checkin',  // 'checkin' | 'settings'
+    checkinModuleTab: prevUi.checkinModuleTab || data.default_module || 'cabin_environment',
+    drawerTab: prevUi.drawerTab || 'cabin_environment',
+    drawerScrollTop: Number(prevUi.drawerScrollTop || 0),
     crew_id: data.crew_id || 'C002',
     mission_day: data.mission_day || 124,
     scenario: data.scenario || 'green',
@@ -75,8 +78,30 @@ HUD_CONTROLLER_BODY_JS = r"""
       anchor_mission_day: initialAnchorDay,
       module_due_ms: Object.assign({}, savedClk.module_due_ms || {})
     },
-    chimedKeys: {}
+    chimedKeys: Object.assign({}, prevUi.chimedKeys || {})
   };
+
+  function syncPersistedUiState() {
+    const curDrawer = root.querySelector('#drawer-panel');
+    if (curDrawer) {
+      state.drawerScrollTop = curDrawer.scrollTop;
+    }
+    root._zosmaUiState = {
+      selectedModule: state.selectedModule,
+      viewMode: state.viewMode,
+      musculoSide: state.musculoSide,
+      neuroView: state.neuroView,
+      selectedMetricIdx: state.selectedMetricIdx,
+      guideTab: state.guideTab,
+      planTab: state.planTab,
+      drawerOpen: state.drawerOpen,
+      drawerSection: state.drawerSection,
+      checkinModuleTab: state.checkinModuleTab,
+      drawerTab: state.drawerTab,
+      drawerScrollTop: state.drawerScrollTop,
+      chimedKeys: state.chimedKeys
+    };
+  }
 
   function getSpacecraftNowMs() {
     const elapsed = Math.max(0, Date.now() - state.clock.host_epoch_ms);
@@ -223,6 +248,7 @@ HUD_CONTROLLER_BODY_JS = r"""
   }
 
   function sendPayload(actionType, extra = {}) {
+    syncPersistedUiState();
     setTriggerValue('hud_action', {
       type: actionType,
       ts: Date.now(),
@@ -235,6 +261,8 @@ HUD_CONTROLLER_BODY_JS = r"""
       prefer_real_csv: Boolean(state.prefer_real_csv),
       use_manual_overrides: Boolean(state.use_manual_overrides),
       manual_inputs: state.inputs,
+      daily_vitals: state.dailyVitals,
+      module_checkins: state.moduleCheckins,
       selected_module: state.selectedModule,
       selected_metric_idx: state.selectedMetricIdx,
       guide_tab: state.guideTab,
@@ -415,6 +443,11 @@ HUD_CONTROLLER_BODY_JS = r"""
   }
 
   function render() {
+    const prevDrawer = root.querySelector('#drawer-panel');
+    if (prevDrawer) {
+      state.drawerScrollTop = prevDrawer.scrollTop;
+    }
+
     const modulesMap = data.modules || {};
     const schedule = data.schedule || {};
     const order = data.module_order || Object.keys(modulesMap);
@@ -738,9 +771,9 @@ HUD_CONTROLLER_BODY_JS = r"""
                 ${state.developer_mode ? `<span class="rtc-scale-chip ${state.clock.time_scale > 1 ? 'fast' : ''}" id="sc-clock-scale">${state.clock.time_scale}x</span>` : ''}
               </div>
 
-              <button class="mode-pill ${state.developer_mode ? 'dev' : ''}" id="mode-pill-btn" title="${esc(t('dev_mode_desc'))}">
+              <span class="mode-pill ${state.developer_mode ? 'dev' : ''}" id="mode-pill-badge" title="${esc(t('dev_mode_desc'))}">
                 ${esc(state.developer_mode ? t('dev_mode_on') : t('dev_mode_off'))}
-              </button>
+              </span>
 
               ${state.developer_mode ? `
                 <div class="scen-group" title="Switch Simulation Preset">
@@ -907,6 +940,19 @@ HUD_CONTROLLER_BODY_JS = r"""
       ${buildDrawerPanelHtml(modulesMap, order, scNow, dueModules)}
     `;
 
+    const nextDrawer = root.querySelector('#drawer-panel');
+    if (nextDrawer) {
+      if (state.drawerScrollTop > 0) {
+        nextDrawer.scrollTop = state.drawerScrollTop;
+      }
+      nextDrawer.onscroll = () => {
+        state.drawerScrollTop = nextDrawer.scrollTop;
+        if (root._zosmaUiState) {
+          root._zosmaUiState.drawerScrollTop = nextDrawer.scrollTop;
+        }
+      };
+    }
+    syncPersistedUiState();
     bindEvents();
   }
 
@@ -922,10 +968,6 @@ HUD_CONTROLLER_BODY_JS = r"""
       };
     });
 
-    // Mode Badge opens Settings Drawer on Settings tab
-    const modePillBtn = root.querySelector('#mode-pill-btn');
-    if (modePillBtn) modePillBtn.onclick = () => { state.drawerSection = 'settings'; state.drawerOpen = true; render(); };
-
     // Top bar Daily Check-In button opens Drawer on Check-In tab
     const openCheckinBtn = root.querySelector('#open-checkin-btn');
     if (openCheckinBtn) {
@@ -935,6 +977,7 @@ HUD_CONTROLLER_BODY_JS = r"""
         if (due.length) state.checkinModuleTab = due[0].module_id;
         else state.checkinModuleTab = state.selectedModule;
         state.drawerOpen = true;
+        state.drawerScrollTop = 0;
         render();
       };
     }
@@ -948,6 +991,7 @@ HUD_CONTROLLER_BODY_JS = r"""
           state.drawerSection = 'checkin';
           if (due.length) state.checkinModuleTab = due[0].module_id;
           state.drawerOpen = true;
+          state.drawerScrollTop = 0;
           render();
         };
       }
@@ -1091,11 +1135,16 @@ HUD_CONTROLLER_BODY_JS = r"""
     if (tEl) tEl.textContent = formatScTime(scNow);
     if (dEl) dEl.textContent = `${formatScDate(scNow)} · ${getLocalTzLabel()} · ${t('rtc_offline_tag')}`;
 
+    const chkClockEl = root.querySelector('#chk-sc-clock-meta');
+    if (chkClockEl) chkClockEl.textContent = `${formatScDate(scNow)} · ${formatScTime(scNow)}`;
+
     const liveDay = computeMccMissionDay(scNow);
     if (liveDay !== state.mission_day) {
       state.mission_day = liveDay;
       const badgeEl = root.querySelector('#crew-day-pill');
       if (badgeEl) badgeEl.textContent = t('crew_badge', { crew: state.crew_id, day: liveDay });
+      const chkDayEl = root.querySelector('#chk-crew-day-meta');
+      if (chkDayEl) chkDayEl.textContent = `🧑‍🚀 ${t('crew_badge', { crew: state.crew_id, day: liveDay })}`;
       const dayInp = root.querySelector('#inp-day');
       if (dayInp) dayInp.value = liveDay;
       sendPayload('save_clock');

@@ -297,6 +297,9 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
             developer_mode=st.session_state["developer_mode"],
             prefer_real_csv=st.session_state["prefer_real_csv"],
             use_manual_overrides=st.session_state["use_manual_overrides"],
+            daily_vitals=st.session_state["daily_vitals"],
+            module_checkins=st.session_state["module_checkins"],
+            checkin_series=st.session_state["checkin_series"],
         )
         st.rerun()
 
@@ -399,6 +402,9 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
             developer_mode=st.session_state["developer_mode"],
             prefer_real_csv=st.session_state["prefer_real_csv"],
             use_manual_overrides=st.session_state["use_manual_overrides"],
+            daily_vitals=st.session_state["daily_vitals"],
+            module_checkins=st.session_state["module_checkins"],
+            checkin_series=st.session_state["checkin_series"],
         )
         if act_type == "save_clock":
             st.toast("Offline Spacecraft RTC synced & saved!", icon="⏱️")
@@ -417,6 +423,9 @@ def _apply_hud_event(action: dict[str, Any]) -> None:
             developer_mode=st.session_state["developer_mode"],
             prefer_real_csv=st.session_state["prefer_real_csv"],
             use_manual_overrides=st.session_state["use_manual_overrides"],
+            daily_vitals=st.session_state["daily_vitals"],
+            module_checkins=st.session_state["module_checkins"],
+            checkin_series=st.session_state["checkin_series"],
         )
         st.rerun()
 

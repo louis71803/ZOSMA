@@ -213,8 +213,8 @@ HUD_DRAWER_BODY_JS = r"""
     const checkinTabHtml = `
       ${dueNoticeHtml}
       <div class="checkin-meta-bar">
-        <span>🧑‍🚀 ${esc(t('crew_badge', { crew: state.crew_id, day: state.mission_day }))}</span>
-        <span style="color:#7dd3fc;">${esc(formatScDate(scNow))} · ${esc(formatScTime(scNow))}</span>
+        <span id="chk-crew-day-meta">🧑‍🚀 ${esc(t('crew_badge', { crew: state.crew_id, day: state.mission_day }))}</span>
+        <span id="chk-sc-clock-meta" style="color:#7dd3fc;">${esc(formatScDate(scNow))} · ${esc(formatScTime(scNow))}</span>
       </div>
       ${historyTrailHtml}
 
@@ -466,7 +466,7 @@ HUD_DRAWER_BODY_JS = r"""
       inp.onchange = handler;
     });
 
-    // Stepper +/- buttons for number fields
+    // Stepper +/- buttons for number fields (update DOM & state directly without full re-render)
     root.querySelectorAll('.step-btn').forEach(btn => {
       btn.onclick = () => {
         const dir = Number(btn.getAttribute('data-step-dir')) || 1;
@@ -489,7 +489,9 @@ HUD_DRAWER_BODY_JS = r"""
           if (!state.moduleCheckins[modId]) state.moduleCheckins[modId] = {};
           state.moduleCheckins[modId][key] = nextVal;
         }
-        render();
+        const row = btn.closest('.num-stepper-row');
+        const numInp = row ? row.querySelector('input.num-input') : null;
+        if (numInp) numInp.value = nextVal;
       };
     });
 
@@ -538,30 +540,36 @@ HUD_DRAWER_BODY_JS = r"""
       };
     });
 
-    // Submit Crew Daily Check-In -> persist day point, reset due timers, re-run 5 agents
+    // Submit Crew Daily Check-In -> persist day point, reset ONLY active module due timer, re-run 5 agents
     const submitChkBtn = root.querySelector('#submit-checkin-btn');
     if (submitChkBtn) {
       submitChkBtn.onclick = () => {
         const scNow = getSpacecraftNowMs();
         const modulesMap = data.modules || {};
-        const checkedMods = [state.checkinModuleTab];
-        Object.keys(modulesMap).forEach(modId => {
-          const dueAt = Number(state.clock.module_due_ms[modId] ?? (scNow + 3600000));
-          if (dueAt <= scNow && !checkedMods.includes(modId)) {
-            checkedMods.push(modId);
-          }
-        });
-        // Reset due timers for checked / overdue modules (will re-align after evaluation)
-        checkedMods.forEach(modId => {
-          delete state.clock.module_due_ms[modId];
-          delete state.chimedKeys[modId];
-        });
-        state.drawerOpen = false;
+        const targetMod = state.checkinModuleTab;
+        const checkedMods = [targetMod];
+
+        // Clear only the submitted module from due banner while keeping other unlogged due modules intact
+        const nextH = Number((modulesMap[targetMod] && modulesMap[targetMod].short_term_plan && modulesMap[targetMod].short_term_plan.next_measurement_in_hours) ?? 24);
+        const resetH = nextH > 0 ? nextH : 1;
+        state.clock.module_due_ms[targetMod] = scNow + resetH * 3600 * 1000;
+        delete state.chimedKeys[targetMod];
+
+        const remainingDue = getDueModules(modulesMap, scNow);
+        if (remainingDue.length) {
+          // Keep drawer open and advance to the next remaining due module so crew can clear them one by one
+          state.checkinModuleTab = remainingDue[0].module_id;
+          state.drawerOpen = true;
+          state.drawerScrollTop = 0;
+        } else {
+          state.drawerOpen = false;
+        }
+
         sendPayload('submit_daily_checkin', {
           daily_vitals: state.dailyVitals,
           module_checkins: state.moduleCheckins,
           checked_modules: checkedMods,
-          active_checkin_module: state.checkinModuleTab,
+          active_checkin_module: targetMod,
         });
       };
     }
