@@ -466,6 +466,8 @@ HUD_CSS = """
   padding: 3px 8px;
   border-radius: 6px;
   text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .badge-GREEN {
@@ -662,6 +664,7 @@ HUD_CSS = """
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   padding: 9px 12px;
   border-radius: 10px;
   background: rgba(6, 12, 24, 0.68);
@@ -684,7 +687,9 @@ HUD_CSS = """
 .subsys-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
+  min-width: 0;
+  flex: 1;
 }
 
 .led-dot {
@@ -725,12 +730,16 @@ HUD_CSS = """
   font-size: 12.5px;
   font-weight: 600;
   color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .subsys-meta {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
 }
 
 .src-chip {
@@ -741,6 +750,8 @@ HUD_CSS = """
   background: rgba(148, 163, 184, 0.12);
   color: #94a3b8;
   font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .src-chip-real {
@@ -855,6 +866,9 @@ HUD_CSS = """
 .m-delta {
   font-size: 10px;
   color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Trend SVG Box */
@@ -916,6 +930,37 @@ HUD_CSS = """
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.guide-hdr-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.guide-hdr-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.guide-hdr-pill {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.10);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  padding: 2px 8px;
+  border-radius: 6px;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .guide-tabs {

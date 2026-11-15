@@ -200,7 +200,17 @@ HUD_CONTROLLER_BODY_JS = r"""
 
   function badgeLabel(modObj) {
     if (!modObj) return t('status_GREEN');
-    if (!modObj.quality_passed) return (modObj.raw_status || 'QC FAIL');
+    if (!modObj.quality_passed) {
+      const raw = String(modObj.raw_status || 'QC FAIL').toUpperCase();
+      if (state.lang === 'zh') {
+        if (raw.includes('NO_DATA')) return '無資料';
+        if (raw.includes('RESCAN')) return '需重掃';
+        return '資料不足';
+      }
+      if (raw.includes('NO_DATA')) return 'NO DATA';
+      if (raw.includes('RESCAN')) return 'RESCAN';
+      return 'QC FAIL';
+    }
     if (modObj.watch_flag) return t('status_WATCH');
     const st = modObj.status_light || 'GREEN';
     return t('status_' + st);
@@ -520,14 +530,16 @@ HUD_CONTROLLER_BODY_JS = r"""
       `;
     }).join('');
 
-    // Mini metric tiles (Items 1, 5, 6)
+    // Mini metric tiles (Items 1, 5, 6 + clean single-line delta/QC caption)
     const metricTilesHtml = metrics.map((m, idx) => {
       const isRef = m.raw_status === 'REFERENCE' || m.metric_name === 'p1np_bone_formation' || m.metric_name === 'osd575_ca_alp_baseline';
       const msk = !m.quality_passed ? 'QC' : (isRef ? 'REF' : (m.status_light || 'GREEN'));
       let deltaTxt = '';
-      if (m.delta_pct !== null && m.delta_pct !== undefined) {
+      if (!m.quality_passed || m.raw_status === 'INSUFFICIENT_DATA') {
+        deltaTxt = layerLabel('quality_check');
+      } else if (m.delta_pct !== null && m.delta_pct !== undefined) {
         deltaTxt = `${m.delta_pct > 0 ? '+' : ''}${m.delta_pct}% ${t('vs_base')}`;
-      } else if (m.message) {
+      } else if (m.message && m.message.length <= 48) {
         deltaTxt = zhText(m.message);
       } else {
         deltaTxt = `${t('layer_prefix')} ${layerLabel(m.decided_by)}`;
@@ -543,7 +555,7 @@ HUD_CONTROLLER_BODY_JS = r"""
             <span class="m-val">${esc(m.current_val)}</span>
             <span class="m-unit">${esc(m.unit)}</span>
           </div>
-          <div class="m-delta" title="${esc(deltaTxt)}">${esc(deltaTxt)}</div>
+          <div class="m-delta" title="${esc(m.message ? zhText(m.message) : deltaTxt)}">${esc(deltaTxt)}</div>
         </div>
       `;
     }).join('');
@@ -576,13 +588,16 @@ HUD_CONTROLLER_BODY_JS = r"""
       : (hasFullMetricGuide && activeMetric && activeMetric.action ? [activeMetric.action] : null);
 
     const activeGuideSt = activeMetric
-      ? (!activeMetric.quality_passed ? (activeMetric.raw_status || 'QC FAIL') : (activeMetric.status_light || 'GREEN'))
+      ? (!activeMetric.quality_passed ? 'QC' : (activeMetric.status_light || 'GREEN'))
       : 'GREEN';
+    const activeGuideStText = activeGuideSt === 'QC'
+      ? badgeLabel({ quality_passed: false, raw_status: activeMetric && activeMetric.raw_status })
+      : (t('status_' + activeGuideSt) !== ('status_' + activeGuideSt) ? t('status_' + activeGuideSt) : activeGuideSt);
     const activeGuideName = activeMetric
       ? (activeMetric.indicator ? zhText(activeMetric.indicator) : resolveMetricDisplayName(activeMetric))
       : '';
     const activeGuideTitle = hasFullMetricGuide
-      ? `${activeGuideName} · ${t('status_' + activeGuideSt) !== ('status_' + activeGuideSt) ? t('status_' + activeGuideSt) : activeGuideSt}`
+      ? `${activeGuideName} · ${activeGuideStText}`
       : t('guide_sop');
 
     let guideContentHtml = '';
@@ -614,8 +629,8 @@ HUD_CONTROLLER_BODY_JS = r"""
       ? `<div class="signal-box"><strong>${esc(t('bus_title'))}</strong>${flags.map(f => `<span>• ${esc(zhText(f))}</span>`).join('')}</div>`
       : '';
 
-    // Timeline cards
-    const timelineItems = state.planTab === 'short'
+    // Timeline cards (group consecutive actions from the same module & window into one clean card)
+    const rawTimelineItems = state.planTab === 'short'
       ? (schedule.short_term_board || []).map(item => {
           const dueAt = state.clock.module_due_ms[item.module_id];
           let tag = item.next_hours === 0 ? t('tag_immediate') : `T+${item.next_hours}H`;
@@ -639,17 +654,39 @@ HUD_CONTROLLER_BODY_JS = r"""
           text: zhText(item.adjustment)
         }));
 
-    const timelineHtml = timelineItems.map(it => {
+    const groupedTimeline = [];
+    const seenGroupMap = {};
+    rawTimelineItems.forEach(it => {
+      const gKey = `${it.mod}__${it.status}`;
+      if (!seenGroupMap[gKey]) {
+        const entry = {
+          mod: it.mod,
+          status: it.status,
+          tag: it.tag,
+          dueModId: it.dueModId,
+          texts: [it.text]
+        };
+        seenGroupMap[gKey] = entry;
+        groupedTimeline.push(entry);
+      } else if (!seenGroupMap[gKey].texts.includes(it.text)) {
+        seenGroupMap[gKey].texts.push(it.text);
+      }
+    });
+
+    const timelineHtml = groupedTimeline.map(it => {
       const col = STATUS_HEX[it.status] || '#10b981';
       const modTitle = modShortName(it.mod, it.mod.replace('_', ' '));
       const dueAttr = it.dueModId ? `data-due-mod="${it.dueModId}"` : '';
+      const bodyHtml = it.texts.length === 1
+        ? `<div class="tl-desc">${esc(it.texts[0])}</div>`
+        : `<ol class="protocol-list" style="font-size:12px;color:#e2e8f0;">${it.texts.map(line => `<li>${esc(line)}</li>`).join('')}</ol>`;
       return `
         <div class="timeline-card" style="--tl-color:${col}">
           <div class="tl-hdr">
             <span class="tl-mod">${esc(modTitle)}</span>
             <span class="tl-time" ${dueAttr}>${esc(it.tag)}</span>
           </div>
-          <div class="tl-desc">${esc(it.text)}</div>
+          ${bodyHtml}
         </div>
       `;
     }).join('');
@@ -867,11 +904,9 @@ HUD_CONTROLLER_BODY_JS = r"""
               </div>
 
               <div class="guide-box">
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                  <span style="font-size:11px;font-weight:700;letter-spacing:1px;color:#94a3b8;text-transform:uppercase;">
-                    ${esc(t('guide_hdr'))}
-                  </span>
-                  <span style="font-size:10.5px;color:#38bdf8;">${esc(activeGuideTitle)}</span>
+                <div class="guide-hdr-row">
+                  <span class="guide-hdr-title">${esc(t('guide_hdr'))}</span>
+                  <span class="guide-hdr-pill" title="${esc(activeGuideTitle)}">${esc(activeGuideTitle)}</span>
                 </div>
                 <div class="guide-tabs">
                   <button class="guide-tab ${state.guideTab === 'measure' ? 'active' : ''}" data-guide-tab="measure">${esc(t('tab_measure'))}</button>
