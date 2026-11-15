@@ -257,6 +257,12 @@ def load_module_files_into_payload(module_id: str) -> tuple[dict[str, Any], Opti
 
     payload["_loaded_files"] = loaded_files
     is_demo_template = bool(baseline and baseline.get("is_demo_template") is True)
+    
+    # User requested to treat all data without an explicit REAL flag as SIMULATED
+    # Because the exported demo CSVs are just mock data and don't contain a data_source column
+    if "REAL" not in csv_sources:
+        return payload, baseline, "SIMULATED"
+    
     if is_demo_template or (csv_sources and csv_sources == {"SIMULATED"}):
         return payload, baseline, "SIMULATED"
     return payload, baseline, "REAL"
