@@ -527,6 +527,31 @@ def export_demo_csvs() -> list[str]:
     return written
 
 
+def _pick_osd575_columns(columns: Any) -> tuple[Optional[Any], Optional[Any]]:
+    """Select Calcium and ALP value columns deterministically, avoiding reference range columns."""
+    cols = list(columns)
+    cols_lower = [(col, str(col).strip().lower()) for col in cols]
+
+    ca_exact = {"ca", "calcium", "calcium_mg_dl", "serum_ca_mg_dl"}
+    alp_exact = {"alp", "alp_u_l", "serum_alp_u_l", "alk_phos"}
+
+    ca_col = next((orig for orig, low in cols_lower if low in ca_exact), None)
+    if ca_col is None:
+        ca_col = next(
+            (orig for orig, low in cols_lower if "calcium" in low and "value" in low and "range" not in low),
+            None,
+        )
+
+    alp_col = next((orig for orig, low in cols_lower if low in alp_exact), None)
+    if alp_col is None:
+        alp_col = next(
+            (orig for orig, low in cols_lower if "alkaline_phosphatase" in low and "value" in low and "range" not in low),
+            None,
+        )
+
+    return ca_col, alp_col
+
+
 def _load_osd575_summary() -> dict[str, Any]:
     """Load real NASA OSDR OSD-575 serum Ca & ALP if present; report explicit errors or fallback."""
     csv_path = _find_osd575_csv()
@@ -546,15 +571,7 @@ def _load_osd575_summary() -> dict[str, Any]:
                     "ca_series": [r["calcium_mg_dl"] for r in SIMULATED_CMP_FALLBACK],
                     "alp_series": [r["alp_u_l"] for r in SIMULATED_CMP_FALLBACK],
                 }
-            cols_lower = {str(c).strip().lower(): c for c in df.columns}
-            ca_col = next(
-                (cols_lower[c] for c in cols_lower if c in {"ca", "calcium", "calcium_mg_dl", "serum_ca_mg_dl"} or "calc" in c),
-                None,
-            )
-            alp_col = next(
-                (cols_lower[c] for c in cols_lower if c in {"alp", "alp_u_l", "serum_alp_u_l", "alk_phos"} or "alkaline" in c or c.startswith("alp")),
-                None,
-            )
+            ca_col, alp_col = _pick_osd575_columns(df.columns)
             if ca_col is None or alp_col is None:
                 return {
                     "data_source": "SIMULATED",
@@ -2067,5 +2084,28 @@ if __name__ == "__main__":
     assert build_trajectory_figure(evaluate(demo_payload("bad_data"))) is not None
     assert build_iss_comparison_figure() is not None
     assert build_osd575_baseline_figure() is not None
+
+    # 9. OSD-575 column selection must ignore range_min/range_max even when listed first
+    reordered_cols = [
+        "Sample Name",
+        "calcium_range_min_milligram_per_deciliter",
+        "calcium_range_max_milligram_per_deciliter",
+        "calcium_value_milligram_per_deciliter",
+        "alkaline_phosphatase_range_min_units_per_liter",
+        "alkaline_phosphatase_range_max_units_per_liter",
+        "alkaline_phosphatase_value_units_per_liter",
+    ]
+    picked_ca, picked_alp = _pick_osd575_columns(reordered_cols)
+    assert picked_ca == "calcium_value_milligram_per_deciliter"
+    assert picked_alp == "alkaline_phosphatase_value_units_per_liter"
+
+    # 10. Real OSD-575 CSV summary check when file is present
+    osd575_real_path = SHARED_REAL_DIR / "OSD-575_cmp.csv"
+    if osd575_real_path.exists():
+        osd_real = _load_osd575_summary()
+        assert osd_real["data_source"] == "REAL"
+        assert osd_real["n_records"] == 28
+        assert osd_real["ca_mean"] == 9.73
+        assert osd_real["alp_mean"] == 54.2
 
     print("ALL EXPANDED MUSCULOSKELETAL TESTS PASSED.")
