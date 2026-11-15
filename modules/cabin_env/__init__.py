@@ -32,6 +32,12 @@ from modules.cabin_env.demo_data import (
     demo_payload,
     export_demo_csvs,
 )
+from modules.cabin_env.isolation import (
+    _eval_iso01,
+    _eval_iso02,
+    _eval_iso03,
+    _eval_iso04,
+)
 from modules.cabin_env.measurement_rules import (
     AUDIO_FREQS_HZ,
     CARD_IDS,
@@ -90,4 +96,8 @@ __all__ = [
     "_eval_atm05",
     "_eval_atm06",
     "_eval_atm07",
+    "_eval_iso01",
+    "_eval_iso02",
+    "_eval_iso03",
+    "_eval_iso04",
 ]
