@@ -945,7 +945,8 @@ def _evaluate_loss_metric(
     sample_key: str,
     horizon_days: int = 30,
     action_nominal: str,
-    action_abnormal: str,
+    action_yellow: str,
+    action_red: str,
 ) -> tuple[dict[str, Any], Optional[int]]:
     """3-Layer evaluation for metrics where loss below baseline is worse.
 
@@ -1016,7 +1017,11 @@ def _evaluate_loss_metric(
             f"Yellow -{yellow_loss_pct:.0f}%, Red -{red_loss_pct:.0f}%)."
             + (f" Trend predicts RED in ~{days_to_red}d." if l3_status == "YELLOW" and days_to_red else "")
         ),
-        "action": action_abnormal if final_status != "GREEN" else action_nominal,
+        "action": (
+            action_red
+            if final_status == "RED"
+            else (action_yellow if final_status == "YELLOW" else action_nominal)
+        ),
     }
     return item, days_to_red
 
@@ -1097,9 +1102,13 @@ def _evaluate_resorption_marker(
             + (f" Trend predicts RED in ~{days_to_red}d." if l3_status == "YELLOW" and days_to_red else "")
         ),
         "action": (
-            "Increase axial E4D resistance load +5%, verify Vitamin D3 (800-1000 IU/d target) & Ca intake."
-            if final_status != "GREEN"
-            else "Bone resorption marker within nominal limits."
+            GUIDANCE_GROUPS["bone_metabolism"]["actions"]["red"]
+            if final_status == "RED"
+            else (
+                GUIDANCE_GROUPS["bone_metabolism"]["actions"]["yellow"]
+                if final_status == "YELLOW"
+                else "Bone resorption marker within nominal limits."
+            )
         ),
     }
     return item, days_to_red
@@ -1255,7 +1264,8 @@ def evaluate(
         sample_key="iso_peak_force_n",
         horizon_days=30,
         action_nominal="Follow current prescription.",
-        action_abnormal=GUIDANCE_GROUPS["training"]["actions"]["red"],
+        action_yellow=GUIDANCE_GROUPS["training"]["actions"]["yellow"],
+        action_red=GUIDANCE_GROUPS["training"]["actions"]["red"],
     )
     metrics.append(iso_metric)
     clinical_statuses.append(iso_metric["status_light"])
@@ -1309,7 +1319,8 @@ def evaluate(
         sample_key="csa_thigh_cm2",
         horizon_days=30,
         action_nominal="Thigh quadriceps/hamstring cross-sectional area preserved.",
-        action_abnormal="Add +5% E4D squat/deadlift load & extra posterior-chain set every 48h.",
+        action_yellow=GUIDANCE_GROUPS["csa"]["actions"]["yellow"],
+        action_red=GUIDANCE_GROUPS["csa"]["actions"]["red"],
     )
     metrics.append(thigh_metric)
     clinical_statuses.append(thigh_metric["status_light"])
@@ -1332,7 +1343,8 @@ def evaluate(
         sample_key="csa_calf_cm2",
         horizon_days=30,
         action_nominal="Calf soleus/gastrocnemius CSA preserved.",
-        action_abnormal="Add unilateral heavy E4D calf raises (4x10) & eccentric lowering.",
+        action_yellow=GUIDANCE_GROUPS["csa"]["actions"]["yellow"],
+        action_red=GUIDANCE_GROUPS["csa"]["actions"]["red"],
     )
     metrics.append(calf_metric)
     clinical_statuses.append(calf_metric["status_light"])
@@ -1355,7 +1367,8 @@ def evaluate(
         sample_key="body_mass_kg",
         horizon_days=30,
         action_nominal="SLAMMD body mass & caloric balance on target.",
-        action_abnormal="Increase daily caloric ration (+350 kcal/d operational target) & protein (1.4-1.7 g/kg/d).",
+        action_yellow=GUIDANCE_GROUPS["body_mass"]["actions"]["yellow"],
+        action_red=GUIDANCE_GROUPS["body_mass"]["actions"]["red"],
     )
     metrics.append(mass_metric)
     clinical_statuses.append(mass_metric["status_light"])
@@ -1522,6 +1535,7 @@ def evaluate(
     urgent_escalation = (iso_loss_pct > 20.0) or (mass_loss_pct > 10.0)
 
     training_worst = _worst([s_bone_status, iso_metric["status_light"], vbt_status])
+    training_stimulus_worst = _worst([s_bone_status, iso_metric["status_light"]])
     csa_worst = _worst([thigh_metric["status_light"], calf_metric["status_light"]])
     mass_status = mass_metric["status_light"]
     bone_worst = _worst([ntx_metric["status_light"], ctx_metric["status_light"], bone_rate_status])
@@ -1562,7 +1576,10 @@ def evaluate(
     if vbt_status == "RED":
         immediate_actions.append(GUIDANCE_GROUPS["training"]["actions"]["vbt_over_30"])
     if overall == "RED":
-        immediate_actions.append(GUIDANCE_GROUPS["training"]["actions"]["red"])
+        if training_stimulus_worst == "RED":
+            immediate_actions.append(GUIDANCE_GROUPS["training"]["actions"]["red"])
+        elif training_stimulus_worst == "YELLOW" or vbt_loss < 20.0:
+            immediate_actions.append(GUIDANCE_GROUPS["training"]["actions"]["yellow"])
         if csa_worst == "RED":
             immediate_actions.append(GUIDANCE_GROUPS["csa"]["actions"]["red"])
         elif csa_worst == "YELLOW":
@@ -1576,7 +1593,7 @@ def evaluate(
         elif bone_worst == "YELLOW":
             immediate_actions.append(GUIDANCE_GROUPS["bone_metabolism"]["actions"]["yellow"])
     elif overall == "YELLOW":
-        if training_worst == "YELLOW" or vbt_status == "YELLOW":
+        if training_stimulus_worst == "YELLOW" or vbt_loss < 20.0:
             immediate_actions.append(GUIDANCE_GROUPS["training"]["actions"]["yellow"])
         if csa_worst in {"YELLOW", "RED"}:
             immediate_actions.append(GUIDANCE_GROUPS["csa"]["actions"]["yellow"])
@@ -1632,10 +1649,10 @@ def evaluate(
                         )
                         + (
                             [GUIDANCE_GROUPS["training"]["actions"]["red"]]
-                            if overall == "RED"
+                            if training_stimulus_worst == "RED"
                             else (
                                 [GUIDANCE_GROUPS["training"]["actions"]["yellow"]]
-                                if training_worst == "YELLOW"
+                                if (training_stimulus_worst == "YELLOW" or vbt_loss < 20.0)
                                 else []
                             )
                         )
@@ -1964,6 +1981,27 @@ if __name__ == "__main__":
             f"qc={str(validated.quality_passed):5s} | next={validated.short_term_plan.next_measurement_in_hours:3d}h | "
             f"urgent={str(validated.short_term_plan.urgent_alert):5s} | {raw['summary_note']}"
         )
+
+    # 1b. Isolated body mass RED on green training: overall RED + urgent, body_mass red action, NO +5% load increase
+    mass_only_pay = demo_payload("green")
+    mass_only_pay["body_mass_kg"] = 66.0
+    mass_only_pay.pop("history_days", None)
+    mass_only_pay.pop("history_series", None)
+    mass_only_raw = evaluate(mass_only_pay)
+    mass_only_res = to_schema(mass_only_raw)
+    assert mass_only_res.status_light == "RED"
+    assert mass_only_res.short_term_plan.urgent_alert is True
+    assert GUIDANCE_GROUPS["body_mass"]["actions"]["red"] in mass_only_res.guidance.action_protocol
+    assert GUIDANCE_GROUPS["training"]["actions"]["red"] not in mass_only_res.guidance.action_protocol
+    assert GUIDANCE_GROUPS["training"]["actions"]["red"] not in mass_only_raw["guidance"]["groups"]["training"]["action_protocol"]
+
+    # 1c. Yellow scenario metric-level action texts must come from GUIDANCE_GROUPS (no legacy phrases)
+    yellow_raw = evaluate(demo_payload("yellow"))
+    forbidden_legacy = ("+5%", "increase", "48h", "4x10", "350 kcal", "1.4-1.7", "800-1000")
+    for m in yellow_raw["metrics"]:
+        act_lower = str(m.get("action", "")).lower()
+        for bad_tok in forbidden_legacy:
+            assert bad_tok not in act_lower, f"Legacy token '{bad_tok}' found in {m['metric_name']} action: {m['action']}"
 
     # 2. Partial payloads & None/NaN history tests
     empty_res = to_schema(evaluate({}))
